@@ -1,0 +1,33 @@
+@import "leaflet/dist/leaflet.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  background: #050505;
+}
+
+body {
+  color: #f2f2f2;
+  background: #050505;
+  font-family: var(--font-inter), sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  text-decoration: none;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-bebas-neue), sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #111111;
+  filter: grayscale(100%) invert(100%) brightness(72%) contrast(118%);
+}
