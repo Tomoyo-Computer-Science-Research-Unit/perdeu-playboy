@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const pages = ["/dashboard", "/trends", "/map", "/rankings", "/changes", "/governors", "/sources", "/methodology"];
+const pages = ["/dashboard", "/trends", "/map", "/rankings", "/changes", "/governors", "/sources", "/glossary", "/methodology"];
 
 test.describe("static pages", () => {
   for (const path of pages) {
@@ -27,7 +27,14 @@ test.describe("static pages", () => {
 test("map accepts permalink filters", async ({ page }) => {
   await page.goto("/map?indicator=crime_geral&mode=rate&period=2024-12&view=rio_city");
   await expect(page.locator("body")).toBeVisible();
-  await expect(page.locator("select").first()).toHaveValue("crime_geral");
+  await expect(page.getByLabel("Indicador")).toHaveValue("crime_geral");
   await expect(page.locator("text=12/2024")).toBeVisible();
   await expect(page.locator("text=Bairros:")).toBeVisible();
+});
+
+test("map handles Sao Paulo while snapshot is pending", async ({ page }) => {
+  await page.goto("/map?uf=SP");
+  await expect(page.getByLabel("Selecionar UF")).toHaveValue("SP");
+  await expect(page.locator("text=SP em integracao")).toBeVisible();
+  await expect(page.locator("text=Falha ao carregar mapa")).toHaveCount(0);
 });

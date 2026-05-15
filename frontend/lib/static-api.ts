@@ -170,7 +170,8 @@ export async function getRankings(
       value,
       rate_per_100k: territoryType === "municipality" ? ratePer100k(value, DATA.population_by_municipality[name]) : null,
       yoy_absolute_change: diff,
-      yoy_percent_change: previous ? round1((diff / previous) * 100) : null
+      yoy_percent_change: previous ? round1((diff / previous) * 100) : null,
+      ...trendFor(previous, value, diff)
     };
   });
 
@@ -508,6 +509,23 @@ function rankingValue(row: RankingRow, mode: RankingMode): number {
     return row.yoy_percent_change ?? Number.NEGATIVE_INFINITY;
   }
   return row.value;
+}
+
+function trendFor(previous: number, current: number, diff: number): Pick<RankingRow, "trend_status" | "trend_label"> {
+  if (previous < 10 && current < 10) {
+    return { trend_status: "inconclusive", trend_label: "Inconclusivo" };
+  }
+  if (previous <= 0) {
+    return { trend_status: "inconclusive", trend_label: "Inconclusivo" };
+  }
+  const percent = (diff / previous) * 100;
+  if (percent >= 10 && diff >= 3) {
+    return { trend_status: "worse", trend_label: "Piorando" };
+  }
+  if (percent <= -10 && diff <= -3) {
+    return { trend_status: "better", trend_label: "Melhorando" };
+  }
+  return { trend_status: "stable", trend_label: "Estável" };
 }
 
 function round1(value: number): number {

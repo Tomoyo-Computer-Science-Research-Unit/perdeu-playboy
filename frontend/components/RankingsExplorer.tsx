@@ -5,17 +5,24 @@ import { RankingTable } from "@/components/RankingTable";
 import { ANALYSIS_START_YEAR } from "@/lib/constants";
 import type { Indicator, RankingMode, RankingRow } from "@/types/api";
 
-type RankingTerritoryType = "municipality" | "police_area";
 type SortKey = "value" | "variation";
 type SortDirection = "asc" | "desc";
 
-export function RankingsExplorer({ indicators, initialRows }: { indicators: Indicator[]; initialRows: RankingRow[] }) {
+export function RankingsExplorer({
+  indicators,
+  initialMunicipalityRows,
+  initialPoliceAreaRows
+}: {
+  indicators: Indicator[];
+  initialMunicipalityRows: RankingRow[];
+  initialPoliceAreaRows: RankingRow[];
+}) {
   const [indicator, setIndicator] = useState("letalidade_violenta");
-  const [territoryType, setTerritoryType] = useState<RankingTerritoryType>("municipality");
   const [mode, setMode] = useState<RankingMode>("count");
   const [year, setYear] = useState(2026);
   const [month, setMonth] = useState(3);
-  const [rows, setRows] = useState(initialRows);
+  const [municipalityRows, setMunicipalityRows] = useState(initialMunicipalityRows);
+  const [policeAreaRows, setPoliceAreaRows] = useState(initialPoliceAreaRows);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [loading, setLoading] = useState(false);
@@ -32,9 +39,13 @@ export function RankingsExplorer({ indicators, initialRows }: { indicators: Indi
       setLoading(true);
       setError(null);
       const { getRankings } = await import("@/lib/api");
-      const nextRows = await getRankings(indicator, mode, territoryType, year, month);
+      const [nextMunicipalityRows, nextPoliceAreaRows] = await Promise.all([
+        getRankings(indicator, mode, "municipality", year, month),
+        getRankings(indicator, mode, "police_area", year, month)
+      ]);
       if (!cancelled) {
-        setRows(sortKey ? sortRows(nextRows, sortKey, sortDirection) : nextRows);
+        setMunicipalityRows(sortKey ? sortRows(nextMunicipalityRows, sortKey, sortDirection) : nextMunicipalityRows);
+        setPoliceAreaRows(sortKey ? sortRows(nextPoliceAreaRows, sortKey, sortDirection) : nextPoliceAreaRows);
       }
     }
     loadRankings()
@@ -47,18 +58,19 @@ export function RankingsExplorer({ indicators, initialRows }: { indicators: Indi
     return () => {
       cancelled = true;
     };
-  }, [indicator, territoryType, mode, year, month, sortKey, sortDirection]);
+  }, [indicator, mode, year, month, sortKey, sortDirection]);
 
   function handleSort(nextKey: SortKey) {
     const nextDirection = sortKey === nextKey && sortDirection === "desc" ? "asc" : "desc";
     setSortKey(nextKey);
     setSortDirection(nextDirection);
-    setRows((currentRows) => sortRows(currentRows, nextKey, nextDirection));
+    setMunicipalityRows((currentRows) => sortRows(currentRows, nextKey, nextDirection));
+    setPoliceAreaRows((currentRows) => sortRows(currentRows, nextKey, nextDirection));
   }
 
   return (
     <div className="grid gap-6">
-      <section className="grid gap-4 border border-border bg-surface p-5 shadow-hard md:grid-cols-5">
+      <section className="grid gap-4 border border-border bg-surface p-5 shadow-hard md:grid-cols-4">
         <label className="grid gap-2 font-mono text-xs font-bold uppercase tracking-widest text-muted min-w-0">
           Indicador
           <select className="h-10 border border-border bg-surface px-3 text-sm text-foreground" value={indicator} onChange={(event) => setIndicator(event.target.value)}>
@@ -67,13 +79,6 @@ export function RankingsExplorer({ indicators, initialRows }: { indicators: Indi
                 {item.code === "letalidade_violenta" ? "LETALIDADE GERAL" : item.name.toUpperCase()}
               </option>
             ))}
-          </select>
-        </label>
-        <label className="grid gap-2 font-mono text-xs font-bold uppercase tracking-widest text-muted min-w-0">
-          Território
-          <select className="h-10 border border-border bg-surface px-3 text-sm text-foreground" value={territoryType} onChange={(event) => setTerritoryType(event.target.value as RankingTerritoryType)}>
-            <option value="municipality">MUNICÍPIO</option>
-            <option value="police_area">ÁREA POLICIAL</option>
           </select>
         </label>
         <label className="grid gap-2 font-mono text-xs font-bold uppercase tracking-widest text-muted min-w-0">
@@ -102,11 +107,23 @@ export function RankingsExplorer({ indicators, initialRows }: { indicators: Indi
       </section>
 
       <div className="flex min-h-6 items-center justify-between gap-4 font-mono text-xs uppercase tracking-widest text-muted">
-        <span>{loading ? "Carregando ranking oficial do ISP..." : `${rows.length} territórios`}</span>
+        <span>{loading ? "Carregando ranking oficial do ISP..." : `${municipalityRows.length} municípios / ${policeAreaRows.length} CISPs`}</span>
         {error ? <span className="text-accent-red">{error}</span> : null}
       </div>
 
-      <RankingTable rows={rows} sortKey={sortKey ?? undefined} sortDirection={sortDirection} onSort={handleSort} />
+      <section className="grid gap-4">
+        <div className="border-l-4 border-border pl-4">
+          <h3 className="m-0 text-3xl font-display uppercase leading-none text-foreground">Municípios</h3>
+        </div>
+        <RankingTable rows={municipalityRows} sortKey={sortKey ?? undefined} sortDirection={sortDirection} onSort={handleSort} />
+      </section>
+
+      <section className="grid gap-4">
+        <div className="border-l-4 border-border pl-4">
+          <h3 className="m-0 text-3xl font-display uppercase leading-none text-foreground">CISPs / Áreas policiais</h3>
+        </div>
+        <RankingTable rows={policeAreaRows} sortKey={sortKey ?? undefined} sortDirection={sortDirection} onSort={handleSort} />
+      </section>
     </div>
   );
 }

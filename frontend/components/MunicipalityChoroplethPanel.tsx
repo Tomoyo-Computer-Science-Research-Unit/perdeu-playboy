@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { enabledUf, type UfCode } from "@/lib/ufs";
 import type { GeoFeatureCollection, Indicator, RankingMode } from "@/types/api";
 
 type Geometry = GeoJSON.Geometry;
@@ -11,6 +12,7 @@ type MapInitialState = {
   mode: RankingMode;
   view: MapView;
   periodIndex: number;
+  uf: UfCode;
 };
 
 function formatNumber(value: unknown) {
@@ -93,12 +95,13 @@ function periodsFrom(startYear: number, latestYear: number, latestMonth: number)
 
 function initialMapState(periods: Array<{ year: number; month: number }>): MapInitialState {
   if (typeof window === "undefined") {
-    return { indicator: "letalidade_violenta", mode: "count", view: "state", periodIndex: periods.length - 1 };
+    return { indicator: "letalidade_violenta", mode: "count", view: "state", periodIndex: periods.length - 1, uf: "RJ" };
   }
   const params = new URLSearchParams(window.location.search);
   const indicator = params.get("indicator") || "letalidade_violenta";
   const mode = params.get("mode") as RankingMode | null;
   const view = params.get("view") === "rio_city" ? "rio_city" : "state";
+  const uf = enabledUf(params.get("uf") ?? window.localStorage.getItem("selected_uf"));
   const period = params.get("period") || "";
   const [year, month] = period.split("-").map(Number);
   const startYear = viewStartYear(view);
@@ -108,7 +111,8 @@ function initialMapState(periods: Array<{ year: number; month: number }>): MapIn
     indicator,
     mode: indicator === "crime_geral" ? "rate" : mode === "rate" || mode === "yoy" || mode === "count" ? mode : "count",
     view,
-    periodIndex: periodIndex >= 0 ? periodIndex : fallbackIndex >= 0 ? fallbackIndex : periods.length - 1
+    periodIndex: periodIndex >= 0 ? periodIndex : fallbackIndex >= 0 ? fallbackIndex : periods.length - 1,
+    uf
   };
 }
 
@@ -129,6 +133,7 @@ export function MunicipalityChoroplethPanel({
   const [mode, setMode] = useState<RankingMode>(initialState.mode);
   const [periodIndex, setPeriodIndex] = useState(initialState.periodIndex);
   const [view, setView] = useState<MapView>(initialState.view);
+  const [uf, setUf] = useState<UfCode>(initialState.uf);
   const visiblePeriods = useMemo(() => periodsFrom(viewStartYear(view), latestYear, latestMonth), [latestMonth, latestYear, view]);
   const [data, setData] = useState(initialData);
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
@@ -138,9 +143,13 @@ export function MunicipalityChoroplethPanel({
 
   const bbox = useMemo<[number, number, number, number]>(() => {
     const coordinates = data.features.flatMap((feature) => collectCoordinates(feature.geometry));
+    if (coordinates.length === 0) {
+      return [-44.9, -23.4, -40.7, -20.7];
+    }
     const lons = coordinates.map(([lon]) => lon);
     const lats = coordinates.map(([, lat]) => lat);
-    return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
+    const nextBbox: [number, number, number, number] = [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
+    return nextBbox.every(Number.isFinite) ? nextBbox : [-44.9, -23.4, -40.7, -20.7];
   }, [data]);
 
   const maxMetric = useMemo(() => {
@@ -151,9 +160,26 @@ export function MunicipalityChoroplethPanel({
   }, [data]);
 
   useEffect(() => {
-    void loadMap(view, periodIndex, indicator, mode);
+    if (uf === "RJ") {
+      void loadMap(view, periodIndex, indicator, mode, uf);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    function handleUfChange(event: Event) {
+      const detail = (event as CustomEvent<{ uf?: string }>).detail;
+      const nextUf = enabledUf(detail?.uf);
+      setUf(nextUf);
+      setSelected(null);
+      setError(null);
+      if (nextUf === "RJ") {
+        void loadMap(view, periodIndex, indicator, mode, nextUf);
+      }
+    }
+    window.addEventListener("ufchange", handleUfChange);
+    return () => window.removeEventListener("ufchange", handleUfChange);
+  }, [indicator, mode, periodIndex, view]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -164,14 +190,20 @@ export function MunicipalityChoroplethPanel({
     }
     const period = periods[periodIndex] ?? periods[periods.length - 1];
     const params = new URLSearchParams();
+    params.set("uf", uf);
     params.set("indicator", indicator);
     params.set("mode", indicator === "crime_geral" ? "rate" : mode);
     params.set("period", `${period.year}-${String(period.month).padStart(2, "0")}`);
     params.set("view", view);
     window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
-  }, [indicator, mode, periodIndex, periods, view]);
+  }, [indicator, mode, periodIndex, periods, uf, view]);
 
-  async function loadMap(nextView = view, nextPeriodIndex = periodIndex, nextIndicator = indicator, nextMode = mode) {
+  async function loadMap(nextView = view, nextPeriodIndex = periodIndex, nextIndicator = indicator, nextMode = mode, nextUf = uf) {
+    if (nextUf !== "RJ") {
+      setLoading(false);
+      setError(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -199,8 +231,11 @@ export function MunicipalityChoroplethPanel({
   }
 
   function openRioCity() {
+    if (uf !== "RJ") {
+      return;
+    }
     setView("rio_city");
-    void loadMap("rio_city", periodIndex, indicator, mode);
+    void loadMap("rio_city", periodIndex, indicator, mode, uf);
   }
 
   function backToState() {
@@ -209,32 +244,32 @@ export function MunicipalityChoroplethPanel({
     if (period && period.year < 2014) {
       const stateIndex = periods.findIndex((item) => item.year === 2014 && item.month === 1);
       setPeriodIndex(stateIndex);
-      void loadMap("state", stateIndex, indicator, mode);
+      void loadMap("state", stateIndex, indicator, mode, uf);
       return;
     }
-    void loadMap("state", periodIndex, indicator, mode);
+    void loadMap("state", periodIndex, indicator, mode, uf);
   }
 
   function changePeriod(nextVisibleIndex: number) {
     const period = visiblePeriods[nextVisibleIndex] ?? visiblePeriods[visiblePeriods.length - 1];
     const nextPeriodIndex = periods.findIndex((item) => item.year === period.year && item.month === period.month);
     setPeriodIndex(nextPeriodIndex);
-    void loadMap(view, nextPeriodIndex, indicator, mode);
+    void loadMap(view, nextPeriodIndex, indicator, mode, uf);
   }
 
   function changeIndicator(nextIndicator: MapIndicator) {
     setIndicator(nextIndicator);
     if (nextIndicator === "crime_geral") {
       setMode("rate");
-      void loadMap(view, periodIndex, nextIndicator, "rate");
+      void loadMap(view, periodIndex, nextIndicator, "rate", uf);
       return;
     }
-    void loadMap(view, periodIndex, nextIndicator, mode);
+    void loadMap(view, periodIndex, nextIndicator, mode, uf);
   }
 
   function changeMode(nextMode: RankingMode) {
     setMode(nextMode);
-    void loadMap(view, periodIndex, indicator, nextMode);
+    void loadMap(view, periodIndex, indicator, nextMode, uf);
   }
 
   const selectedPeriod = periods[periodIndex] ?? periods[periods.length - 1];
@@ -287,6 +322,25 @@ export function MunicipalityChoroplethPanel({
         </div>
       </div>
 
+      {uf === "SP" ? (
+        <div className="border border-border bg-surface p-6 shadow-hard">
+          <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">SP em integracao</p>
+          <h3 className="mt-2 text-3xl font-display uppercase leading-none text-foreground">Sao Paulo ainda nao tem snapshot compilado</h3>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted">
+            A estrutura multi-UF ja esta preparada. Para SP, vamos integrar dados oficiais da SSP-SP/Numeros Sem Misterio e, quando necessario, Sinesp/MJSP para cobertura comparavel por municipio. Enquanto o snapshot nao for gerado, o app nao exibe numeros substitutos.
+          </p>
+          <div className="mt-5 grid gap-3 font-mono text-xs uppercase tracking-wide text-muted md:grid-cols-2">
+            <a className="border border-border p-3 text-foreground hover:border-foreground" href="https://dadosabertos.sp.gov.br/dataset/numeros-sem-misterio">
+              Dados Abertos SP - Numeros Sem Misterio
+            </a>
+            <a className="border border-border p-3 text-foreground hover:border-foreground" href="https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica">
+              Sinesp/MJSP - ocorrencias criminais
+            </a>
+          </div>
+        </div>
+      ) : null}
+
+      {uf === "RJ" ? (
       <div className="overflow-hidden border border-border bg-surface p-4 shadow-hard">
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
           <svg viewBox="0 0 1000 680" role="img" aria-label={view === "rio_city" ? "Mapa da cidade do Rio de Janeiro por bairros" : "Mapa do estado do Rio de Janeiro por municípios"} className="h-[420px] w-full sm:h-[560px] lg:h-[680px]">
@@ -362,7 +416,9 @@ export function MunicipalityChoroplethPanel({
           </aside>
         </div>
       </div>
+      ) : null}
 
+      {uf === "RJ" ? (
       <div className="border border-border bg-surface p-5 shadow-hard">
         <div className="flex items-center justify-between gap-4 font-mono text-xs font-bold uppercase tracking-widest text-muted">
           <span>{startYear}</span>
@@ -379,6 +435,7 @@ export function MunicipalityChoroplethPanel({
           onChange={(event) => changePeriod(Number(event.target.value))}
         />
       </div>
+      ) : null}
     </section>
   );
 }

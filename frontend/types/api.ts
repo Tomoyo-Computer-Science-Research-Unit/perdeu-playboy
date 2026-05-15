@@ -54,6 +54,8 @@ export interface RankingRow {
   rate_per_100k: number | null;
   yoy_absolute_change: number | null;
   yoy_percent_change: number | null;
+  trend_status?: "worse" | "better" | "stable" | "inconclusive";
+  trend_label?: string;
 }
 
 export interface GovernorPerformanceRow {

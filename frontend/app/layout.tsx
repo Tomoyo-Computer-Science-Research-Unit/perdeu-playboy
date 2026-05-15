@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Roboto_Mono, Bebas_Neue } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
+import { UfSelector } from "@/components/UfSelector";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -56,6 +57,7 @@ const navItems = [
   { href: "/changes", label: "Mudanças" },
   { href: "/governors", label: "Governadores" },
   { href: "/sources", label: "Fontes" },
+  { href: "/glossary", label: "Glossário" },
   { href: "/methodology", label: "Metodologia" }
 ];
 
@@ -76,13 +78,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               />
               <h1 className="text-3xl font-display text-foreground m-0 leading-none sm:text-4xl">Perdeu, Playboy</h1>
             </Link>
-            <nav className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1 pb-1 font-mono text-[11px] uppercase tracking-wider text-muted sm:flex-wrap sm:text-xs">
-              {navItems.map((item) => (
-                <Link key={item.href} href={item.href} className="shrink-0 px-3 py-2 border border-transparent hover:border-border hover:bg-background hover:text-foreground transition-all">
-                  [{item.label}]
-                </Link>
-              ))}
-            </nav>
+            <div className="flex flex-col gap-3 md:items-end">
+              <UfSelector />
+              <nav className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1 pb-1 font-mono text-[11px] uppercase tracking-wider text-muted sm:flex-wrap sm:text-xs md:justify-end">
+                {navItems.map((item) => (
+                  <Link key={item.href} href={item.href} className="shrink-0 px-3 py-2 border border-transparent hover:border-border hover:bg-background hover:text-foreground transition-all">
+                    [{item.label}]
+                  </Link>
+                ))}
+              </nav>
+            </div>
           </div>
         </header>
         <main className="mx-auto max-w-7xl px-4 py-7 md:py-12">{children}</main>
