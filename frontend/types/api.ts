@@ -139,3 +139,25 @@ export interface GeoFeatureCollection {
     properties: Record<string, unknown>;
   }>;
 }
+
+export interface ChangeRow {
+  rank: number;
+  territory_name: string;
+  territory_type: TerritoryType;
+  current_value: number;
+  previous_value: number;
+  absolute_change: number;
+  percent_change: number | null;
+}
+
+export interface ChangeSection {
+  title: string;
+  territory_type: TerritoryType;
+  direction: "increase" | "decrease";
+  rows: ChangeRow[];
+}
+
+export interface LatestChangesResponse {
+  latest_period: SnapshotMeta["latest_period"];
+  sections: ChangeSection[];
+}

@@ -1,11 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { GeoFeatureCollection, Indicator, RankingMode } from "@/types/api";
 
 type Geometry = GeoJSON.Geometry;
 type MapView = "state" | "rio_city";
 type MapIndicator = string | "crime_geral";
+type MapInitialState = {
+  indicator: MapIndicator;
+  mode: RankingMode;
+  view: MapView;
+  periodIndex: number;
+};
 
 function formatNumber(value: unknown) {
   const number = Number(value ?? 0);
@@ -85,6 +91,27 @@ function periodsFrom(startYear: number, latestYear: number, latestMonth: number)
   return periods;
 }
 
+function initialMapState(periods: Array<{ year: number; month: number }>): MapInitialState {
+  if (typeof window === "undefined") {
+    return { indicator: "letalidade_violenta", mode: "count", view: "state", periodIndex: periods.length - 1 };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const indicator = params.get("indicator") || "letalidade_violenta";
+  const mode = params.get("mode") as RankingMode | null;
+  const view = params.get("view") === "rio_city" ? "rio_city" : "state";
+  const period = params.get("period") || "";
+  const [year, month] = period.split("-").map(Number);
+  const startYear = viewStartYear(view);
+  const periodIndex = year >= startYear ? periods.findIndex((item) => item.year === year && item.month === month) : -1;
+  const fallbackIndex = periods.findIndex((item) => item.year === startYear && item.month === 1);
+  return {
+    indicator,
+    mode: indicator === "crime_geral" ? "rate" : mode === "rate" || mode === "yoy" || mode === "count" ? mode : "count",
+    view,
+    periodIndex: periodIndex >= 0 ? periodIndex : fallbackIndex >= 0 ? fallbackIndex : periods.length - 1
+  };
+}
+
 export function MunicipalityChoroplethPanel({
   indicators,
   initialData,
@@ -97,15 +124,17 @@ export function MunicipalityChoroplethPanel({
   latestMonth: number;
 }) {
   const periods = useMemo(() => periodsUntil(latestYear, latestMonth), [latestMonth, latestYear]);
-  const [indicator, setIndicator] = useState<MapIndicator>("letalidade_violenta");
-  const [mode, setMode] = useState<RankingMode>("count");
-  const [periodIndex, setPeriodIndex] = useState(periods.length - 1);
-  const [view, setView] = useState<MapView>("state");
+  const initialState = useMemo(() => initialMapState(periods), [periods]);
+  const [indicator, setIndicator] = useState<MapIndicator>(initialState.indicator);
+  const [mode, setMode] = useState<RankingMode>(initialState.mode);
+  const [periodIndex, setPeriodIndex] = useState(initialState.periodIndex);
+  const [view, setView] = useState<MapView>(initialState.view);
   const visiblePeriods = useMemo(() => periodsFrom(viewStartYear(view), latestYear, latestMonth), [latestMonth, latestYear, view]);
   const [data, setData] = useState(initialData);
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const firstUrlSync = useRef(true);
 
   const bbox = useMemo<[number, number, number, number]>(() => {
     const coordinates = data.features.flatMap((feature) => collectCoordinates(feature.geometry));
@@ -120,6 +149,27 @@ export function MunicipalityChoroplethPanel({
       ...data.features.map((feature) => Math.max(0, Number(feature.properties.metric_value ?? 0)))
     );
   }, [data]);
+
+  useEffect(() => {
+    void loadMap(view, periodIndex, indicator, mode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    if (firstUrlSync.current) {
+      firstUrlSync.current = false;
+    }
+    const period = periods[periodIndex] ?? periods[periods.length - 1];
+    const params = new URLSearchParams();
+    params.set("indicator", indicator);
+    params.set("mode", indicator === "crime_geral" ? "rate" : mode);
+    params.set("period", `${period.year}-${String(period.month).padStart(2, "0")}`);
+    params.set("view", view);
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+  }, [indicator, mode, periodIndex, periods, view]);
 
   async function loadMap(nextView = view, nextPeriodIndex = periodIndex, nextIndicator = indicator, nextMode = mode) {
     setLoading(true);

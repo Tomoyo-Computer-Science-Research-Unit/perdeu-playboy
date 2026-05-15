@@ -1,6 +1,8 @@
 "use client";
 
 import { CalendarDays } from "lucide-react";
+import { CoverageNotice } from "@/components/CoverageNotice";
+import { MethodologyDrawer } from "@/components/MethodologyDrawer";
 import { useEffect, useRef, useState } from "react";
 import { MetricCard } from "@/components/MetricCard";
 import { SourceBadge } from "@/components/SourceBadge";
@@ -167,6 +169,18 @@ export function DashboardExplorer({
 
       </section>
 
+      <CoverageNotice>
+        Cobertura: estado desde 2000, CISP/área policial desde 2003, município desde 2014. Unidade territorial no município do Rio usa CISP oficial, não geocodificação exata por ocorrência.
+      </CoverageNotice>
+
+      <MethodologyDrawer
+        csvs={["DOMensalEstadoDesde1991.csv", "BaseDPEvolucaoMensalCisp.csv", "BaseMunicipioMensal.csv"]}
+        columns={["ano", "mes", "indicadores oficiais do ISP", "cisp/fmun quando aplicável"]}
+        period={`Acumulado de janeiro até mês ${summary.latest_month}/${summary.year}`}
+        formula="Soma mensal do indicador no período; comparação contra o mesmo período do ano anterior; mínima histórica ignora anos sem base positiva."
+        limits={["Registros policiais podem ser revisados.", "CISP agrupa bairros e partes de bairros.", "Municípios só têm série consolidada a partir de 2014."]}
+      />
+
       <div className="min-h-5 font-mono text-xs uppercase tracking-widest text-muted">
         {loading ? "Carregando dados oficiais..." : null}
         {error ? <span className="text-accent-red">{error}</span> : null}
@@ -183,6 +197,13 @@ export function DashboardExplorer({
           <h2 className="text-3xl font-display uppercase leading-none text-foreground">Letalidade violenta no tempo</h2>
         </div>
         <TrendChart data={timeseries} />
+        <MethodologyDrawer
+          csvs={["DOMensalEstadoDesde1991.csv", "BaseDPEvolucaoMensalCisp.csv", "BaseMunicipioMensal.csv"]}
+          columns={["ano", "mes", "letalidade_violenta", "territory_name"]}
+          period={`Últimos 3 anos até ${summary.latest_month}/${summary.year}`}
+          formula="Série mensal de letalidade violenta com média móvel calculada no snapshot estático."
+          limits={["A série muda de cobertura conforme território escolhido.", "Não representa eventos sem registro policial."]}
+        />
       </section>
     </div>
   );

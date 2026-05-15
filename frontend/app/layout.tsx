@@ -53,6 +53,7 @@ const navItems = [
   { href: "/trends", label: "Tendências" },
   { href: "/map", label: "Mapa" },
   { href: "/rankings", label: "Rankings" },
+  { href: "/changes", label: "Mudanças" },
   { href: "/governors", label: "Governadores" },
   { href: "/sources", label: "Fontes" },
   { href: "/methodology", label: "Metodologia" }
@@ -89,8 +90,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <div className="mx-auto max-w-7xl px-4 text-center">
             <p className="font-mono text-xs text-muted">
               dados públicos ✦ g0v brazil & tomoyo ✦{" "}
-              <a href="https://jovens-turcos.nya.pub/" className="text-foreground underline decoration-border underline-offset-4 hover:text-accent-red">
-                fórum
+              <a href="https://x.com/333tomoyo" className="text-foreground underline decoration-border underline-offset-4 hover:text-accent-red">
+                X
               </a>
             </p>
           </div>

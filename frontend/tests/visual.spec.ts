@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const pages = ["/dashboard", "/trends", "/map", "/rankings", "/governors", "/sources", "/methodology"];
+const pages = ["/dashboard", "/trends", "/map", "/rankings", "/changes", "/governors", "/sources", "/methodology"];
 
 test.describe("static pages", () => {
   for (const path of pages) {
@@ -22,4 +22,12 @@ test.describe("static pages", () => {
       expect(consoleErrors).toEqual([]);
     });
   }
+});
+
+test("map accepts permalink filters", async ({ page }) => {
+  await page.goto("/map?indicator=crime_geral&mode=rate&period=2024-12&view=rio_city");
+  await expect(page.locator("body")).toBeVisible();
+  await expect(page.locator("select").first()).toHaveValue("crime_geral");
+  await expect(page.locator("text=12/2024")).toBeVisible();
+  await expect(page.locator("text=Bairros:")).toBeVisible();
 });

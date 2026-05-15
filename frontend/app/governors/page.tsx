@@ -1,4 +1,6 @@
+import { CoverageNotice } from "@/components/CoverageNotice";
 import { GovernorsPerformanceTable } from "@/components/GovernorsPerformanceTable";
+import { MethodologyDrawer } from "@/components/MethodologyDrawer";
 import { SourceBadge } from "@/components/SourceBadge";
 import { getGovernorPerformance } from "@/lib/api";
 
@@ -14,6 +16,10 @@ export default async function GovernorsPage() {
         </div>
         <SourceBadge label="RJ - ISP Dados Abertos" />
       </section>
+
+      <CoverageNotice>
+        Ranking de governadores é descritivo: compara períodos de mandato contra uma linha de base anterior e não atribui causalidade isolada.
+      </CoverageNotice>
 
       <section className="border border-border bg-surface p-5 shadow-hard">
         <div className="grid gap-4 font-mono text-xs uppercase leading-5 tracking-wide text-muted">
@@ -32,6 +38,14 @@ export default async function GovernorsPage() {
       </section>
 
       <GovernorsPerformanceTable rows={performance.rows} />
+
+      <MethodologyDrawer
+        csvs={["DOMensalEstadoDesde1991.csv"]}
+        columns={performance.indicators}
+        period="Meses disponíveis dentro de cada mandato e 12 meses anteriores à posse."
+        formula="Média de redução percentual entre valor anualizado do mandato e valor anualizado da linha de base anterior."
+        limits={["Mandatos curtos são voláteis.", "Mudanças de contexto e política pública não são isoladas pelo cálculo.", "Dados são registros policiais oficiais."]}
+      />
     </div>
   );
 }

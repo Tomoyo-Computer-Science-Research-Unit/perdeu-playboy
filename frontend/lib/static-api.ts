@@ -3,6 +3,7 @@ import type {
   GovernorPerformanceResponse,
   Indicator,
   DataSource,
+  LatestChangesResponse,
   Methodology,
   RankingMode,
   RankingRow,
@@ -36,6 +37,8 @@ type StaticSnapshot = {
 
 const DATA = snapshot as StaticSnapshot;
 const CRIME_RATE_INDICATORS = ["letalidade_violenta", "roubo_rua", "roubo_veiculo", "roubo_carga", "estupro"];
+const rankingCache = new Map<string, RankingRow[]>();
+const mapCache = new Map<string, GeoFeatureCollection>();
 
 export async function getIndicators(): Promise<Indicator[]> {
   return DATA.indicators;
@@ -149,6 +152,11 @@ export async function getRankings(
   year = DATA.latest_period.year,
   month = DATA.latest_period.month
 ): Promise<RankingRow[]> {
+  const cacheKey = `${indicator}:${mode}:${territoryType}:${year}:${month}`;
+  const cached = rankingCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
   const names = Object.keys(DATA.series[indicator]?.[territoryType] ?? {});
   const rows = names.map((name): RankingRow => {
     const values = valuesFor(indicator, territoryType, name);
@@ -167,7 +175,9 @@ export async function getRankings(
   });
 
   rows.sort((a, b) => rankingValue(b, mode) - rankingValue(a, mode));
-  return rows.map((row, index) => ({ ...row, rank: index + 1 }));
+  const rankedRows = rows.map((row, index) => ({ ...row, rank: index + 1 }));
+  rankingCache.set(cacheKey, rankedRows);
+  return rankedRows;
 }
 
 export async function getGovernorPerformance(): Promise<GovernorPerformanceResponse> {
@@ -184,6 +194,11 @@ export async function getMapData(
   year = DATA.latest_period.year,
   month = DATA.latest_period.month
 ): Promise<GeoFeatureCollection> {
+  const cacheKey = `map:${indicator}:${mode}:${year}:${month}`;
+  const cached = mapCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
   const municipalityRankings = await getRankings(indicator, mode, "municipality", year, month);
   const byMunicipality = new Map(municipalityRankings.map((row) => [row.territory_name, row]));
   const features = DATA.municipality_geometries.features.map((feature) => {
@@ -197,16 +212,23 @@ export async function getMapData(
     feature.properties.rank = Number(feature.properties.metric_value ?? 0) > 0 ? index + 1 : null;
   });
 
-  return {
+  const collection = {
     type: "FeatureCollection",
     features
-  };
+  } satisfies GeoFeatureCollection;
+  mapCache.set(cacheKey, collection);
+  return collection;
 }
 
 export async function getCrimeRateMapData(
   year = DATA.latest_period.year,
   month = DATA.latest_period.month
 ): Promise<GeoFeatureCollection> {
+  const cacheKey = `map:crime_geral:state:${year}:${month}`;
+  const cached = mapCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
   const periodIndex = monthIndex(year, month);
   const features = DATA.municipality_geometries.features.map((feature) => {
     const territoryName = String(feature.properties?.territory_name ?? "");
@@ -215,7 +237,9 @@ export async function getCrimeRateMapData(
     return featureWithCrimeRate(feature, value, population, "Município");
   });
   rankFeatures(features);
-  return { type: "FeatureCollection", features };
+  const collection = { type: "FeatureCollection", features } satisfies GeoFeatureCollection;
+  mapCache.set(cacheKey, collection);
+  return collection;
 }
 
 export async function getRioCityMapData(
@@ -224,6 +248,11 @@ export async function getRioCityMapData(
   year = DATA.latest_period.year,
   month = DATA.latest_period.month
 ): Promise<GeoFeatureCollection> {
+  const cacheKey = `map:rio:${indicator}:${mode}:${year}:${month}`;
+  const cached = mapCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
   const policeAreaRankings = await getRankings(indicator, mode, "police_area", year, month);
   const byPoliceArea = new Map(policeAreaRankings.map((row) => [row.territory_name, row]));
   const features = DATA.rio_neighborhood_geometries.features.map((feature) => {
@@ -237,16 +266,23 @@ export async function getRioCityMapData(
     feature.properties.rank = Number(feature.properties.metric_value ?? 0) > 0 ? index + 1 : null;
   });
 
-  return {
+  const collection = {
     type: "FeatureCollection",
     features
-  };
+  } satisfies GeoFeatureCollection;
+  mapCache.set(cacheKey, collection);
+  return collection;
 }
 
 export async function getRioCityCrimeRateMapData(
   year = DATA.latest_period.year,
   month = DATA.latest_period.month
 ): Promise<GeoFeatureCollection> {
+  const cacheKey = `map:crime_geral:rio:${year}:${month}`;
+  const cached = mapCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
   const periodIndex = monthIndex(year, month);
   const populationByPoliceArea = rioPopulationByPoliceArea();
   const features = DATA.rio_neighborhood_geometries.features.map((feature) => {
@@ -256,7 +292,55 @@ export async function getRioCityCrimeRateMapData(
     return featureWithCrimeRate(feature, value, population, "Bairro/CISP");
   });
   rankFeatures(features);
-  return { type: "FeatureCollection", features };
+  const collection = { type: "FeatureCollection", features } satisfies GeoFeatureCollection;
+  mapCache.set(cacheKey, collection);
+  return collection;
+}
+
+export async function getLatestChanges(): Promise<LatestChangesResponse> {
+  const latest = DATA.latest_period;
+  return {
+    latest_period: latest,
+    sections: [
+      changeSection("Municípios com maior piora", "municipality", "increase", latest.year, latest.month),
+      changeSection("Municípios com maior queda", "municipality", "decrease", latest.year, latest.month),
+      changeSection("CISPs com maior piora", "police_area", "increase", latest.year, latest.month),
+      changeSection("CISPs com maior queda", "police_area", "decrease", latest.year, latest.month)
+    ]
+  };
+}
+
+function changeSection(
+  title: string,
+  territoryType: Exclude<TerritoryType, "state">,
+  direction: "increase" | "decrease",
+  year: number,
+  month: number
+) {
+  const periodIndex = monthIndex(year, month);
+  const previousIndex = monthIndex(year - 1, month);
+  const names = Object.keys(DATA.series.letalidade_violenta?.[territoryType] ?? {});
+  const rows = names
+    .map((name) => {
+      const currentValue = rollingCrimeValue(territoryType, name, periodIndex);
+      const previousValue = rollingCrimeValue(territoryType, name, previousIndex);
+      const absoluteChange = round1(currentValue - previousValue);
+      return {
+        rank: 0,
+        territory_name: name,
+        territory_type: territoryType,
+        current_value: currentValue,
+        previous_value: previousValue,
+        absolute_change: absoluteChange,
+        percent_change: previousValue > 0 ? round1((absoluteChange / previousValue) * 100) : null
+      };
+    })
+    .filter((row) => row.previous_value > 0 || row.current_value > 0)
+    .sort((a, b) => direction === "increase" ? b.absolute_change - a.absolute_change : a.absolute_change - b.absolute_change)
+    .slice(0, 12)
+    .map((row, index) => ({ ...row, rank: index + 1 }));
+
+  return { title, territory_type: territoryType, direction, rows };
 }
 
 function featureWithCrimeRate(

@@ -1,4 +1,6 @@
 import { ExternalLink } from "lucide-react";
+import { CoverageNotice } from "@/components/CoverageNotice";
+import { MethodologyDrawer } from "@/components/MethodologyDrawer";
 import { getDataSources, getSnapshotMeta } from "@/lib/api";
 
 function formatDate(value: string) {
@@ -28,7 +30,7 @@ export default async function SourcesPage() {
 
       <section className="grid gap-4 border border-border bg-surface p-5 shadow-hard md:grid-cols-3">
         <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-muted">Snapshot</p>
+          <p className="font-mono text-xs uppercase tracking-widest text-muted">Última atualização</p>
           <p className="mt-2 font-mono text-sm font-bold text-foreground">{formatDate(snapshot.generated_at)}</p>
         </div>
         <div>
@@ -38,10 +40,21 @@ export default async function SourcesPage() {
           </p>
         </div>
         <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-muted">Início da análise</p>
-          <p className="mt-2 font-mono text-sm font-bold text-foreground">{snapshot.analysis_start_year}</p>
+          <p className="font-mono text-xs uppercase tracking-widest text-muted">Workflow</p>
+          <a
+            href="https://github.com/c3c4d4/perdeu-playboy/actions/workflows/update-data.yml"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-flex items-center gap-2 font-mono text-sm font-bold text-foreground underline decoration-border underline-offset-4 hover:text-accent-red"
+          >
+            GitHub Actions <ExternalLink size={13} aria-hidden="true" />
+          </a>
         </div>
       </section>
+
+      <CoverageNotice>
+        O snapshot é estático e versionado no repositório. A atualização automática roda semanalmente quando o workflow do GitHub Actions está habilitado e também pode ser acionada manualmente.
+      </CoverageNotice>
 
       <section className="overflow-x-auto border border-border bg-surface shadow-hard">
         <table className="min-w-[920px] divide-y divide-border text-sm">
@@ -78,6 +91,14 @@ export default async function SourcesPage() {
           </tbody>
         </table>
       </section>
+
+      <MethodologyDrawer
+        csvs={sources.map((source) => source.file_name)}
+        columns={["checksum_sha256", "size_bytes", "generated_at", "latest_period"]}
+        period={`Snapshot gerado em ${formatDate(snapshot.generated_at)}`}
+        formula="Cada arquivo local carregado recebe SHA-256 e tamanho; o frontend publica o snapshot estático gerado pela ETL."
+        limits={["O ISP pode revisar arquivos históricos.", "Arquivos indisponíveis não entram no snapshot.", "A data de geração não é necessariamente a data de publicação do ISP."]}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ export {
   getGovernorPerformance,
   getIndicators,
   getLatestPeriod,
+  getLatestChanges,
   getMethodology,
   getMapData,
   getCrimeRateMapData,

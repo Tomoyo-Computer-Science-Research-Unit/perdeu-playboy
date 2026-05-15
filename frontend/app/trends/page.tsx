@@ -1,3 +1,5 @@
+import { CoverageNotice } from "@/components/CoverageNotice";
+import { MethodologyDrawer } from "@/components/MethodologyDrawer";
 import { TrendsExplorer } from "@/components/TrendsExplorer";
 import { ANALYSIS_START_YEAR } from "@/lib/constants";
 import { getIndicators, getTerritories, getTimeseries } from "@/lib/api";
@@ -18,7 +20,19 @@ export default async function TrendsPage() {
         </div>
       </section>
 
+      <CoverageNotice>
+        Cobertura: estado desde 2000, área policial/CISP desde 2003 e município desde 2014. Séries por área policial seguem a divisão oficial CISP do ISP.
+      </CoverageNotice>
+
       <TrendsExplorer indicators={indicators} initialTerritories={territories} initialData={timeseries} />
+
+      <MethodologyDrawer
+        csvs={["DOMensalEstadoDesde1991.csv", "BaseDPEvolucaoMensalCisp.csv", "BaseMunicipioMensal.csv"]}
+        columns={["ano", "mes", "indicador selecionado", "territory_type", "territory_name"]}
+        period="Faixa de anos selecionada pelo usuário."
+        formula="Cada ponto é o total mensal oficial do indicador; média móvel usa janela de 3 meses; comparação anual usa o mesmo mês do ano anterior."
+        limits={["Mudanças de classificação e revisão administrativa podem alterar séries históricas.", "Municípios começam em 2014.", "CISP começa em 2003."]}
+      />
     </div>
   );
 }
