@@ -67,8 +67,12 @@ function color(value: number, max: number, indicator: MapIndicator, mode: Rankin
 }
 
 function periodsUntil(latestYear: number, latestMonth: number) {
+  return periodsFrom(2000, latestYear, latestMonth);
+}
+
+function periodsFrom(startYear: number, latestYear: number, latestMonth: number) {
   const periods: Array<{ year: number; month: number; label: string }> = [];
-  for (let year = 2000; year <= latestYear; year += 1) {
+  for (let year = startYear; year <= latestYear; year += 1) {
     const maxMonth = year === latestYear ? latestMonth : 12;
     for (let month = 1; month <= maxMonth; month += 1) {
       periods.push({
@@ -97,6 +101,7 @@ export function MunicipalityChoroplethPanel({
   const [mode, setMode] = useState<RankingMode>("count");
   const [periodIndex, setPeriodIndex] = useState(periods.length - 1);
   const [view, setView] = useState<MapView>("state");
+  const visiblePeriods = useMemo(() => periodsFrom(viewStartYear(view), latestYear, latestMonth), [latestMonth, latestYear, view]);
   const [data, setData] = useState(initialData);
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
@@ -150,10 +155,19 @@ export function MunicipalityChoroplethPanel({
 
   function backToState() {
     setView("state");
+    const period = periods[periodIndex];
+    if (period && period.year < 2014) {
+      const stateIndex = periods.findIndex((item) => item.year === 2014 && item.month === 1);
+      setPeriodIndex(stateIndex);
+      void loadMap("state", stateIndex, indicator, mode);
+      return;
+    }
     void loadMap("state", periodIndex, indicator, mode);
   }
 
-  function changePeriod(nextPeriodIndex: number) {
+  function changePeriod(nextVisibleIndex: number) {
+    const period = visiblePeriods[nextVisibleIndex] ?? visiblePeriods[visiblePeriods.length - 1];
+    const nextPeriodIndex = periods.findIndex((item) => item.year === period.year && item.month === period.month);
     setPeriodIndex(nextPeriodIndex);
     void loadMap(view, nextPeriodIndex, indicator, mode);
   }
@@ -174,6 +188,11 @@ export function MunicipalityChoroplethPanel({
   }
 
   const selectedPeriod = periods[periodIndex] ?? periods[periods.length - 1];
+  const visiblePeriodIndex = Math.max(
+    0,
+    visiblePeriods.findIndex((item) => item.year === selectedPeriod?.year && item.month === selectedPeriod?.month)
+  );
+  const startYear = viewStartYear(view);
 
   return (
     <section className="grid gap-4">
@@ -296,7 +315,7 @@ export function MunicipalityChoroplethPanel({
 
       <div className="border border-border bg-surface p-5 shadow-hard">
         <div className="flex items-center justify-between gap-4 font-mono text-xs font-bold uppercase tracking-widest text-muted">
-          <span>2000</span>
+          <span>{startYear}</span>
           <span className="text-foreground">{selectedPeriod?.label}</span>
           <span>{latestYear}</span>
         </div>
@@ -304,12 +323,16 @@ export function MunicipalityChoroplethPanel({
           aria-label="Linha do tempo do mapa"
           type="range"
           min={0}
-          max={Math.max(0, periods.length - 1)}
-          value={periodIndex}
+          max={Math.max(0, visiblePeriods.length - 1)}
+          value={visiblePeriodIndex}
           className="mt-4 w-full accent-red-700"
           onChange={(event) => changePeriod(Number(event.target.value))}
         />
       </div>
     </section>
   );
+}
+
+function viewStartYear(view: MapView) {
+  return view === "rio_city" ? 2003 : 2014;
 }
