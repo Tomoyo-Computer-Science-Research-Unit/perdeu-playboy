@@ -6,6 +6,7 @@ export {
   getMethodology,
   getMapData,
   getRankings,
+  getRioCityMapData,
   getSummary,
   getSnapshotMeta,
   getTerritories,

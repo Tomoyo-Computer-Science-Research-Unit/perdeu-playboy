@@ -184,23 +184,37 @@ export async function getMapData(
   month = DATA.latest_period.month
 ): Promise<GeoFeatureCollection> {
   const municipalityRankings = await getRankings(indicator, mode, "municipality", year, month);
-  const policeAreaRankings = await getRankings(indicator, mode, "police_area", year, month);
   const byMunicipality = new Map(municipalityRankings.map((row) => [row.territory_name, row]));
+  const features = DATA.municipality_geometries.features.map((feature) => {
+    const territoryName = String(feature.properties?.territory_name ?? "");
+    const row = byMunicipality.get(territoryName);
+    return featureWithStats(feature, row, mode, "Município");
+  });
+
+  const ranked = [...features].sort((a, b) => Number(b.properties.metric_value ?? 0) - Number(a.properties.metric_value ?? 0));
+  ranked.forEach((feature, index) => {
+    feature.properties.rank = Number(feature.properties.metric_value ?? 0) > 0 ? index + 1 : null;
+  });
+
+  return {
+    type: "FeatureCollection",
+    features
+  };
+}
+
+export async function getRioCityMapData(
+  indicator = "letalidade_violenta",
+  mode: RankingMode = "count",
+  year = DATA.latest_period.year,
+  month = DATA.latest_period.month
+): Promise<GeoFeatureCollection> {
+  const policeAreaRankings = await getRankings(indicator, mode, "police_area", year, month);
   const byPoliceArea = new Map(policeAreaRankings.map((row) => [row.territory_name, row]));
-  const features = [
-    ...DATA.municipality_geometries.features
-      .filter((feature) => String(feature.properties?.territory_name ?? "") !== "Rio de Janeiro")
-      .map((feature) => {
-        const territoryName = String(feature.properties?.territory_name ?? "");
-        const row = byMunicipality.get(territoryName);
-        return featureWithStats(feature, row, mode, "Município");
-      }),
-    ...DATA.rio_neighborhood_geometries.features.map((feature) => {
-      const sourceTerritoryName = String(feature.properties?.source_territory_name ?? "");
-      const row = sourceTerritoryName ? byPoliceArea.get(sourceTerritoryName) : undefined;
-      return featureWithStats(feature, row, mode, "Bairro/CISP");
-    })
-  ];
+  const features = DATA.rio_neighborhood_geometries.features.map((feature) => {
+    const sourceTerritoryName = String(feature.properties?.source_territory_name ?? "");
+    const row = sourceTerritoryName ? byPoliceArea.get(sourceTerritoryName) : undefined;
+    return featureWithStats(feature, row, mode, "Bairro/CISP");
+  });
 
   const ranked = [...features].sort((a, b) => Number(b.properties.metric_value ?? 0) - Number(a.properties.metric_value ?? 0));
   ranked.forEach((feature, index) => {
