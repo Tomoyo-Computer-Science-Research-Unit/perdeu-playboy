@@ -8,6 +8,7 @@ import { MetricCard } from "@/components/MetricCard";
 import { SourceBadge } from "@/components/SourceBadge";
 import { TrendChart } from "@/components/TrendChart";
 import { ANALYSIS_START_YEAR } from "@/lib/constants";
+import { enabledUf, type UfCode } from "@/lib/ufs";
 import type { SummaryResponse, TerritorialUnit, Territory, TimeSeriesPoint } from "@/types/api";
 
 type DashboardTerritoryMode = "state" | "municipality";
@@ -26,16 +27,19 @@ export function DashboardExplorer({
   initialTerritorialUnits: TerritorialUnit[];
 }) {
   const [territoryMode, setTerritoryMode] = useState<DashboardTerritoryMode>("state");
+  const [uf, setUf] = useState<UfCode>("RJ");
+  const [activeLatestYear, setActiveLatestYear] = useState(latestYear);
   const [selectedMunicipality, setSelectedMunicipality] = useState("Rio de Janeiro");
   const [selectedTerritorialUnit, setSelectedTerritorialUnit] = useState("");
+  const [municipalityOptions, setMunicipalityOptions] = useState(municipalities);
   const [summary, setSummary] = useState(initialSummary);
   const [timeseries, setTimeseries] = useState(initialTimeseries);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const firstDashboardLoad = useRef(true);
 
-  const chartStartYear = Math.max(ANALYSIS_START_YEAR, latestYear - 2);
-  const canUseTerritorialUnit = territoryMode === "municipality" && selectedMunicipality === "Rio de Janeiro";
+  const chartStartYear = Math.max(ANALYSIS_START_YEAR, activeLatestYear - 2);
+  const canUseTerritorialUnit = uf === "RJ" && territoryMode === "municipality" && selectedMunicipality === "Rio de Janeiro";
   const selectedUnit = initialTerritorialUnits.find((unit) => unit.police_area_name === selectedTerritorialUnit);
 
   useEffect(() => {
@@ -65,8 +69,8 @@ export function DashboardExplorer({
 
       const { getSummary, getTimeseries } = await import("@/lib/api");
       const [nextSummary, nextTimeseries] = await Promise.all([
-        getSummary(latestYear, territoryType, territoryName),
-        getTimeseries("letalidade_violenta", territoryType, territoryName, chartStartYear, latestYear)
+        getSummary(activeLatestYear, territoryType, territoryName, uf),
+        getTimeseries("letalidade_violenta", territoryType, territoryName, chartStartYear, activeLatestYear, uf)
       ]);
 
       if (!cancelled) {
@@ -86,7 +90,52 @@ export function DashboardExplorer({
     return () => {
       cancelled = true;
     };
-  }, [canUseTerritorialUnit, chartStartYear, initialSummary, latestYear, selectedMunicipality, selectedUnit, territoryMode]);
+  }, [canUseTerritorialUnit, chartStartYear, initialSummary, activeLatestYear, selectedMunicipality, selectedUnit, territoryMode, uf]);
+
+  useEffect(() => {
+    function handleUfChange(event: Event) {
+      const detail = (event as CustomEvent<{ uf?: string }>).detail;
+      const nextUf = enabledUf(detail?.uf);
+      setUf(nextUf);
+      setTerritoryMode("state");
+      setSelectedTerritorialUnit("");
+      void reloadUf(nextUf);
+    }
+    window.addEventListener("ufchange", handleUfChange);
+    const params = new URLSearchParams(window.location.search);
+    const initialUf = enabledUf(params.get("uf") ?? window.localStorage.getItem("selected_uf"));
+    if (initialUf !== "RJ") {
+      setUf(initialUf);
+      void reloadUf(initialUf);
+    }
+    return () => window.removeEventListener("ufchange", handleUfChange);
+  }, []);
+
+  async function reloadUf(nextUf: UfCode) {
+    setLoading(true);
+    setError(null);
+    try {
+      const { getLatestPeriod, getSummary, getTerritories, getTimeseries } = await import("@/lib/api");
+      const [nextLatest, nextMunicipalities] = await Promise.all([
+        getLatestPeriod(nextUf),
+        getTerritories("municipality", nextUf)
+      ]);
+      const stateName = nextUf === "SP" ? "Estado de São Paulo" : "Estado do Rio de Janeiro";
+      const [nextSummary, nextTimeseries] = await Promise.all([
+        getSummary(nextLatest.year, "state", stateName, nextUf),
+        getTimeseries("letalidade_violenta", "state", stateName, Math.max(ANALYSIS_START_YEAR, nextLatest.year - 2), nextLatest.year, nextUf)
+      ]);
+      setActiveLatestYear(nextLatest.year);
+      setMunicipalityOptions(nextMunicipalities);
+      setSelectedMunicipality(nextMunicipalities[0]?.name ?? "");
+      setSummary(nextSummary);
+      setTimeseries(nextTimeseries);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao carregar UF.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const sortedCards = [...summary.cards].sort((a, b) => {
     const aValue = a.yoy_percent_change ?? Number.NEGATIVE_INFINITY;
@@ -94,7 +143,7 @@ export function DashboardExplorer({
     return bValue - aValue;
   });
   const territoryTitle = {
-    state: "Indicadores acumulados no RJ",
+    state: `Indicadores acumulados em ${uf}`,
     municipality: canUseTerritorialUnit && selectedUnit
       ? `Indicadores acumulados em ${selectedUnit.name}`
       : `Indicadores acumulados em ${selectedMunicipality}`
@@ -107,7 +156,7 @@ export function DashboardExplorer({
           <h2 className="m-0 mt-1 text-4xl font-display uppercase leading-none text-foreground">{territoryTitle}</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <SourceBadge label="RJ - ISP Dados Abertos" />
+          <SourceBadge label={uf === "SP" ? "SP - SSP-SP + Sinesp" : "RJ - ISP Dados Abertos"} />
           <span className="inline-flex items-center gap-2 border border-border bg-surface px-3 py-1.5 font-mono text-xs uppercase tracking-wide text-muted">
             <CalendarDays size={14} aria-hidden="true" className="text-muted" />
             Último mês: {summary.latest_month}/{summary.year}
@@ -136,13 +185,13 @@ export function DashboardExplorer({
           <select
             className="h-10 w-full min-w-0 border border-border bg-surface px-3 text-sm text-foreground transition-colors disabled:opacity-40 focus:border-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
             value={selectedMunicipality}
-            disabled={territoryMode === "state" || municipalities.length === 0}
+            disabled={territoryMode === "state" || municipalityOptions.length === 0}
             onChange={(event) => {
               setSelectedMunicipality(event.target.value);
               setSelectedTerritorialUnit("");
             }}
           >
-            {municipalities.map((item) => (
+            {municipalityOptions.map((item) => (
               <option key={item.name} value={item.name}>
                 {item.name.toUpperCase()}
               </option>
@@ -170,7 +219,9 @@ export function DashboardExplorer({
       </section>
 
       <CoverageNotice>
-        Cobertura: estado desde 2000, CISP/área policial desde 2003, município desde 2014. Unidade territorial no município do Rio usa CISP oficial, não geocodificação exata por ocorrência.
+        {uf === "SP"
+          ? "Cobertura SP: estado e municípios desde 2015. Não há CISP/bairro nesta versão; roubo de rua usa a rubrica oficial SSP-SP 'ROUBO - OUTROS'."
+          : "Cobertura: estado desde 2000, CISP/área policial desde 2003, município desde 2014. Unidade territorial no município do Rio usa CISP oficial, não geocodificação exata por ocorrência."}
       </CoverageNotice>
 
       <MethodologyDrawer

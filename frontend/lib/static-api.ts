@@ -1,4 +1,5 @@
 import snapshot from "@/lib/static-data.generated.json";
+import { enabledUf, type UfCode } from "@/lib/ufs";
 import type {
   GovernorPerformanceResponse,
   Indicator,
@@ -33,6 +34,12 @@ type StaticSnapshot = {
   methodology: Methodology;
   governor_performance: GovernorPerformanceResponse;
   series: SeriesStore;
+  states?: Record<string, StateSnapshot>;
+};
+type StateSnapshot = Omit<StaticSnapshot, "generated_at" | "analysis_start_year" | "month_keys" | "governor_performance" | "states"> & {
+  uf?: string;
+  name?: string;
+  coverage?: Record<string, unknown>;
 };
 
 const DATA = snapshot as StaticSnapshot;
@@ -40,12 +47,17 @@ const CRIME_RATE_INDICATORS = ["letalidade_violenta", "roubo_rua", "roubo_veicul
 const rankingCache = new Map<string, RankingRow[]>();
 const mapCache = new Map<string, GeoFeatureCollection>();
 
-export async function getIndicators(): Promise<Indicator[]> {
-  return DATA.indicators;
+function stateData(uf?: string): StateSnapshot {
+  const code = enabledUf(uf);
+  return DATA.states?.[code] ?? DATA;
 }
 
-export async function getLatestPeriod(): Promise<StaticSnapshot["latest_period"]> {
-  return DATA.latest_period;
+export async function getIndicators(uf?: string): Promise<Indicator[]> {
+  return stateData(uf).indicators;
+}
+
+export async function getLatestPeriod(uf?: string): Promise<StaticSnapshot["latest_period"]> {
+  return stateData(uf).latest_period;
 }
 
 export async function getSnapshotMeta(): Promise<SnapshotMeta> {
@@ -56,31 +68,34 @@ export async function getSnapshotMeta(): Promise<SnapshotMeta> {
   };
 }
 
-export async function getDataSources(): Promise<DataSource[]> {
-  return DATA.sources ?? [];
+export async function getDataSources(uf?: string): Promise<DataSource[]> {
+  return stateData(uf).sources ?? [];
 }
 
-export async function getTerritories(territoryType: TerritoryType): Promise<Territory[]> {
-  return DATA.territories[territoryType] ?? [];
+export async function getTerritories(territoryType: TerritoryType, uf?: string): Promise<Territory[]> {
+  return stateData(uf).territories[territoryType] ?? [];
 }
 
-export async function getTerritorialUnits(municipality = "Rio de Janeiro"): Promise<TerritorialUnit[]> {
-  return DATA.territorial_units.filter((unit) => unit.municipality === municipality);
+export async function getTerritorialUnits(municipality = "Rio de Janeiro", uf?: string): Promise<TerritorialUnit[]> {
+  const data = stateData(uf);
+  return data.territorial_units.filter((unit) => unit.municipality === municipality);
 }
 
 export async function getSummary(
   year = DATA.latest_period.year,
   territoryType: TerritoryType = "state",
-  territoryName?: string
+  territoryName?: string,
+  uf?: string
 ): Promise<SummaryResponse> {
-  const latest = DATA.latest_period;
+  const data = stateData(uf);
+  const latest = data.latest_period;
   const latestMonth = year === latest.year ? latest.month : 12;
-  const resolvedName = resolveTerritoryName(territoryType, territoryName);
-  const cards = DATA.indicators.map((indicator): SummaryCardData => {
-    const values = valuesFor(indicator.code, territoryType, resolvedName);
+  const resolvedName = resolveTerritoryName(territoryType, territoryName, data);
+  const cards = data.indicators.map((indicator): SummaryCardData => {
+    const values = valuesFor(indicator.code, territoryType, resolvedName, data);
     const current = ytd(values, year, latestMonth);
     const previous = ytd(values, year - 1, latestMonth);
-    const historicalMin = historicalMinYtd(values, latestMonth);
+    const historicalMin = historicalMinYtd(values, latestMonth, data);
     const diff = round1(current - previous);
     const pct = previous ? round1((diff / previous) * 100) : null;
     const minValue = historicalMin?.value ?? null;
@@ -95,7 +110,7 @@ export async function getSummary(
       yoy_absolute_change: diff,
       yoy_percent_change: pct,
       latest_month: latestMonth,
-      sparkline: yearValues(values, year)
+      sparkline: yearValues(values, year, data)
     };
   });
 
@@ -113,10 +128,12 @@ export async function getTimeseries(
   territoryType: TerritoryType = "state",
   territoryName?: string,
   startYear = DATA.analysis_start_year,
-  endYear = DATA.latest_period.year
+  endYear = DATA.latest_period.year,
+  uf?: string
 ): Promise<TimeSeriesPoint[]> {
-  const resolvedName = resolveTerritoryName(territoryType, territoryName);
-  const values = valuesFor(indicator, territoryType, resolvedName);
+  const data = stateData(uf);
+  const resolvedName = resolveTerritoryName(territoryType, territoryName, data);
+  const values = valuesFor(indicator, territoryType, resolvedName, data);
   const points: TimeSeriesPoint[] = [];
 
   for (let index = 0; index < DATA.month_keys.length; index += 1) {
@@ -150,16 +167,18 @@ export async function getRankings(
   mode: RankingMode = "count",
   territoryType: Exclude<TerritoryType, "state"> = "municipality",
   year = DATA.latest_period.year,
-  month = DATA.latest_period.month
+  month = DATA.latest_period.month,
+  uf?: string
 ): Promise<RankingRow[]> {
-  const cacheKey = `${indicator}:${mode}:${territoryType}:${year}:${month}`;
+  const data = stateData(uf);
+  const cacheKey = `${enabledUf(uf)}:${indicator}:${mode}:${territoryType}:${year}:${month}`;
   const cached = rankingCache.get(cacheKey);
   if (cached) {
     return cached;
   }
-  const names = Object.keys(DATA.series[indicator]?.[territoryType] ?? {});
+  const names = Object.keys(data.series[indicator]?.[territoryType] ?? {});
   const rows = names.map((name): RankingRow => {
-    const values = valuesFor(indicator, territoryType, name);
+    const values = valuesFor(indicator, territoryType, name, data);
     const value = ytd(values, year, month);
     const previous = ytd(values, year - 1, month);
     const diff = round1(value - previous);
@@ -168,7 +187,7 @@ export async function getRankings(
       territory_name: name,
       territory_type: territoryType,
       value,
-      rate_per_100k: territoryType === "municipality" ? ratePer100k(value, DATA.population_by_municipality[name]) : null,
+      rate_per_100k: territoryType === "municipality" ? ratePer100k(value, data.population_by_municipality[name]) : null,
       yoy_absolute_change: diff,
       yoy_percent_change: previous ? round1((diff / previous) * 100) : null,
       ...trendFor(previous, value, diff)
@@ -193,16 +212,18 @@ export async function getMapData(
   indicator = "letalidade_violenta",
   mode: RankingMode = "count",
   year = DATA.latest_period.year,
-  month = DATA.latest_period.month
+  month = DATA.latest_period.month,
+  uf?: string
 ): Promise<GeoFeatureCollection> {
-  const cacheKey = `map:${indicator}:${mode}:${year}:${month}`;
+  const data = stateData(uf);
+  const cacheKey = `map:${enabledUf(uf)}:${indicator}:${mode}:${year}:${month}`;
   const cached = mapCache.get(cacheKey);
   if (cached) {
     return cached;
   }
-  const municipalityRankings = await getRankings(indicator, mode, "municipality", year, month);
+  const municipalityRankings = await getRankings(indicator, mode, "municipality", year, month, enabledUf(uf));
   const byMunicipality = new Map(municipalityRankings.map((row) => [row.territory_name, row]));
-  const features = DATA.municipality_geometries.features.map((feature) => {
+  const features = data.municipality_geometries.features.map((feature) => {
     const territoryName = String(feature.properties?.territory_name ?? "");
     const row = byMunicipality.get(territoryName);
     return featureWithStats(feature, row, mode, "Município");
@@ -223,18 +244,20 @@ export async function getMapData(
 
 export async function getCrimeRateMapData(
   year = DATA.latest_period.year,
-  month = DATA.latest_period.month
+  month = DATA.latest_period.month,
+  uf?: string
 ): Promise<GeoFeatureCollection> {
-  const cacheKey = `map:crime_geral:state:${year}:${month}`;
+  const data = stateData(uf);
+  const cacheKey = `map:crime_geral:${enabledUf(uf)}:state:${year}:${month}`;
   const cached = mapCache.get(cacheKey);
   if (cached) {
     return cached;
   }
   const periodIndex = monthIndex(year, month);
-  const features = DATA.municipality_geometries.features.map((feature) => {
+  const features = data.municipality_geometries.features.map((feature) => {
     const territoryName = String(feature.properties?.territory_name ?? "");
-    const population = DATA.population_by_municipality[territoryName] ?? null;
-    const value = rollingCrimeValue("municipality", territoryName, periodIndex);
+    const population = data.population_by_municipality[territoryName] ?? null;
+    const value = rollingCrimeValue("municipality", territoryName, periodIndex, data);
     return featureWithCrimeRate(feature, value, population, "Município");
   });
   rankFeatures(features);
@@ -247,16 +270,21 @@ export async function getRioCityMapData(
   indicator = "letalidade_violenta",
   mode: RankingMode = "count",
   year = DATA.latest_period.year,
-  month = DATA.latest_period.month
+  month = DATA.latest_period.month,
+  uf?: string
 ): Promise<GeoFeatureCollection> {
+  const data = stateData(uf);
+  if (enabledUf(uf) !== "RJ") {
+    return { type: "FeatureCollection", features: [] };
+  }
   const cacheKey = `map:rio:${indicator}:${mode}:${year}:${month}`;
   const cached = mapCache.get(cacheKey);
   if (cached) {
     return cached;
   }
-  const policeAreaRankings = await getRankings(indicator, mode, "police_area", year, month);
+  const policeAreaRankings = await getRankings(indicator, mode, "police_area", year, month, "RJ");
   const byPoliceArea = new Map(policeAreaRankings.map((row) => [row.territory_name, row]));
-  const features = DATA.rio_neighborhood_geometries.features.map((feature) => {
+  const features = data.rio_neighborhood_geometries.features.map((feature) => {
     const sourceTerritoryName = String(feature.properties?.source_territory_name ?? "");
     const row = sourceTerritoryName ? byPoliceArea.get(sourceTerritoryName) : undefined;
     return featureWithStats(feature, row, mode, "Bairro/CISP");
@@ -277,19 +305,24 @@ export async function getRioCityMapData(
 
 export async function getRioCityCrimeRateMapData(
   year = DATA.latest_period.year,
-  month = DATA.latest_period.month
+  month = DATA.latest_period.month,
+  uf?: string
 ): Promise<GeoFeatureCollection> {
+  const data = stateData(uf);
+  if (enabledUf(uf) !== "RJ") {
+    return { type: "FeatureCollection", features: [] };
+  }
   const cacheKey = `map:crime_geral:rio:${year}:${month}`;
   const cached = mapCache.get(cacheKey);
   if (cached) {
     return cached;
   }
   const periodIndex = monthIndex(year, month);
-  const populationByPoliceArea = rioPopulationByPoliceArea();
-  const features = DATA.rio_neighborhood_geometries.features.map((feature) => {
+  const populationByPoliceArea = rioPopulationByPoliceArea(data);
+  const features = data.rio_neighborhood_geometries.features.map((feature) => {
     const sourceTerritoryName = String(feature.properties?.source_territory_name ?? "");
     const population = sourceTerritoryName ? populationByPoliceArea[sourceTerritoryName] ?? null : null;
-    const value = sourceTerritoryName ? rollingCrimeValue("police_area", sourceTerritoryName, periodIndex) : 0;
+    const value = sourceTerritoryName ? rollingCrimeValue("police_area", sourceTerritoryName, periodIndex, data) : 0;
     return featureWithCrimeRate(feature, value, population, "Bairro/CISP");
   });
   rankFeatures(features);
@@ -386,14 +419,14 @@ function featureWithStats(
   };
 }
 
-function rollingCrimeValue(territoryType: TerritoryType, territoryName: string, periodIndex: number): number {
+function rollingCrimeValue(territoryType: TerritoryType, territoryName: string, periodIndex: number, data: StateSnapshot = DATA): number {
   if (periodIndex < 0) {
     return 0;
   }
   const start = Math.max(0, periodIndex - 11);
   let total = 0;
   for (const indicator of CRIME_RATE_INDICATORS) {
-    const values = DATA.series[indicator]?.[territoryType]?.[territoryName] ?? [];
+    const values = data.series[indicator]?.[territoryType]?.[territoryName] ?? [];
     for (let index = start; index <= periodIndex; index += 1) {
       total += values[index] ?? 0;
     }
@@ -401,9 +434,9 @@ function rollingCrimeValue(territoryType: TerritoryType, territoryName: string, 
   return round1(total);
 }
 
-function rioPopulationByPoliceArea(): Record<string, number> {
+function rioPopulationByPoliceArea(data: StateSnapshot = DATA): Record<string, number> {
   const output: Record<string, number> = {};
-  for (const feature of DATA.rio_neighborhood_geometries.features) {
+  for (const feature of data.rio_neighborhood_geometries.features) {
     const sourceTerritoryName = String(feature.properties?.source_territory_name ?? "");
     const population = Number(feature.properties?.population ?? 0);
     if (sourceTerritoryName && population > 0) {
@@ -420,20 +453,20 @@ function rankFeatures(features: GeoFeatureCollection["features"]) {
   });
 }
 
-function valuesFor(indicator: string, territoryType: TerritoryType, territoryName?: string): number[] {
-  const resolvedName = resolveTerritoryName(territoryType, territoryName);
-  return DATA.series[indicator]?.[territoryType]?.[resolvedName] ?? [];
+function valuesFor(indicator: string, territoryType: TerritoryType, territoryName?: string, data: StateSnapshot = DATA): number[] {
+  const resolvedName = resolveTerritoryName(territoryType, territoryName, data);
+  return data.series[indicator]?.[territoryType]?.[resolvedName] ?? [];
 }
 
-function resolveTerritoryName(territoryType: TerritoryType, territoryName?: string): string {
+function resolveTerritoryName(territoryType: TerritoryType, territoryName?: string, data: StateSnapshot = DATA): string {
   if (territoryType === "state") {
-    return "Estado do Rio de Janeiro";
+    return data.territories.state?.[0]?.name ?? "Estado do Rio de Janeiro";
   }
   if (!territoryName) {
-    return DATA.territories[territoryType]?.[0]?.name ?? "";
+    return data.territories[territoryType]?.[0]?.name ?? "";
   }
   if (territoryType === "police_area" && /^CISP\s+\d+/i.test(territoryName)) {
-    return DATA.territorial_units.find((unit) => unit.police_area_name === territoryName)?.territorial_unit ?? territoryName;
+    return data.territorial_units.find((unit) => unit.police_area_name === territoryName)?.territorial_unit ?? territoryName;
   }
   return territoryName;
 }
@@ -449,9 +482,9 @@ function ytd(values: number[], year: number, month: number): number {
   return round1(total);
 }
 
-function historicalMinYtd(values: number[], month: number): { year: number; value: number } | null {
+function historicalMinYtd(values: number[], month: number, data: StateSnapshot = DATA): { year: number; value: number } | null {
   let best: { year: number; value: number } | null = null;
-  for (let year = DATA.analysis_start_year; year <= DATA.latest_period.year; year += 1) {
+  for (let year = DATA.analysis_start_year; year <= data.latest_period.year; year += 1) {
     const value = ytd(values, year, month);
     if (value <= 0) {
       continue;
@@ -463,8 +496,8 @@ function historicalMinYtd(values: number[], month: number): { year: number; valu
   return best;
 }
 
-function yearValues(values: number[], year: number): number[] {
-  const maxMonth = year === DATA.latest_period.year ? DATA.latest_period.month : 12;
+function yearValues(values: number[], year: number, data: StateSnapshot = DATA): number[] {
+  const maxMonth = year === data.latest_period.year ? data.latest_period.month : 12;
   const output: number[] = [];
   for (let month = 1; month <= maxMonth; month += 1) {
     output.push(values[monthIndex(year, month)] ?? 0);

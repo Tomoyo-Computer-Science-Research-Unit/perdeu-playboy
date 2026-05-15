@@ -10,6 +10,8 @@ export function UfSelector() {
     const params = new URLSearchParams(window.location.search);
     const nextUf = enabledUf(params.get("uf") ?? window.localStorage.getItem("selected_uf"));
     setUf(nextUf);
+    window.localStorage.setItem("selected_uf", nextUf);
+    window.dispatchEvent(new CustomEvent("ufchange", { detail: { uf: nextUf } }));
   }, []);
 
   function changeUf(nextUf: UfCode) {

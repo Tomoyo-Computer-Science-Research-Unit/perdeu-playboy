@@ -21,17 +21,17 @@ export default async function TrendsPage() {
       </section>
 
       <CoverageNotice>
-        Cobertura: estado desde 2000, área policial/CISP desde 2003 e município desde 2014. Séries por área policial seguem a divisão oficial CISP do ISP.
+        Cobertura: RJ usa ISP desde 2000/2003/2014 conforme território; SP usa SSP-SP + Sinesp desde 2015 para estado e municípios. Área policial/CISP só existe para RJ nesta versão.
       </CoverageNotice>
 
       <TrendsExplorer indicators={indicators} initialTerritories={territories} initialData={timeseries} />
 
       <MethodologyDrawer
-        csvs={["DOMensalEstadoDesde1991.csv", "BaseDPEvolucaoMensalCisp.csv", "BaseMunicipioMensal.csv"]}
+        csvs={["DOMensalEstadoDesde1991.csv", "BaseDPEvolucaoMensalCisp.csv", "BaseMunicipioMensal.csv", "SSP-SP API mensal", "Sinesp VDE"]}
         columns={["ano", "mes", "indicador selecionado", "territory_type", "territory_name"]}
         period="Faixa de anos selecionada pelo usuário."
         formula="Cada ponto é o total mensal oficial do indicador; média móvel usa janela de 3 meses; comparação anual usa o mesmo mês do ano anterior."
-        limits={["Mudanças de classificação e revisão administrativa podem alterar séries históricas.", "Municípios começam em 2014.", "CISP começa em 2003."]}
+        limits={["Mudanças de classificação e revisão administrativa podem alterar séries históricas.", "Municípios RJ começam em 2014; SP começa em 2015.", "CISP começa em 2003 e só se aplica ao RJ."]}
       />
     </div>
   );

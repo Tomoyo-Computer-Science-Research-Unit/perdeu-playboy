@@ -15,11 +15,11 @@ export default async function MapPage() {
           <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">Mapa</p>
           <h2 className="mt-1 text-4xl font-display text-foreground m-0 leading-none uppercase">Municípios do estado</h2>
         </div>
-        <SourceBadge label="ISP + IBGE + Data.Rio" />
+        <SourceBadge label="ISP / SSP-SP / Sinesp + IBGE" />
       </section>
 
       <CoverageNotice>
-        Cobertura do mapa: municípios começam em 2014; ao clicar em Rio de Janeiro, bairros usam dados CISP desde 2003. Bairro/CISP é aproximação territorial oficial, não ocorrência geocodificada no bairro exato.
+        Cobertura do mapa: RJ municípios começam em 2014; ao clicar em Rio de Janeiro, bairros usam dados CISP desde 2003. SP municípios começam em 2015 e não têm drilldown por bairro nesta versão.
       </CoverageNotice>
 
       <MunicipalityChoroplethPanel
@@ -30,7 +30,7 @@ export default async function MapPage() {
       />
 
       <MethodologyDrawer
-        csvs={["BaseMunicipioMensal.csv", "BaseDPEvolucaoMensalCisp.csv", "Relacao_RISPxAISPxCISP.csv", "malhas IBGE", "Data.Rio bairros/população 2022"]}
+        csvs={["BaseMunicipioMensal.csv", "BaseDPEvolucaoMensalCisp.csv", "Relacao_RISPxAISPxCISP.csv", "SSP-SP API mensal", "Sinesp VDE", "malhas IBGE", "Data.Rio bairros/população 2022"]}
         columns={["ano", "mes", "indicador selecionado", "fmun/cisp", "geometry", "population"]}
         period="Mês selecionado na linha do tempo."
         formula="Indicadores oficiais usam valor acumulado até o mês; crime geral usa soma móvel de 12 meses por 100 mil habitantes."

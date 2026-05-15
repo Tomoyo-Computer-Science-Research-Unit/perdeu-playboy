@@ -36,7 +36,7 @@ export type UfOption = {
 
 export const ufOptions: UfOption[] = [
   { code: "RJ", name: "Rio de Janeiro", enabled: true, status: "loaded" },
-  { code: "SP", name: "Sao Paulo", enabled: true, status: "integration" },
+  { code: "SP", name: "Sao Paulo", enabled: true, status: "loaded" },
   { code: "AC", name: "Acre", enabled: false, status: "disabled" },
   { code: "AL", name: "Alagoas", enabled: false, status: "disabled" },
   { code: "AP", name: "Amapa", enabled: false, status: "disabled" },

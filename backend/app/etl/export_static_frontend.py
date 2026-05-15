@@ -5,7 +5,8 @@ import json
 import re
 import unicodedata
 import zipfile
-from datetime import datetime
+from calendar import monthrange
+from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -16,6 +17,7 @@ from app.config import settings
 from app.constants import ANALYSIS_START_YEAR
 from app.etl.extract import checksum_file
 from app.etl.sources import default_isp_sources
+from app.etl.ssp_sp import sp_monthly_rows, sp_municipalities, sp_source_metadata
 from app.services import isp_repository, population_repository
 from app.services.analytics import latest_period, methodology
 from app.services.governor_performance import governor_performance
@@ -29,6 +31,12 @@ IBGE_RJ_MUNICIPALITIES_GEOJSON_URL = (
     "https://servicodados.ibge.gov.br/api/v3/malhas/estados/33"
     "?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=municipio"
 )
+IBGE_SP_MUNICIPALITIES_GEOJSON_URL = (
+    "https://servicodados.ibge.gov.br/api/v3/malhas/estados/35"
+    "?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=municipio"
+)
+IBGE_SP_MUNICIPALITIES_URL = "https://servicodados.ibge.gov.br/api/v1/localidades/estados/35/municipios"
+IBGE_SP_POPULATION_URL = "https://apisidra.ibge.gov.br/values/t/6579/n6/in%20n3%2035/v/9324/p/last"
 RIO_NEIGHBORHOODS_GEOJSON_URL = (
     "https://pgeo3.rio.rj.gov.br/arcgis/rest/services/Cartografia/"
     "Limites_administrativos/FeatureServer/4/query"
@@ -44,12 +52,34 @@ def export_static_frontend(output_path: Path) -> None:
     latest = latest_period()
     month_keys = _month_keys(ANALYSIS_START_YEAR, latest.year, latest.month)
     month_index = {key: index for index, key in enumerate(month_keys)}
+    rj_state = _rj_state_payload(month_keys, month_index)
+    sp_state = _sp_state_payload(month_keys, month_index, latest.year, latest.month)
 
     snapshot = {
         "generated_at": datetime.now(ZoneInfo("America/Sao_Paulo")).isoformat(timespec="seconds"),
         "analysis_start_year": ANALYSIS_START_YEAR,
         "latest_period": latest.model_dump(mode="json"),
         "month_keys": month_keys,
+        **rj_state,
+        "governor_performance": governor_performance().model_dump(mode="json"),
+        "states": {
+            "RJ": rj_state,
+            "SP": sp_state,
+        },
+    }
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
+
+
+def _rj_state_payload(month_keys: list[str], month_index: dict[str, int]) -> dict[str, object]:
+    return {
+        "uf": "RJ",
+        "name": "Rio de Janeiro",
+        "latest_period": latest_period().model_dump(mode="json"),
         "indicators": [indicator.model_dump(mode="json") for indicator in INDICATORS],
         "territories": {
             territory_type: [
@@ -64,15 +94,70 @@ def export_static_frontend(output_path: Path) -> None:
         "rio_neighborhood_geometries": _rio_neighborhood_geometries(),
         "sources": _source_metadata(),
         "methodology": methodology(),
-        "governor_performance": governor_performance().model_dump(mode="json"),
         "series": _series(month_keys, month_index),
+        "coverage": {
+            "state_start_year": 2000,
+            "municipality_start_year": 2014,
+            "police_area_start_year": 2003,
+            "map_drilldown": "rio_city",
+        },
     }
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")),
-        encoding="utf-8",
-    )
+
+def _sp_state_payload(
+    month_keys: list[str],
+    month_index: dict[str, int],
+    latest_year: int,
+    latest_month: int,
+) -> dict[str, object]:
+    frame = sp_monthly_rows(start_year=2015, end_year=latest_year, end_month=latest_month)
+    latest_row = frame.sort_values(["year", "month"]).iloc[-1]
+    sp_latest = {
+        "year": int(latest_row["year"]),
+        "month": int(latest_row["month"]),
+        "period_date": period_date(int(latest_row["year"]), int(latest_row["month"])),
+        "source_name": "SSP-SP Números Sem Mistério + Sinesp VDE/MJSP",
+    }
+    return {
+        "uf": "SP",
+        "name": "São Paulo",
+        "latest_period": sp_latest,
+        "indicators": [indicator.model_dump(mode="json") for indicator in INDICATORS],
+        "territories": {
+            "state": [{"territory_type": "state", "name": "Estado de São Paulo"}],
+            "municipality": [
+                {"territory_type": "municipality", "name": name}
+                for name in sp_municipalities()
+            ],
+            "police_area": [],
+        },
+        "territorial_units": [],
+        "population_by_municipality": _sp_population_by_municipality(),
+        "municipality_geometries": _sp_municipality_geometries(),
+        "rio_neighborhood_geometries": {"type": "FeatureCollection", "features": []},
+        "sources": sp_source_metadata() + _sp_ibge_source_metadata(),
+        "methodology": {
+            **methodology(),
+            "source_summary": (
+                "São Paulo usa a API oficial SSP-SP/Números Sem Mistério para ocorrências mensais "
+                "por estado e município. Feminicídio e morte por intervenção de agente do Estado "
+                "são complementados pelo Sinesp VDE/MJSP quando não estão no bloco mensal da SSP-SP."
+            ),
+            "limitations": [
+                "SP começa em 2015 nesta integração porque o complemento Sinesp VDE cobre 2015-2026.",
+                "Em SP, roubo de rua usa a rubrica oficial SSP-SP 'ROUBO - OUTROS' como proxy, não a composição ISP-RJ.",
+                "Morte por intervenção e feminicídio podem ter calendário de atualização diferente da SSP-SP.",
+                "Não há divisão por CISP/bairro para SP nesta versão; o nível subestadual é municipal.",
+            ],
+        },
+        "series": _series_for_sp_frame(frame, month_keys, month_index),
+        "coverage": {
+            "state_start_year": 2015,
+            "municipality_start_year": 2015,
+            "police_area_start_year": None,
+            "map_drilldown": None,
+        },
+    }
 
 
 def _month_keys(start_year: int, end_year: int, end_month: int) -> list[str]:
@@ -122,6 +207,20 @@ def _series_for_frame(
     return output
 
 
+def _series_for_sp_frame(
+    frame: pd.DataFrame,
+    month_keys: list[str],
+    month_index: dict[str, int],
+) -> dict[str, dict[str, dict[str, list[float]]]]:
+    result: dict[str, dict[str, dict[str, list[float]]]] = {}
+    for indicator in [item.code for item in INDICATORS]:
+        result[indicator] = {}
+        for territory_type in TERRITORY_TYPES:
+            filtered = frame[(frame["indicator"] == indicator) & (frame["territory_type"] == territory_type)]
+            result[indicator][territory_type] = _series_for_frame(filtered, month_keys, month_index)
+    return result
+
+
 def _population_by_municipality() -> dict[str, float]:
     populations: dict[str, float] = {}
     for name in isp_repository.territories("municipality"):
@@ -129,6 +228,19 @@ def _population_by_municipality() -> dict[str, float]:
         if value is not None:
             populations[name] = float(value)
     return populations
+
+
+def _sp_population_by_municipality() -> dict[str, float]:
+    path = _ensure_sp_population_file()
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    output: dict[str, float] = {}
+    for row in rows[1:]:
+        name = re.sub(r"\s+-\s+SP$", "", str(row.get("D1N", "")).strip())
+        value = row.get("V")
+        if not name or value in {None, "", "-"}:
+            continue
+        output[name] = float(str(value).replace(".", "").replace(",", "."))
+    return output
 
 
 def _source_metadata() -> list[dict[str, object]]:
@@ -186,6 +298,30 @@ def _source_metadata() -> list[dict[str, object]]:
     return rows
 
 
+def _sp_ibge_source_metadata() -> list[dict[str, object]]:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    return [
+        _file_source_row(
+            "ibge_population_municipalities_sp",
+            IBGE_SP_POPULATION_URL,
+            raw_ibge_dir / "population_municipalities_sp_latest.json",
+            "population",
+        ),
+        _file_source_row(
+            "ibge_municipality_geometries_sp",
+            IBGE_SP_MUNICIPALITIES_GEOJSON_URL,
+            raw_ibge_dir / "sp_municipalities_min.geojson",
+            "geometry",
+        ),
+        _file_source_row(
+            "ibge_municipality_names_sp",
+            IBGE_SP_MUNICIPALITIES_URL,
+            raw_ibge_dir / "sp_municipalities.json",
+            "territory",
+        ),
+    ]
+
+
 def _file_source_row(name: str, url: str, path: Path, category: str) -> dict[str, object]:
     exists = path.exists()
     return {
@@ -203,6 +339,30 @@ def _municipality_geometries() -> dict[str, object]:
     path = _ensure_municipality_geometries_file()
     data = json.loads(path.read_text(encoding="utf-8"))
     code_to_name = _municipality_code_to_name()
+    features = []
+    for feature in data.get("features", []):
+        properties = feature.get("properties") or {}
+        ibge_code = str(properties.get("codarea") or "")
+        name = code_to_name.get(ibge_code)
+        if not name:
+            continue
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": feature.get("geometry"),
+                "properties": {
+                    "ibge_code": ibge_code,
+                    "territory_name": name,
+                },
+            }
+        )
+    return {"type": "FeatureCollection", "features": features}
+
+
+def _sp_municipality_geometries() -> dict[str, object]:
+    path = _ensure_sp_municipality_geometries_file()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    code_to_name = _sp_municipality_code_to_name()
     features = []
     for feature in data.get("features", []):
         properties = feature.get("properties") or {}
@@ -264,6 +424,42 @@ def _ensure_municipality_geometries_file() -> Path:
     if path.exists() and path.stat().st_size > 0:
         return path
     response = httpx.get(IBGE_RJ_MUNICIPALITIES_GEOJSON_URL, timeout=90)
+    response.raise_for_status()
+    path.write_bytes(response.content)
+    return path
+
+
+def _ensure_sp_municipality_geometries_file() -> Path:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    raw_ibge_dir.mkdir(parents=True, exist_ok=True)
+    path = raw_ibge_dir / "sp_municipalities_min.geojson"
+    if path.exists() and path.stat().st_size > 0:
+        return path
+    response = httpx.get(IBGE_SP_MUNICIPALITIES_GEOJSON_URL, timeout=90)
+    response.raise_for_status()
+    path.write_bytes(response.content)
+    return path
+
+
+def _ensure_sp_municipality_names_file() -> Path:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    raw_ibge_dir.mkdir(parents=True, exist_ok=True)
+    path = raw_ibge_dir / "sp_municipalities.json"
+    if path.exists() and path.stat().st_size > 0:
+        return path
+    response = httpx.get(IBGE_SP_MUNICIPALITIES_URL, timeout=90)
+    response.raise_for_status()
+    path.write_bytes(response.content)
+    return path
+
+
+def _ensure_sp_population_file() -> Path:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    raw_ibge_dir.mkdir(parents=True, exist_ok=True)
+    path = raw_ibge_dir / "population_municipalities_sp_latest.json"
+    if path.exists() and path.stat().st_size > 0:
+        return path
+    response = httpx.get(IBGE_SP_POPULATION_URL, timeout=90)
     response.raise_for_status()
     path.write_bytes(response.content)
     return path
@@ -338,6 +534,16 @@ def _municipality_code_to_name() -> dict[str, str]:
         for row in pairs.to_dict(orient="records")
         if str(row.get("ibge_code") or "").strip()
     }
+
+
+def _sp_municipality_code_to_name() -> dict[str, str]:
+    path = _ensure_sp_municipality_names_file()
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    return {str(row["id"]): str(row["nome"]) for row in rows if row.get("id") and row.get("nome")}
+
+
+def period_date(year: int, month: int) -> str:
+    return date(year, month, monthrange(year, month)[1]).isoformat()
 
 
 def main() -> None:

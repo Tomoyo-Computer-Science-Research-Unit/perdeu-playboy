@@ -18,6 +18,16 @@ const sources = [
     href: "https://sidra.ibge.gov.br/tabela/6579"
   },
   {
+    label: "SSP-SP Números Sem Mistério",
+    description: "Séries mensais oficiais de São Paulo por estado e município.",
+    href: "https://www.ssp.sp.gov.br/estatistica/dados-mensais"
+  },
+  {
+    label: "Sinesp VDE/MJSP",
+    description: "Complemento nacional oficial para feminicídio e morte por intervenção de agente do Estado em SP.",
+    href: "https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica"
+  },
+  {
     label: "GENI/UFF + Instituto Fogo Cruzado",
     description: "Mapa Histórico dos Grupos Armados do Rio de Janeiro.",
     href: "https://fogocruzado.org.br/projetos/mapa-historico-dos-grupos-armados/"

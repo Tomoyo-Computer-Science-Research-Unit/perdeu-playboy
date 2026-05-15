@@ -19,7 +19,11 @@ function formatBytes(value: number | null) {
 }
 
 export default async function SourcesPage() {
-  const [sources, snapshot] = await Promise.all([getDataSources(), getSnapshotMeta()]);
+  const [rjSources, spSources, snapshot] = await Promise.all([getDataSources("RJ"), getDataSources("SP"), getSnapshotMeta()]);
+  const sources = [
+    ...rjSources.map((source) => ({ ...source, name: `RJ · ${source.name}` })),
+    ...spSources.map((source) => ({ ...source, name: `SP · ${source.name}` }))
+  ];
 
   return (
     <div className="grid gap-8">

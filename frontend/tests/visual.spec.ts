@@ -32,9 +32,9 @@ test("map accepts permalink filters", async ({ page }) => {
   await expect(page.locator("text=Bairros:")).toBeVisible();
 });
 
-test("map handles Sao Paulo while snapshot is pending", async ({ page }) => {
+test("map loads Sao Paulo official snapshot", async ({ page }) => {
   await page.goto("/map?uf=SP");
   await expect(page.getByLabel("Selecionar UF")).toHaveValue("SP");
-  await expect(page.locator("text=SP em integracao")).toBeVisible();
+  await expect(page.locator("text=Municípios: 645")).toBeVisible();
   await expect(page.locator("text=Falha ao carregar mapa")).toHaveCount(0);
 });

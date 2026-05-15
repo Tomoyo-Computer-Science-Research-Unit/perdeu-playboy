@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TrendChart } from "@/components/TrendChart";
 import { ANALYSIS_START_YEAR } from "@/lib/constants";
+import { enabledUf, type UfCode } from "@/lib/ufs";
 import type { Indicator, Territory, TerritoryType, TimeSeriesPoint } from "@/types/api";
 
 interface TrendsExplorerProps {
@@ -13,6 +14,7 @@ interface TrendsExplorerProps {
 
 export function TrendsExplorer({ indicators, initialTerritories, initialData }: TrendsExplorerProps) {
   const [indicator, setIndicator] = useState("roubo_rua");
+  const [uf, setUf] = useState<UfCode>("RJ");
   const [territoryType, setTerritoryType] = useState<TerritoryType>("state");
   const [territoryName, setTerritoryName] = useState("Estado do Rio de Janeiro");
   const [territories, setTerritories] = useState<Territory[]>(initialTerritories);
@@ -34,7 +36,7 @@ export function TrendsExplorer({ indicators, initialTerritories, initialData }: 
         return;
       }
       const { getTerritories } = await import("@/lib/api");
-      const nextTerritories = await getTerritories(territoryType);
+      const nextTerritories = await getTerritories(territoryType, uf);
       if (cancelled) {
         return;
       }
@@ -45,7 +47,7 @@ export function TrendsExplorer({ indicators, initialTerritories, initialData }: 
     return () => {
       cancelled = true;
     };
-  }, [territoryType]);
+  }, [territoryType, uf]);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,7 +59,7 @@ export function TrendsExplorer({ indicators, initialTerritories, initialData }: 
       setLoading(true);
       setError(null);
       const { getTimeseries } = await import("@/lib/api");
-      const nextData = await getTimeseries(indicator, territoryType, territoryName, startYear, endYear);
+      const nextData = await getTimeseries(indicator, territoryType, territoryName, startYear, endYear, uf);
       if (!cancelled) {
         setData(nextData);
       }
@@ -74,7 +76,49 @@ export function TrendsExplorer({ indicators, initialTerritories, initialData }: 
     return () => {
       cancelled = true;
     };
-  }, [indicator, territoryType, territoryName, startYear, endYear]);
+  }, [indicator, territoryType, territoryName, startYear, endYear, uf]);
+
+  useEffect(() => {
+    function handleUfChange(event: Event) {
+      const detail = (event as CustomEvent<{ uf?: string }>).detail;
+      const nextUf = enabledUf(detail?.uf);
+      setUf(nextUf);
+      setTerritoryType("state");
+      void reloadUf(nextUf);
+    }
+    window.addEventListener("ufchange", handleUfChange);
+    const params = new URLSearchParams(window.location.search);
+    const initialUf = enabledUf(params.get("uf") ?? window.localStorage.getItem("selected_uf"));
+    if (initialUf !== "RJ") {
+      setUf(initialUf);
+      void reloadUf(initialUf);
+    }
+    return () => window.removeEventListener("ufchange", handleUfChange);
+  }, [indicator]);
+
+  async function reloadUf(nextUf: UfCode) {
+    setLoading(true);
+    setError(null);
+    try {
+      const { getLatestPeriod, getTerritories, getTimeseries } = await import("@/lib/api");
+      const [latest, nextTerritories] = await Promise.all([
+        getLatestPeriod(nextUf),
+        getTerritories("state", nextUf)
+      ]);
+      const stateName = nextTerritories[0]?.name ?? (nextUf === "SP" ? "Estado de São Paulo" : "Estado do Rio de Janeiro");
+      const nextStart = Math.max(ANALYSIS_START_YEAR, nextUf === "SP" ? 2015 : ANALYSIS_START_YEAR);
+      const nextData = await getTimeseries(indicator, "state", stateName, nextStart, latest.year, nextUf);
+      setTerritories(nextTerritories);
+      setTerritoryName(stateName);
+      setStartYear(nextStart);
+      setEndYear(latest.year);
+      setData(nextData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao carregar UF.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="grid gap-6">
@@ -104,7 +148,7 @@ export function TrendsExplorer({ indicators, initialTerritories, initialData }: 
             >
               <option value="state">ESTADO</option>
               <option value="municipality">MUNICÍPIO</option>
-              <option value="police_area">ÁREA POLICIAL</option>
+              <option value="police_area" disabled={uf !== "RJ"}>ÁREA POLICIAL</option>
             </select>
           </label>
 
@@ -151,7 +195,7 @@ export function TrendsExplorer({ indicators, initialTerritories, initialData }: 
       </section>
 
       <div className="flex min-h-6 items-center justify-between gap-4 font-mono text-xs uppercase tracking-widest text-muted">
-        <span>{loading ? "Carregando dados oficiais do ISP..." : `${data.length} pontos mensais oficiais`}</span>
+        <span>{loading ? "Carregando dados oficiais..." : `${data.length} pontos mensais oficiais · ${uf}`}</span>
         {error ? <span className="text-accent-red">{error}</span> : null}
       </div>
 
