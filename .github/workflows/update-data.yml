@@ -11,6 +11,8 @@ permissions:
 jobs:
   update-data:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,6 +28,18 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+
+      - name: Cache official data downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            data/raw/ssp_sp
+            data/raw/sinesp
+            data/raw/ibge
+            data/processed
+          key: official-data-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            official-data-${{ runner.os }}-
 
       - name: Install backend dependencies
         working-directory: backend

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 import unicodedata
 import zipfile
@@ -13,6 +14,8 @@ import pandas as pd
 from pydantic import BaseModel, ConfigDict
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 SSP_SP_API_BASE_URL = "https://www.ssp.sp.gov.br"
 SSP_SP_MONTHLY_ENDPOINT = (
@@ -210,21 +213,33 @@ def _rows_from_ssp_payload(payload: dict[str, Any], territory_type: str, territo
 
 
 def _sinesp_sp_rows(start_year: int, end_year: int) -> pd.DataFrame:
-    path = _ensure_sinesp_vde_file()
+    try:
+        path = _ensure_sinesp_vde_file()
+    except httpx.HTTPError as exc:
+        logger.warning("Sinesp VDE unavailable; continuing without Sinesp complement: %s", exc)
+        return pd.DataFrame()
+    except OSError as exc:
+        logger.warning("Could not load Sinesp VDE file; continuing without complement: %s", exc)
+        return pd.DataFrame()
+
     frames: list[pd.DataFrame] = []
-    with zipfile.ZipFile(path) as archive:
-        for name in archive.namelist():
-            year_match = re.search(r"(\d{4})", name)
-            if not year_match:
-                continue
-            year = int(year_match.group(1))
-            if year < start_year or year > end_year:
-                continue
-            with archive.open(name) as file:
-                frame = _read_sinesp_csv(file)
-            frame.columns = [_clean_sinesp_column(column) for column in frame.columns]
-            frame = frame[frame["uf"].astype(str).str.upper().eq("SP")]
-            frames.append(frame)
+    try:
+        with zipfile.ZipFile(path) as archive:
+            for name in archive.namelist():
+                year_match = re.search(r"(\d{4})", name)
+                if not year_match:
+                    continue
+                year = int(year_match.group(1))
+                if year < start_year or year > end_year:
+                    continue
+                with archive.open(name) as file:
+                    frame = _read_sinesp_csv(file)
+                frame.columns = [_clean_sinesp_column(column) for column in frame.columns]
+                frame = frame[frame["uf"].astype(str).str.upper().eq("SP")]
+                frames.append(frame)
+    except (zipfile.BadZipFile, UnicodeDecodeError, KeyError) as exc:
+        logger.warning("Sinesp VDE parsing failed; continuing without complement: %s", exc)
+        return pd.DataFrame()
 
     if not frames:
         return pd.DataFrame()
@@ -266,7 +281,7 @@ def _load_municipalities() -> list[SpMunicipality]:
     raw_dir.mkdir(parents=True, exist_ok=True)
     path = raw_dir / "municipios.json"
     if not path.exists() or path.stat().st_size == 0:
-        response = httpx.get(SSP_SP_MUNICIPALITIES_URL, timeout=60, follow_redirects=True)
+        response = _get_with_retries(SSP_SP_MUNICIPALITIES_URL, timeout=60)
         response.raise_for_status()
         path.write_text(json.dumps(response.json(), ensure_ascii=False), encoding="utf-8")
     payload = json.loads(path.read_text(encoding="utf-8"))
@@ -283,10 +298,28 @@ def _ensure_sinesp_vde_file() -> Path:
     path = raw_dir / "basededadosvde.zip"
     if path.exists() and path.stat().st_size > 0:
         return path
-    response = httpx.get(SINESP_VDE_URL, timeout=180, follow_redirects=True)
+    response = _get_with_retries(SINESP_VDE_URL, timeout=300)
     response.raise_for_status()
     path.write_bytes(response.content)
     return path
+
+
+def _get_with_retries(url: str, timeout: float, attempts: int = 3) -> httpx.Response:
+    """Fetch a URL with bounded retries for unstable official data portals."""
+
+    last_error: httpx.HTTPError | None = None
+    request_timeout = httpx.Timeout(timeout, connect=30)
+    for attempt in range(attempts):
+        try:
+            response = httpx.get(url, timeout=request_timeout, follow_redirects=True)
+            response.raise_for_status()
+            return response
+        except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout, httpx.HTTPStatusError) as exc:
+            last_error = exc
+            logger.warning("HTTP request failed for %s on attempt %s/%s: %s", url, attempt + 1, attempts, exc)
+    if last_error is not None:
+        raise last_error
+    raise httpx.ConnectError(f"Could not request {url}")
 
 
 def _read_sinesp_csv(file: Any) -> pd.DataFrame:
