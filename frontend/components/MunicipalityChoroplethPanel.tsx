@@ -84,10 +84,11 @@ function periodsFrom(startYear: number, latestYear: number, latestMonth: number)
   return periods;
 }
 
-function initialMapState(periods: Array<{ year: number; month: number }>): MapInitialState {
-  if (typeof window === "undefined") {
-    return { indicator: "crime_geral", mode: "rate", view: "state", periodIndex: periods.length - 1, uf: "RJ" };
-  }
+function defaultMapState(periods: Array<{ year: number; month: number }>): MapInitialState {
+  return { indicator: "crime_geral", mode: "rate", view: "state", periodIndex: periods.length - 1, uf: "RJ" };
+}
+
+function browserMapState(periods: Array<{ year: number; month: number }>): MapInitialState {
   const params = new URLSearchParams(window.location.search);
   const indicator = params.get("indicator") || "crime_geral";
   const mode = params.get("mode") as RankingMode | null;
@@ -119,7 +120,7 @@ export function MunicipalityChoroplethPanel({
   latestMonth: number;
 }) {
   const periods = useMemo(() => periodsUntil(latestYear, latestMonth), [latestMonth, latestYear]);
-  const initialState = useMemo(() => initialMapState(periods), [periods]);
+  const initialState = useMemo(() => defaultMapState(periods), [periods]);
   const [indicator, setIndicator] = useState<MapIndicator>(initialState.indicator);
   const [indicatorOptions, setIndicatorOptions] = useState(indicators);
   const [mode, setMode] = useState<RankingMode>(initialState.mode);
@@ -131,7 +132,7 @@ export function MunicipalityChoroplethPanel({
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const firstUrlSync = useRef(true);
+  const urlHydrated = useRef(false);
 
   const bbox = useMemo<[number, number, number, number]>(() => {
     const coordinates = data.features.flatMap((feature) => collectCoordinates(feature.geometry));
@@ -152,7 +153,39 @@ export function MunicipalityChoroplethPanel({
   }, [data]);
 
   useEffect(() => {
-    void loadMap(view, periodIndex, indicator, mode, uf);
+    async function hydrateFromUrl() {
+      const nextState = browserMapState(periods);
+      let nextIndicator = nextState.indicator;
+      let nextIndicatorOptions = indicatorOptions;
+
+      if (nextState.uf !== "RJ") {
+        try {
+          const { getIndicators } = await import("@/lib/api");
+          nextIndicatorOptions = await getIndicators(nextState.uf);
+          setIndicatorOptions(nextIndicatorOptions);
+        } catch {
+          setError("Falha ao carregar mapa.");
+        }
+      }
+
+      if (
+        nextIndicator !== "crime_geral"
+        && !nextIndicatorOptions.some((item) => item.code === nextIndicator)
+      ) {
+        nextIndicator = nextIndicatorOptions[0]?.code ?? "crime_geral";
+      }
+
+      const nextMode = nextIndicator === "crime_geral" ? "rate" : nextState.mode;
+      setUf(nextState.uf);
+      setView(nextState.view);
+      setIndicator(nextIndicator);
+      setMode(nextMode);
+      setPeriodIndex(nextState.periodIndex);
+      urlHydrated.current = true;
+      await loadMap(nextState.view, nextState.periodIndex, nextIndicator, nextMode, nextState.uf);
+    }
+
+    void hydrateFromUrl();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -170,8 +203,8 @@ export function MunicipalityChoroplethPanel({
     if (typeof window === "undefined") {
       return;
     }
-    if (firstUrlSync.current) {
-      firstUrlSync.current = false;
+    if (!urlHydrated.current) {
+      return;
     }
     const period = periods[periodIndex] ?? periods[periods.length - 1];
     const params = new URLSearchParams();
