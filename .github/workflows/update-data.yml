@@ -33,6 +33,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            data/raw/isp
             data/raw/ssp_sp
             data/raw/sinesp
             data/raw/ibge

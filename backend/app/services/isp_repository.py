@@ -223,10 +223,43 @@ def _ensure_source_file(source: IspSource) -> Path:
         return path
 
     logger.info("Downloading official ISP CSV %s", source.url)
-    with httpx.stream("GET", source.url, timeout=90, follow_redirects=True) as response:
-        response.raise_for_status()
-        with path.open("wb") as file:
-            for chunk in response.iter_bytes():
-                file.write(chunk)
+    _download_source_file(source, path)
     logger.info("Downloaded %s checksum=%s", path.name, checksum_file(path))
     return path
+
+
+def _download_source_file(source: IspSource, path: Path, attempts: int = 3) -> None:
+    """Download an official ISP CSV with retries and atomic file replacement."""
+
+    timeout = httpx.Timeout(180.0, connect=30.0)
+    temporary_path = path.with_name(f"{path.name}.tmp")
+    last_error: Exception | None = None
+
+    for attempt in range(1, attempts + 1):
+        try:
+            with httpx.stream(
+                "GET",
+                source.url,
+                timeout=timeout,
+                follow_redirects=True,
+            ) as response:
+                response.raise_for_status()
+                with temporary_path.open("wb") as file:
+                    for chunk in response.iter_bytes():
+                        file.write(chunk)
+            temporary_path.replace(path)
+            return
+        except (httpx.HTTPError, OSError) as exc:
+            last_error = exc
+            temporary_path.unlink(missing_ok=True)
+            logger.warning(
+                "Failed to download %s on attempt %s/%s: %s",
+                source.url,
+                attempt,
+                attempts,
+                exc,
+            )
+
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError(f"Failed to download {source.url}")
