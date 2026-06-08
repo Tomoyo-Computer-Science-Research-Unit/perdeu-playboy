@@ -20,6 +20,13 @@ function formatNumber(value: unknown) {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(number);
 }
 
+function formatOptionalNumber(value: unknown, suffix = "") {
+  if (value === null || value === undefined || value === "") {
+    return "-";
+  }
+  return `${formatNumber(value)}${suffix}`;
+}
+
 function polygonPath(ring: number[][], bbox: [number, number, number, number]) {
   const [minLon, minLat, maxLon, maxLat] = bbox;
   const width = maxLon - minLon || 1;
@@ -63,6 +70,16 @@ function collectCoordinates(geometry: Geometry | null | undefined): number[][] {
 function color(value: number, max: number, indicator: MapIndicator, mode: RankingMode) {
   const intensity = Math.max(0, Math.min(1, value / Math.max(max, 1)));
   return `rgb(${36 + Math.round(196 * intensity)}, ${14 + Math.round(28 * (1 - intensity))}, ${14 + Math.round(28 * (1 - intensity))})`;
+}
+
+function metricLabel(indicator: MapIndicator, mode: RankingMode) {
+  if (indicator === "crime_geral" || mode === "rate") {
+    return "Taxa 100 mil";
+  }
+  if (mode === "yoy") {
+    return "Variação anual";
+  }
+  return "Valor";
 }
 
 function periodsUntil(latestYear: number, latestMonth: number) {
@@ -154,12 +171,11 @@ export function MunicipalityChoroplethPanel({
     return nextBbox.every(Number.isFinite) ? nextBbox : [-44.9, -23.4, -40.7, -20.7];
   }, [data]);
 
-  const maxMetric = useMemo(() => {
-    return Math.max(
-      1,
-      ...data.features.map((feature) => Math.max(0, Number(feature.properties.metric_value ?? 0)))
-    );
+  const rawMaxMetric = useMemo(() => {
+    return Math.max(0, ...data.features.map((feature) => Math.max(0, Number(feature.properties.metric_value ?? 0))));
   }, [data]);
+  const maxMetric = Math.max(1, rawMaxMetric);
+  const hasMapData = rawMaxMetric > 0;
 
   useEffect(() => {
     async function hydrateFromUrl() {
@@ -324,6 +340,7 @@ export function MunicipalityChoroplethPanel({
     visiblePeriods.findIndex((item) => item.year === selectedPeriod?.year && item.month === selectedPeriod?.month)
   );
   const startYear = viewStartYear(view, uf);
+  const currentMetricLabel = metricLabel(indicator, mode);
 
   return (
     <section className="grid gap-4">
@@ -370,37 +387,58 @@ export function MunicipalityChoroplethPanel({
 
       <div className="overflow-hidden border border-border bg-surface p-4 shadow-hard">
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-          <svg viewBox="0 0 1000 680" role="img" aria-label={view === "rio_city" ? "Mapa da cidade do Rio de Janeiro por bairros" : "Mapa do estado do Rio de Janeiro por municípios"} className="h-[420px] w-full sm:h-[560px] lg:h-[680px]">
-            <rect width="1000" height="680" fill="#050505" />
-            {data.features.map((feature) => {
-              const value = Number(feature.properties.metric_value ?? 0);
-              const name = String(feature.properties.territory_name ?? "");
-              const sourceName = String(feature.properties.source_territory_name ?? "");
-              const canOpenRio = uf === "RJ" && view === "state" && name === "Rio de Janeiro";
-              return (
-                <path
-                  key={`${name}-${sourceName}`}
-                  d={geometryPath(feature.geometry, bbox)}
-                  fill={color(value, maxMetric, indicator, mode)}
-                  stroke="#050505"
-                  strokeWidth={canOpenRio ? "2.4" : "1.2"}
-                  className={canOpenRio ? "cursor-pointer transition-opacity hover:opacity-80" : "transition-opacity hover:opacity-80"}
-                  onMouseEnter={() => setSelected(feature.properties)}
-                  onFocus={() => setSelected(feature.properties)}
-                  onClick={canOpenRio ? openRioCity : undefined}
-                  onKeyDown={(event) => {
-                    if (canOpenRio && (event.key === "Enter" || event.key === " ")) {
-                      event.preventDefault();
-                      openRioCity();
-                    }
-                  }}
-                  tabIndex={0}
-                >
-                  <title>{canOpenRio ? "Rio de Janeiro · abrir bairros" : sourceName ? `${name} · ${sourceName}` : name}</title>
-                </path>
-              );
-            })}
-          </svg>
+          <div>
+            <div className="relative">
+              <svg viewBox="0 0 1000 680" role="img" aria-label={view === "rio_city" ? "Mapa da cidade do Rio de Janeiro por bairros" : "Mapa do estado do Rio de Janeiro por municípios"} className="h-[420px] w-full sm:h-[560px] lg:h-[680px]">
+                <rect width="1000" height="680" fill="#050505" />
+                {data.features.map((feature) => {
+                  const value = Number(feature.properties.metric_value ?? 0);
+                  const name = String(feature.properties.territory_name ?? "");
+                  const sourceName = String(feature.properties.source_territory_name ?? "");
+                  const canOpenRio = uf === "RJ" && view === "state" && name === "Rio de Janeiro";
+                  return (
+                    <path
+                      key={`${name}-${sourceName}`}
+                      d={geometryPath(feature.geometry, bbox)}
+                      fill={hasMapData ? color(value, maxMetric, indicator, mode) : "#1f1f1f"}
+                      stroke="#050505"
+                      strokeWidth={canOpenRio ? "2.4" : "1.2"}
+                      className={canOpenRio ? "cursor-pointer transition-opacity hover:opacity-80" : "transition-opacity hover:opacity-80"}
+                      onMouseEnter={() => setSelected(feature.properties)}
+                      onFocus={() => setSelected(feature.properties)}
+                      onClick={canOpenRio ? openRioCity : undefined}
+                      onKeyDown={(event) => {
+                        if (canOpenRio && (event.key === "Enter" || event.key === " ")) {
+                          event.preventDefault();
+                          openRioCity();
+                        }
+                      }}
+                      tabIndex={0}
+                    >
+                      <title>{canOpenRio ? "Rio de Janeiro · abrir bairros" : sourceName ? `${name} · ${sourceName}` : name}</title>
+                    </path>
+                  );
+                })}
+              </svg>
+              {!hasMapData ? (
+                <div className="absolute inset-x-4 top-4 border border-border bg-background/95 p-4 shadow-hard">
+                  <p className="font-mono text-xs font-bold uppercase tracking-widest text-accent-red">Sem dados para este recorte</p>
+                  <p className="mt-2 text-sm text-muted">
+                    Troque o indicador, a métrica ou o período. O mês ativo foi limitado ao último período disponível no snapshot.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+            <div className="mt-3 grid gap-3 border border-border bg-background p-3 font-mono text-[11px] uppercase tracking-widest text-muted sm:flex sm:items-center sm:justify-between">
+              <span>{currentMetricLabel}</span>
+              <div className="flex items-center gap-2">
+                <span>Menor</span>
+                <span className="h-3 w-20 border border-border bg-gradient-to-r from-[#242a2a] to-[#e80e0e]" aria-hidden="true" />
+                <span>Maior</span>
+              </div>
+              <span>{String(selectedPeriod?.month).padStart(2, "0")}/{selectedPeriod?.year}</span>
+            </div>
+          </div>
 
           <aside className="border border-border bg-background p-5 shadow-hard">
             <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">
@@ -416,28 +454,28 @@ export function MunicipalityChoroplethPanel({
             ) : null}
             <dl className="mt-6 grid gap-4 font-mono text-xs uppercase tracking-wide">
               <div className="border-t border-border pt-3">
-                <dt className="text-muted">{indicator === "crime_geral" || mode === "rate" ? "Taxa 100 mil" : "Valor"}</dt>
+                <dt className="text-muted">{currentMetricLabel}</dt>
                 <dd className={indicator === "crime_geral" || mode === "rate" ? "mt-1 text-lg font-bold text-accent-red" : "mt-1 text-lg font-bold text-foreground"}>
-                  {formatNumber(indicator === "crime_geral" || mode === "rate" ? selected?.rate_per_100k : selected?.value)}
+                  {formatOptionalNumber(indicator === "crime_geral" || mode === "rate" ? selected?.rate_per_100k : selected?.value)}
                 </dd>
               </div>
               {indicator === "crime_geral" ? (
                 <div className="border-t border-border pt-3">
                   <dt className="text-muted">População base</dt>
-                  <dd className="mt-1 text-lg font-bold text-foreground">{formatNumber(selected?.population)}</dd>
+                  <dd className="mt-1 text-lg font-bold text-foreground">{formatOptionalNumber(selected?.population)}</dd>
                 </div>
               ) : null}
               {indicator !== "crime_geral" ? (
                 <div className="border-t border-border pt-3">
                   <dt className="text-muted">Variação anual</dt>
                   <dd className={Number(selected?.yoy_percent_change ?? 0) > 0 ? "mt-1 text-lg font-bold text-accent-red" : "mt-1 text-lg font-bold text-foreground"}>
-                    {formatNumber(selected?.yoy_percent_change)}%
+                    {formatOptionalNumber(selected?.yoy_percent_change, "%")}
                   </dd>
                 </div>
               ) : null}
               <div className="border-t border-border pt-3">
                 <dt className="text-muted">Rank</dt>
-                <dd className="mt-1 text-lg font-bold text-foreground">{formatNumber(selected?.rank)}</dd>
+                <dd className="mt-1 text-lg font-bold text-foreground">{formatOptionalNumber(selected?.rank)}</dd>
               </div>
             </dl>
           </aside>

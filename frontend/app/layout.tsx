@@ -10,36 +10,49 @@ const robotoMono = Roboto_Mono({ subsets: ["latin"], variable: "--font-roboto-mo
 const bebasNeue = Bebas_Neue({ weight: "400", subsets: ["latin"], variable: "--font-bebas-neue" });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://perdeu-playboy.vercel.app"),
+  metadataBase: new URL("https://perdeu-playboy.online"),
   title: {
     default: "Perdeu, Playboy",
     template: "%s | Perdeu, Playboy"
   },
-  description: "Painel público de indicadores oficiais de violência e segurança pública no RJ.",
-  keywords: ["Rio de Janeiro", "segurança pública", "ISP Dados Abertos", "violência", "dados públicos", "g0v"],
+  description: "Painel publico de indicadores oficiais de violencia e seguranca publica no Rio de Janeiro e em Sao Paulo.",
+  applicationName: "Perdeu, Playboy",
+  authors: [{ name: "g0v brazil & tomoyo", url: "https://x.com/333tomoyo" }],
+  creator: "g0v brazil & tomoyo",
+  publisher: "g0v brazil & tomoyo",
+  keywords: [
+    "Rio de Janeiro",
+    "Sao Paulo",
+    "seguranca publica",
+    "ISP Dados Abertos",
+    "SSP-SP",
+    "violencia",
+    "dados publicos",
+    "g0v"
+  ],
   alternates: {
     canonical: "/"
   },
   openGraph: {
     type: "website",
     locale: "pt_BR",
-    url: "https://perdeu-playboy.vercel.app",
+    url: "https://perdeu-playboy.online",
     siteName: "Perdeu, Playboy",
     title: "Perdeu, Playboy",
-    description: "Painel público de indicadores oficiais de violência e segurança pública no RJ.",
+    description: "Painel publico de indicadores oficiais de violencia e seguranca publica no Rio de Janeiro e em Sao Paulo.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Perdeu, Playboy - painel público de dados sobre violência no RJ"
+        alt: "Perdeu, Playboy - painel publico de dados sobre violencia e seguranca publica"
       }
     ]
   },
   twitter: {
     card: "summary_large_image",
     title: "Perdeu, Playboy",
-    description: "Painel público de indicadores oficiais de violência e segurança pública no RJ.",
+    description: "Painel publico de indicadores oficiais de violencia e seguranca publica no Rio de Janeiro e em Sao Paulo.",
     images: ["/og-image.png"]
   },
   icons: {
