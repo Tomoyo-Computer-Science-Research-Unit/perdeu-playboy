@@ -29,4 +29,3 @@ app.include_router(router, prefix=settings.api_prefix)
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "rj-violencia-dados-backend"}
-

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import date
 
 import pandas as pd
+from pydantic import BaseModel, ConfigDict
 
 from app.schemas import GovernorPerformanceOut, GovernorPerformanceRow
 from app.services import isp_repository
@@ -23,8 +23,11 @@ SCORE_INDICATORS = [
 ]
 
 
-@dataclass(frozen=True)
-class GovernorTerm:
+class GovernorTerm(BaseModel):
+    """Validated governor term used by the performance calculator."""
+
+    model_config = ConfigDict(frozen=True)
+
     governor: str
     party_or_condition: str
     start: date
@@ -32,16 +35,66 @@ class GovernorTerm:
 
 
 GOVERNOR_TERMS = [
-    GovernorTerm("Leonel Brizola", "PDT", date(1991, 1, 1), date(1994, 12, 31)),
-    GovernorTerm("Marcello Alencar", "PSDB", date(1995, 1, 1), date(1998, 12, 31)),
-    GovernorTerm("Anthony Garotinho", "PDT", date(1999, 1, 1), date(2002, 4, 5)),
-    GovernorTerm("Benedita da Silva", "em exercício", date(2002, 4, 6), date(2002, 12, 31)),
-    GovernorTerm("Rosinha Garotinho", "PSB", date(2003, 1, 1), date(2006, 12, 31)),
-    GovernorTerm("Sérgio Cabral", "PMDB", date(2007, 1, 1), date(2014, 4, 3)),
-    GovernorTerm("Luiz Fernando Pezão", "PMDB", date(2014, 4, 4), date(2018, 12, 31)),
-    GovernorTerm("Wilson Witzel", "PSC", date(2019, 1, 1), date(2020, 8, 27)),
-    GovernorTerm("Cláudio Castro", "PSC/PL", date(2020, 8, 28), date(2026, 3, 23)),
-    GovernorTerm("Ricardo Couto", "interino/em exercício", date(2026, 3, 24), None),
+    GovernorTerm(
+        governor="Leonel Brizola",
+        party_or_condition="PDT",
+        start=date(1991, 1, 1),
+        end=date(1994, 12, 31),
+    ),
+    GovernorTerm(
+        governor="Marcello Alencar",
+        party_or_condition="PSDB",
+        start=date(1995, 1, 1),
+        end=date(1998, 12, 31),
+    ),
+    GovernorTerm(
+        governor="Anthony Garotinho",
+        party_or_condition="PDT",
+        start=date(1999, 1, 1),
+        end=date(2002, 4, 5),
+    ),
+    GovernorTerm(
+        governor="Benedita da Silva",
+        party_or_condition="em exercício",
+        start=date(2002, 4, 6),
+        end=date(2002, 12, 31),
+    ),
+    GovernorTerm(
+        governor="Rosinha Garotinho",
+        party_or_condition="PSB",
+        start=date(2003, 1, 1),
+        end=date(2006, 12, 31),
+    ),
+    GovernorTerm(
+        governor="Sérgio Cabral",
+        party_or_condition="PMDB",
+        start=date(2007, 1, 1),
+        end=date(2014, 4, 3),
+    ),
+    GovernorTerm(
+        governor="Luiz Fernando Pezão",
+        party_or_condition="PMDB",
+        start=date(2014, 4, 4),
+        end=date(2018, 12, 31),
+    ),
+    GovernorTerm(
+        governor="Wilson Witzel",
+        party_or_condition="PSC",
+        start=date(2019, 1, 1),
+        end=date(2020, 8, 27),
+    ),
+    GovernorTerm(
+        governor="Cláudio Castro",
+        party_or_condition="PSC/PL",
+        start=date(2020, 8, 28),
+        end=date(2026, 3, 23),
+    ),
+    GovernorTerm(
+        governor="Ricardo Couto",
+        party_or_condition="interino/em exercício",
+        start=date(2026, 3, 24),
+        end=None,
+    ),
 ]
 
 

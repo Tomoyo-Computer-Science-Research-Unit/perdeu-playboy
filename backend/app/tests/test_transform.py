@@ -22,4 +22,3 @@ def test_transform_isp_dataframe_melts_indicator_columns_and_yoy() -> None:
     assert homicide_rows[0].territory_name == "Rio de Janeiro"
     assert homicide_rows[1].previous_year_same_period == 10
     assert homicide_rows[1].yoy_absolute_change == 2
-

@@ -72,4 +72,3 @@ INDICATORS: list[IndicatorOut] = [
 ]
 
 INDICATOR_BY_CODE = {indicator.code: indicator for indicator in INDICATORS}
-

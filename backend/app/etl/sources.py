@@ -1,14 +1,25 @@
-from dataclasses import dataclass
-
+from pydantic import BaseModel, ConfigDict, field_validator
 from app.config import settings
 
 
-@dataclass(frozen=True)
-class IspSource:
+class IspSource(BaseModel):
+    """Official ISP source descriptor used by the bronze ETL layer."""
+
+    model_config = ConfigDict(frozen=True)
+
     name: str
     url: str
     territory_type: str
     file_name: str
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, value: str) -> str:
+        """Validate source URLs while keeping a plain string for httpx."""
+
+        if not value.startswith(("http://", "https://")):
+            raise ValueError("source URL must be absolute HTTP(S)")
+        return value
 
 
 def default_isp_sources() -> list[IspSource]:

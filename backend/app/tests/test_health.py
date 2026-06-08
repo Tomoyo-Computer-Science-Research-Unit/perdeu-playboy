@@ -17,4 +17,3 @@ def test_indicators_endpoint() -> None:
     codes = {item["code"] for item in response.json()}
     assert "homicidio_doloso" in codes
     assert "letalidade_violenta" in codes
-

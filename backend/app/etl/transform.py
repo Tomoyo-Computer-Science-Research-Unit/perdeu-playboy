@@ -10,6 +10,7 @@ from typing import Iterable
 
 import pandas as pd
 
+from app.etl.medallion import SilverBatch
 from app.schemas import NormalizedCrimeStat
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,8 @@ POLICE_AREA_COLUMNS = {"cisp", "dp", "delegacia", "circunscricao", "circunscriç
 
 
 def normalize_column_name(value: str) -> str:
+    """Normalize a source column name into snake-case ASCII."""
+
     value = str(value).strip().lower()
     value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
     value = re.sub(r"[^a-z0-9]+", "_", value)
@@ -46,12 +49,23 @@ def normalize_column_name(value: str) -> str:
 
 
 def normalize_territory_name(value: object) -> str:
+    """Normalize a territory label while preserving human-readable casing."""
+
     text = "Estado do Rio de Janeiro" if pd.isna(value) else str(value).strip()
     text = re.sub(r"\s+", " ", text)
     return text
 
 
 def read_isp_csv(path: Path) -> pd.DataFrame:
+    """Read an ISP CSV using the known encoding fallbacks.
+
+    Args:
+        path: CSV file path.
+
+    Returns:
+        Loaded pandas dataframe.
+    """
+
     try:
         return pd.read_csv(path, sep=";", encoding="utf-8")
     except UnicodeDecodeError:
@@ -59,8 +73,46 @@ def read_isp_csv(path: Path) -> pd.DataFrame:
 
 
 def transform_isp_file(path: Path, territory_type: str, source_name: str = "ISP Dados Abertos") -> list[NormalizedCrimeStat]:
+    """Transform a raw ISP CSV file into validated monthly records."""
+
     frame = read_isp_csv(path)
     return transform_isp_dataframe(frame, territory_type=territory_type, source_name=source_name)
+
+
+def transform_to_silver(
+    path: Path,
+    territory_type: str,
+    source_name: str,
+) -> SilverBatch:
+    """Safely transform a bronze ISP file into a silver validated batch.
+
+    Args:
+        path: Bronze CSV path.
+        territory_type: Territory level represented by the source.
+        source_name: Stable source identifier.
+
+    Returns:
+        Silver batch with rows on success or error details on failure.
+    """
+
+    try:
+        rows = transform_isp_file(path, territory_type=territory_type, source_name=source_name)
+        return SilverBatch(
+            source_name=source_name,
+            file_name=path.name,
+            territory_type=territory_type,
+            rows=rows,
+            status="transformed",
+        )
+    except Exception as exc:
+        logger.exception("Failed to transform ISP source %s", path)
+        return SilverBatch(
+            source_name=source_name,
+            file_name=path.name,
+            territory_type=territory_type,
+            status="error",
+            error_message=str(exc),
+        )
 
 
 def transform_isp_dataframe(
@@ -68,6 +120,8 @@ def transform_isp_dataframe(
     territory_type: str,
     source_name: str = "ISP Dados Abertos",
 ) -> list[NormalizedCrimeStat]:
+    """Normalize a raw ISP dataframe into long-form validated crime-stat rows."""
+
     normalized = frame.rename(columns={column: normalize_column_name(column) for column in frame.columns})
     year_col = _first_existing(normalized.columns, YEAR_COLUMNS)
     month_col = _first_existing(normalized.columns, MONTH_COLUMNS)

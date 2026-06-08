@@ -138,5 +138,3 @@ CISP_TO_UNIDADE_TERRITORIAL = {
     157: "Trajano de Moraes, Doutor Elias, Sodrelândia, Vila da Grama e Visconde de Imbé",
     158: "Bom Jardim, Banquete, Barra Alegre e São José do Ribeirão",
 }
-
-

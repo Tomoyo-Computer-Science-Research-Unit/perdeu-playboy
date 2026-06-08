@@ -5,13 +5,12 @@ import json
 import re
 import unicodedata
 import zipfile
-from dataclasses import dataclass
-from datetime import date
 from pathlib import Path
 from typing import Any
 
 import httpx
 import pandas as pd
+from pydantic import BaseModel, ConfigDict
 
 from app.config import settings
 
@@ -57,8 +56,11 @@ SINESP_INDICATOR_BY_EVENT = {
 }
 
 
-@dataclass(frozen=True)
-class SpMunicipality:
+class SpMunicipality(BaseModel):
+    """Validated São Paulo municipality descriptor from SSP-SP."""
+
+    model_config = ConfigDict(frozen=True)
+
     id: int
     name: str
 
