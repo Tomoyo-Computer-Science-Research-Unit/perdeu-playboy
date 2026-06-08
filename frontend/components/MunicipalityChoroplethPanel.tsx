@@ -98,14 +98,23 @@ function browserMapState(periods: Array<{ year: number; month: number }>): MapIn
   const [year, month] = period.split("-").map(Number);
   const startYear = viewStartYear(view, uf);
   const periodIndex = year >= startYear ? periods.findIndex((item) => item.year === year && item.month === month) : -1;
-  const fallbackIndex = periods.findIndex((item) => item.year === startYear && item.month === 1);
+  const latestVisibleIndex = latestVisiblePeriodIndex(periods, startYear);
   return {
     indicator,
     mode: indicator === "crime_geral" ? "rate" : mode === "rate" || mode === "yoy" || mode === "count" ? mode : "rate",
     view,
-    periodIndex: periodIndex >= 0 ? periodIndex : fallbackIndex >= 0 ? fallbackIndex : periods.length - 1,
+    periodIndex: periodIndex >= 0 ? periodIndex : latestVisibleIndex >= 0 ? latestVisibleIndex : periods.length - 1,
     uf
   };
+}
+
+function latestVisiblePeriodIndex(periods: Array<{ year: number; month: number }>, startYear: number) {
+  for (let index = periods.length - 1; index >= 0; index -= 1) {
+    if (periods[index].year >= startYear) {
+      return index;
+    }
+  }
+  return -1;
 }
 
 export function MunicipalityChoroplethPanel({
