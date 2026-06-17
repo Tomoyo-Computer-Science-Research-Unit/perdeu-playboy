@@ -44,6 +44,12 @@ IBGE_PR_MUNICIPALITIES_GEOJSON_URL = (
 )
 IBGE_PR_MUNICIPALITIES_URL = "https://servicodados.ibge.gov.br/api/v1/localidades/estados/41/municipios"
 IBGE_PR_POPULATION_URL = "https://apisidra.ibge.gov.br/values/t/6579/n6/in%20n3%2041/v/9324/p/last"
+IBGE_SC_MUNICIPALITIES_GEOJSON_URL = (
+    "https://servicodados.ibge.gov.br/api/v3/malhas/estados/42"
+    "?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=municipio"
+)
+IBGE_SC_MUNICIPALITIES_URL = "https://servicodados.ibge.gov.br/api/v1/localidades/estados/42/municipios"
+IBGE_SC_POPULATION_URL = "https://apisidra.ibge.gov.br/values/t/6579/n6/in%20n3%2042/v/9324/p/last"
 RIO_NEIGHBORHOODS_GEOJSON_URL = (
     "https://pgeo3.rio.rj.gov.br/arcgis/rest/services/Cartografia/"
     "Limites_administrativos/FeatureServer/4/query"
@@ -62,6 +68,7 @@ def export_static_frontend(output_path: Path) -> None:
     rj_state = _rj_state_payload(month_keys, month_index)
     sp_state = _sp_state_payload(month_keys, month_index, latest.year, latest.month)
     pr_state = _pr_state_payload(month_keys, month_index, latest.year, latest.month)
+    sc_state = _sc_state_payload(month_keys, month_index, latest.year, latest.month)
 
     snapshot = {
         "generated_at": datetime.now(ZoneInfo("America/Sao_Paulo")).isoformat(timespec="seconds"),
@@ -74,6 +81,7 @@ def export_static_frontend(output_path: Path) -> None:
             "RJ": rj_state,
             "SP": sp_state,
             "PR": pr_state,
+            "SC": sc_state,
         },
     }
 
@@ -219,6 +227,69 @@ def _pr_state_payload(
                 "Roubo de rua não é exibido para PR porque o VDE não publica uma rubrica municipal compatível.",
                 "Roubo de veículo, roubo de carga, estupro e armas apreendidas aparecem no VDE em abrangência estadual.",
                 "Não há divisão por CISP/bairro para PR nesta versão; o nível subestadual é municipal.",
+            ],
+        },
+        "series": _series_for_sp_frame(frame, month_keys, month_index),
+        "coverage": {
+            "state_start_year": 2015,
+            "municipality_start_year": 2015,
+            "police_area_start_year": None,
+            "map_drilldown": None,
+        },
+    }
+
+
+def _sc_state_payload(
+    month_keys: list[str],
+    month_index: dict[str, int],
+    latest_year: int,
+    latest_month: int,
+) -> dict[str, object]:
+    municipalities = _sc_municipality_code_to_name()
+    normalized_names = {_normalize_name(name): name for name in municipalities.values()}
+    frame = sinesp_state_monthly_rows(
+        SinespStateConfig(uf="SC", state_name="Estado de Santa Catarina", start_year=2015),
+        normalized_names,
+        latest_year,
+        latest_month,
+    )
+    latest_row = frame.sort_values(["year", "month"]).iloc[-1]
+    sc_latest = {
+        "year": int(latest_row["year"]),
+        "month": int(latest_row["month"]),
+        "period_date": period_date(int(latest_row["year"]), int(latest_row["month"])),
+        "source_name": "Sinesp VDE/MJSP",
+    }
+    return {
+        "uf": "SC",
+        "name": "Santa Catarina",
+        "latest_period": sc_latest,
+        "indicators": [indicator.model_dump(mode="json") for indicator in INDICATORS],
+        "territories": {
+            "state": [{"territory_type": "state", "name": "Estado de Santa Catarina"}],
+            "municipality": [
+                {"territory_type": "municipality", "name": name}
+                for name in sorted(municipalities.values())
+            ],
+            "police_area": [],
+        },
+        "territorial_units": [],
+        "population_by_municipality": _sc_population_by_municipality(),
+        "municipality_geometries": _sc_municipality_geometries(),
+        "rio_neighborhood_geometries": {"type": "FeatureCollection", "features": []},
+        "sources": sinesp_source_metadata("SC") + _sc_ibge_source_metadata(),
+        "methodology": {
+            **methodology(),
+            "source_summary": (
+                "Santa Catarina usa o Sinesp VDE/MJSP para séries mensais por estado e, "
+                "quando disponível, por município. Alguns indicadores são publicados apenas "
+                "em abrangência estadual no VDE."
+            ),
+            "limitations": [
+                "SC começa em 2015 nesta integração porque o VDE cobre 2015-2026.",
+                "Roubo de rua não é exibido para SC porque o VDE não publica uma rubrica municipal compatível.",
+                "Roubo de veículo, roubo de carga, estupro e armas apreendidas aparecem no VDE em abrangência estadual.",
+                "Não há divisão por CISP/bairro para SC nesta versão; o nível subestadual é municipal.",
             ],
         },
         "series": _series_for_sp_frame(frame, month_keys, month_index),
@@ -417,6 +488,30 @@ def _pr_ibge_source_metadata() -> list[dict[str, object]]:
     ]
 
 
+def _sc_ibge_source_metadata() -> list[dict[str, object]]:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    return [
+        _file_source_row(
+            "ibge_population_municipalities_sc",
+            IBGE_SC_POPULATION_URL,
+            raw_ibge_dir / "population_municipalities_sc_latest.json",
+            "population",
+        ),
+        _file_source_row(
+            "ibge_municipality_geometries_sc",
+            IBGE_SC_MUNICIPALITIES_GEOJSON_URL,
+            raw_ibge_dir / "sc_municipalities_min.geojson",
+            "geometry",
+        ),
+        _file_source_row(
+            "ibge_municipality_names_sc",
+            IBGE_SC_MUNICIPALITIES_URL,
+            raw_ibge_dir / "sc_municipalities.json",
+            "territory",
+        ),
+    ]
+
+
 def _file_source_row(name: str, url: str, path: Path, category: str) -> dict[str, object]:
     exists = path.exists()
     return {
@@ -482,6 +577,30 @@ def _pr_municipality_geometries() -> dict[str, object]:
     path = _ensure_pr_municipality_geometries_file()
     data = json.loads(path.read_text(encoding="utf-8"))
     code_to_name = _pr_municipality_code_to_name()
+    features = []
+    for feature in data.get("features", []):
+        properties = feature.get("properties") or {}
+        ibge_code = str(properties.get("codarea") or "")
+        name = code_to_name.get(ibge_code)
+        if not name:
+            continue
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": feature.get("geometry"),
+                "properties": {
+                    "ibge_code": ibge_code,
+                    "territory_name": name,
+                },
+            }
+        )
+    return {"type": "FeatureCollection", "features": features}
+
+
+def _sc_municipality_geometries() -> dict[str, object]:
+    path = _ensure_sc_municipality_geometries_file()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    code_to_name = _sc_municipality_code_to_name()
     features = []
     for feature in data.get("features", []):
         properties = feature.get("properties") or {}
@@ -620,6 +739,42 @@ def _ensure_pr_population_file() -> Path:
     return path
 
 
+def _ensure_sc_municipality_geometries_file() -> Path:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    raw_ibge_dir.mkdir(parents=True, exist_ok=True)
+    path = raw_ibge_dir / "sc_municipalities_min.geojson"
+    if path.exists() and path.stat().st_size > 0:
+        return path
+    response = httpx.get(IBGE_SC_MUNICIPALITIES_GEOJSON_URL, timeout=90)
+    response.raise_for_status()
+    path.write_bytes(response.content)
+    return path
+
+
+def _ensure_sc_municipality_names_file() -> Path:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    raw_ibge_dir.mkdir(parents=True, exist_ok=True)
+    path = raw_ibge_dir / "sc_municipalities.json"
+    if path.exists() and path.stat().st_size > 0:
+        return path
+    response = httpx.get(IBGE_SC_MUNICIPALITIES_URL, timeout=90)
+    response.raise_for_status()
+    path.write_bytes(response.content)
+    return path
+
+
+def _ensure_sc_population_file() -> Path:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    raw_ibge_dir.mkdir(parents=True, exist_ok=True)
+    path = raw_ibge_dir / "population_municipalities_sc_latest.json"
+    if path.exists() and path.stat().st_size > 0:
+        return path
+    response = httpx.get(IBGE_SC_POPULATION_URL, timeout=90)
+    response.raise_for_status()
+    path.write_bytes(response.content)
+    return path
+
+
 def _ensure_rio_neighborhood_geometries_file() -> Path:
     raw_ibge_dir = settings.data_dir / "raw" / "ibge"
     raw_ibge_dir.mkdir(parents=True, exist_ok=True)
@@ -703,12 +858,31 @@ def _pr_municipality_code_to_name() -> dict[str, str]:
     return {str(row["id"]): str(row["nome"]) for row in rows if row.get("id") and row.get("nome")}
 
 
+def _sc_municipality_code_to_name() -> dict[str, str]:
+    path = _ensure_sc_municipality_names_file()
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    return {str(row["id"]): str(row["nome"]) for row in rows if row.get("id") and row.get("nome")}
+
+
 def _pr_population_by_municipality() -> dict[str, float]:
     path = _ensure_pr_population_file()
     rows = json.loads(path.read_text(encoding="utf-8"))
     output: dict[str, float] = {}
     for row in rows[1:]:
         name = re.sub(r"\s+-\s+PR$", "", str(row.get("D1N", "")).strip())
+        value = row.get("V")
+        if not name or value in {None, "", "-"}:
+            continue
+        output[name] = float(str(value).replace(".", "").replace(",", "."))
+    return output
+
+
+def _sc_population_by_municipality() -> dict[str, float]:
+    path = _ensure_sc_population_file()
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    output: dict[str, float] = {}
+    for row in rows[1:]:
+        name = re.sub(r"\s+-\s+SC$", "", str(row.get("D1N", "")).strip())
         value = row.get("V")
         if not name or value in {None, "", "-"}:
             continue

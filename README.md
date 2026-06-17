@@ -1,6 +1,6 @@
 # Perdeu, Playboy
 
-Dashboard publico de dados sobre violencia e seguranca publica no Brasil, com foco inicial em Rio de Janeiro, Sao Paulo e Parana.
+Dashboard publico de dados sobre violencia e seguranca publica no Brasil, com foco inicial em Rio de Janeiro, Sao Paulo, Parana e Santa Catarina.
 
 O projeto agrega bases oficiais, normaliza series historicas e publica um site estatico com indicadores, mapas, rankings, tendencias e comparacoes por governo. O tom editorial e de dados civicos: sem identificacao de vitimas, sem enderecos privados e sem linguagem sensacionalista.
 
@@ -13,7 +13,7 @@ Este repositorio contem um produto funcional, nao apenas um scaffold.
 - Frontend estatico em Next.js, publicado na Vercel.
 - Snapshot de dados versionado em `frontend/lib/static-data.generated.json`.
 - Backend FastAPI e ETL em Python para gerar o snapshot e servir API local.
-- Integracao real com bases oficiais de RJ, SP e PR.
+- Integracao real com bases oficiais de RJ, SP, PR e SC.
 - Testes, lint, mypy e workflow agendado para atualizar dados.
 
 ## Dados
@@ -52,6 +52,20 @@ Uso atual:
 - Sem divisao por bairro ou area policial nesta versao.
 
 ### Parana
+
+Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
+
+- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
+- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
+
+Uso atual:
+
+- Estado e municipios.
+- Serie desde 2015, ate o periodo mais recente publicado no VDE.
+- Indicadores municipais quando o VDE informa municipio; indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
+- Sem divisao por bairro ou area policial nesta versao.
+
+### Santa Catarina
 
 Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
 

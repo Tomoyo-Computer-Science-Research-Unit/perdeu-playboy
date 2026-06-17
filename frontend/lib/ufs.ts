@@ -59,7 +59,7 @@ export const ufOptions: UfOption[] = [
   { code: "RS", name: "Rio Grande do Sul", enabled: false, status: "disabled" },
   { code: "RO", name: "Rondonia", enabled: false, status: "disabled" },
   { code: "RR", name: "Roraima", enabled: false, status: "disabled" },
-  { code: "SC", name: "Santa Catarina", enabled: false, status: "disabled" },
+  { code: "SC", name: "Santa Catarina", enabled: true, status: "loaded" },
   { code: "SE", name: "Sergipe", enabled: false, status: "disabled" },
   { code: "TO", name: "Tocantins", enabled: false, status: "disabled" }
 ];
@@ -74,7 +74,8 @@ export function stateNameForUf(uf: UfCode): string {
   const names: Partial<Record<UfCode, string>> = {
     RJ: "Estado do Rio de Janeiro",
     SP: "Estado de São Paulo",
-    PR: "Estado do Paraná"
+    PR: "Estado do Paraná",
+    SC: "Estado de Santa Catarina"
   };
   return names[uf] ?? uf;
 }
@@ -83,7 +84,8 @@ export function preferredMunicipalityForUf(uf: UfCode): string {
   const names: Partial<Record<UfCode, string>> = {
     RJ: "Rio de Janeiro",
     SP: "São Paulo",
-    PR: "Curitiba"
+    PR: "Curitiba",
+    SC: "Florianópolis"
   };
   return names[uf] ?? "";
 }
@@ -92,7 +94,8 @@ export function sourceLabelForUf(uf: UfCode): string {
   const labels: Partial<Record<UfCode, string>> = {
     RJ: "RJ - ISP Dados Abertos",
     SP: "SP - SSP-SP + Sinesp",
-    PR: "PR - Sinesp"
+    PR: "PR - Sinesp",
+    SC: "SC - Sinesp"
   };
   return labels[uf] ?? `${uf} - dados oficiais`;
 }
@@ -101,7 +104,8 @@ export function analysisStartYearForUf(uf: UfCode): number {
   const years: Partial<Record<UfCode, number>> = {
     RJ: 2000,
     SP: 2015,
-    PR: 2015
+    PR: 2015,
+    SC: 2015
   };
   return years[uf] ?? 2015;
 }

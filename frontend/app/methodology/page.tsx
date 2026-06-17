@@ -24,7 +24,7 @@ const sources = [
   },
   {
     label: "Sinesp VDE/MJSP",
-    description: "Base nacional oficial usada para o Paraná e como complemento de indicadores em SP.",
+    description: "Base nacional oficial usada para Paraná e Santa Catarina e como complemento de indicadores em SP.",
     href: "https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica"
   },
   {

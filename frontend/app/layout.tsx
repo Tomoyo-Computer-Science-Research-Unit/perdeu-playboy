@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     default: "Perdeu, Playboy",
     template: "%s | Perdeu, Playboy"
   },
-  description: "Painel publico de indicadores oficiais de violencia e seguranca publica no Rio de Janeiro, Sao Paulo e Parana.",
+  description: "Painel publico de indicadores oficiais de violencia e seguranca publica no Rio de Janeiro, Sao Paulo, Parana e Santa Catarina.",
   applicationName: "Perdeu, Playboy",
   authors: [{ name: "g0v brazil & tomoyo", url: "https://x.com/333tomoyo" }],
   creator: "g0v brazil & tomoyo",
@@ -24,6 +24,7 @@ export const metadata: Metadata = {
     "Rio de Janeiro",
     "Sao Paulo",
     "Parana",
+    "Santa Catarina",
     "seguranca publica",
     "ISP Dados Abertos",
     "SSP-SP",
@@ -41,7 +42,7 @@ export const metadata: Metadata = {
     url: "https://perdeu-playboy.online",
     siteName: "Perdeu, Playboy",
     title: "Perdeu, Playboy",
-    description: "Painel publico de indicadores oficiais de violencia e seguranca publica no Rio de Janeiro, Sao Paulo e Parana.",
+    description: "Painel publico de indicadores oficiais de violencia e seguranca publica no Rio de Janeiro, Sao Paulo, Parana e Santa Catarina.",
     images: [
       {
         url: "/og-image.png",
@@ -54,7 +55,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Perdeu, Playboy",
-    description: "Painel publico de indicadores oficiais de violencia e seguranca publica no Rio de Janeiro, Sao Paulo e Parana.",
+    description: "Painel publico de indicadores oficiais de violencia e seguranca publica no Rio de Janeiro, Sao Paulo, Parana e Santa Catarina.",
     images: ["/og-image.png"]
   },
   icons: {

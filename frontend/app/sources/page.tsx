@@ -17,11 +17,18 @@ function formatBytes(value: number | null) {
 }
 
 export default async function SourcesPage() {
-  const [rjSources, spSources, prSources, snapshot] = await Promise.all([getDataSources("RJ"), getDataSources("SP"), getDataSources("PR"), getSnapshotMeta()]);
+  const [rjSources, spSources, prSources, scSources, snapshot] = await Promise.all([
+    getDataSources("RJ"),
+    getDataSources("SP"),
+    getDataSources("PR"),
+    getDataSources("SC"),
+    getSnapshotMeta()
+  ]);
   const sources = [
     ...rjSources.map((source) => ({ ...source, name: `RJ · ${source.name}` })),
     ...spSources.map((source) => ({ ...source, name: `SP · ${source.name}` })),
-    ...prSources.map((source) => ({ ...source, name: `PR · ${source.name}` }))
+    ...prSources.map((source) => ({ ...source, name: `PR · ${source.name}` })),
+    ...scSources.map((source) => ({ ...source, name: `SC · ${source.name}` }))
   ];
 
   return (
