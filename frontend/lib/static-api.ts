@@ -69,6 +69,24 @@ const SC_GOVERNOR_TERMS = [
   { governor: "Jorginho Mello", party_or_condition: "PL", term_start: "2023-01-01", term_end: null }
 ];
 
+const RS_GOVERNOR_TERMS = [
+  { governor: "Tarso Genro", party_or_condition: "PT", term_start: "2011-01-01", term_end: "2014-12-31" },
+  { governor: "José Ivo Sartori", party_or_condition: "PMDB", term_start: "2015-01-01", term_end: "2018-12-31" },
+  { governor: "Eduardo Leite", party_or_condition: "PSDB", term_start: "2019-01-01", term_end: "2022-03-31" },
+  { governor: "Ranolfo Vieira Júnior", party_or_condition: "PSDB", term_start: "2022-03-31", term_end: "2022-12-31" },
+  { governor: "Eduardo Leite", party_or_condition: "PSDB / PSD", term_start: "2023-01-01", term_end: null }
+];
+
+const MG_GOVERNOR_TERMS = [
+  { governor: "Fernando Pimentel", party_or_condition: "PT", term_start: "2015-01-01", term_end: "2018-12-31" },
+  { governor: "Romeu Zema", party_or_condition: "Novo", term_start: "2019-01-01", term_end: null }
+];
+
+const ES_GOVERNOR_TERMS = [
+  { governor: "Paulo Hartung", party_or_condition: "PMDB / MDB", term_start: "2015-01-01", term_end: "2018-12-31" },
+  { governor: "Renato Casagrande", party_or_condition: "PSB", term_start: "2019-01-01", term_end: null }
+];
+
 function stateData(uf?: string): StateSnapshot {
   const code = enabledUf(uf);
   return DATA.states?.[code] ?? DATA;
@@ -246,6 +264,15 @@ export async function getGovernorPerformance(uf?: string): Promise<GovernorPerfo
   }
   if (code === "SC") {
     return governorPerformanceForState(stateData("SC"), SC_GOVERNOR_TERMS);
+  }
+  if (code === "RS") {
+    return governorPerformanceForState(stateData("RS"), RS_GOVERNOR_TERMS);
+  }
+  if (code === "MG") {
+    return governorPerformanceForState(stateData("MG"), MG_GOVERNOR_TERMS);
+  }
+  if (code === "ES") {
+    return governorPerformanceForState(stateData("ES"), ES_GOVERNOR_TERMS);
   }
   return DATA.governor_performance;
 }

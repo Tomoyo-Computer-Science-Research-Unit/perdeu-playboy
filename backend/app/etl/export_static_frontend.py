@@ -50,6 +50,24 @@ IBGE_SC_MUNICIPALITIES_GEOJSON_URL = (
 )
 IBGE_SC_MUNICIPALITIES_URL = "https://servicodados.ibge.gov.br/api/v1/localidades/estados/42/municipios"
 IBGE_SC_POPULATION_URL = "https://apisidra.ibge.gov.br/values/t/6579/n6/in%20n3%2042/v/9324/p/last"
+IBGE_RS_MUNICIPALITIES_GEOJSON_URL = (
+    "https://servicodados.ibge.gov.br/api/v3/malhas/estados/43"
+    "?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=municipio"
+)
+IBGE_RS_MUNICIPALITIES_URL = "https://servicodados.ibge.gov.br/api/v1/localidades/estados/43/municipios"
+IBGE_RS_POPULATION_URL = "https://apisidra.ibge.gov.br/values/t/6579/n6/in%20n3%2043/v/9324/p/last"
+IBGE_MG_MUNICIPALITIES_GEOJSON_URL = (
+    "https://servicodados.ibge.gov.br/api/v3/malhas/estados/31"
+    "?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=municipio"
+)
+IBGE_MG_MUNICIPALITIES_URL = "https://servicodados.ibge.gov.br/api/v1/localidades/estados/31/municipios"
+IBGE_MG_POPULATION_URL = "https://apisidra.ibge.gov.br/values/t/6579/n6/in%20n3%2031/v/9324/p/last"
+IBGE_ES_MUNICIPALITIES_GEOJSON_URL = (
+    "https://servicodados.ibge.gov.br/api/v3/malhas/estados/32"
+    "?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=municipio"
+)
+IBGE_ES_MUNICIPALITIES_URL = "https://servicodados.ibge.gov.br/api/v1/localidades/estados/32/municipios"
+IBGE_ES_POPULATION_URL = "https://apisidra.ibge.gov.br/values/t/6579/n6/in%20n3%2032/v/9324/p/last"
 RIO_NEIGHBORHOODS_GEOJSON_URL = (
     "https://pgeo3.rio.rj.gov.br/arcgis/rest/services/Cartografia/"
     "Limites_administrativos/FeatureServer/4/query"
@@ -69,6 +87,9 @@ def export_static_frontend(output_path: Path) -> None:
     sp_state = _sp_state_payload(month_keys, month_index, latest.year, latest.month)
     pr_state = _pr_state_payload(month_keys, month_index, latest.year, latest.month)
     sc_state = _sc_state_payload(month_keys, month_index, latest.year, latest.month)
+    rs_state = _rs_state_payload(month_keys, month_index, latest.year, latest.month)
+    mg_state = _mg_state_payload(month_keys, month_index, latest.year, latest.month)
+    es_state = _es_state_payload(month_keys, month_index, latest.year, latest.month)
 
     snapshot = {
         "generated_at": datetime.now(ZoneInfo("America/Sao_Paulo")).isoformat(timespec="seconds"),
@@ -82,6 +103,9 @@ def export_static_frontend(output_path: Path) -> None:
             "SP": sp_state,
             "PR": pr_state,
             "SC": sc_state,
+            "RS": rs_state,
+            "MG": mg_state,
+            "ES": es_state,
         },
     }
 
@@ -290,6 +314,195 @@ def _sc_state_payload(
                 "Roubo de rua não é exibido para SC porque o VDE não publica uma rubrica municipal compatível.",
                 "Roubo de veículo, roubo de carga, estupro e armas apreendidas aparecem no VDE em abrangência estadual.",
                 "Não há divisão por CISP/bairro para SC nesta versão; o nível subestadual é municipal.",
+            ],
+        },
+        "series": _series_for_sp_frame(frame, month_keys, month_index),
+        "coverage": {
+            "state_start_year": 2015,
+            "municipality_start_year": 2015,
+            "police_area_start_year": None,
+            "map_drilldown": None,
+        },
+    }
+
+
+def _rs_state_payload(
+    month_keys: list[str],
+    month_index: dict[str, int],
+    latest_year: int,
+    latest_month: int,
+) -> dict[str, object]:
+    municipalities = _rs_municipality_code_to_name()
+    normalized_names = {_normalize_name(name): name for name in municipalities.values()}
+    frame = sinesp_state_monthly_rows(
+        SinespStateConfig(uf="RS", state_name="Estado do Rio Grande do Sul", start_year=2015),
+        normalized_names,
+        latest_year,
+        latest_month,
+    )
+    latest_row = frame.sort_values(["year", "month"]).iloc[-1]
+    rs_latest = {
+        "year": int(latest_row["year"]),
+        "month": int(latest_row["month"]),
+        "period_date": period_date(int(latest_row["year"]), int(latest_row["month"])),
+        "source_name": "Sinesp VDE/MJSP",
+    }
+    return {
+        "uf": "RS",
+        "name": "Rio Grande do Sul",
+        "latest_period": rs_latest,
+        "indicators": [indicator.model_dump(mode="json") for indicator in INDICATORS],
+        "territories": {
+            "state": [{"territory_type": "state", "name": "Estado do Rio Grande do Sul"}],
+            "municipality": [
+                {"territory_type": "municipality", "name": name}
+                for name in sorted(municipalities.values())
+            ],
+            "police_area": [],
+        },
+        "territorial_units": [],
+        "population_by_municipality": _rs_population_by_municipality(),
+        "municipality_geometries": _rs_municipality_geometries(),
+        "rio_neighborhood_geometries": {"type": "FeatureCollection", "features": []},
+        "sources": sinesp_source_metadata("RS") + _rs_ibge_source_metadata(),
+        "methodology": {
+            **methodology(),
+            "source_summary": (
+                "Rio Grande do Sul usa o Sinesp VDE/MJSP para séries mensais por estado e, "
+                "quando disponível, por município. Alguns indicadores são publicados apenas "
+                "em abrangência estadual no VDE."
+            ),
+            "limitations": [
+                "RS começa em 2015 nesta integração porque o VDE cobre 2015-2026.",
+                "Roubo de rua não é exibido para RS porque o VDE não publica uma rubrica municipal compatível.",
+                "Roubo de veículo, roubo de carga, estupro e armas apreendidas aparecem no VDE em abrangência estadual.",
+                "Não há divisão por CISP/bairro para RS nesta versão; o nível subestadual é municipal.",
+            ],
+        },
+        "series": _series_for_sp_frame(frame, month_keys, month_index),
+        "coverage": {
+            "state_start_year": 2015,
+            "municipality_start_year": 2015,
+            "police_area_start_year": None,
+            "map_drilldown": None,
+        },
+    }
+
+
+def _mg_state_payload(
+    month_keys: list[str],
+    month_index: dict[str, int],
+    latest_year: int,
+    latest_month: int,
+) -> dict[str, object]:
+    municipalities = _mg_municipality_code_to_name()
+    normalized_names = {_normalize_name(name): name for name in municipalities.values()}
+    frame = sinesp_state_monthly_rows(
+        SinespStateConfig(uf="MG", state_name="Estado de Minas Gerais", start_year=2015),
+        normalized_names,
+        latest_year,
+        latest_month,
+    )
+    latest_row = frame.sort_values(["year", "month"]).iloc[-1]
+    mg_latest = {
+        "year": int(latest_row["year"]),
+        "month": int(latest_row["month"]),
+        "period_date": period_date(int(latest_row["year"]), int(latest_row["month"])),
+        "source_name": "Sinesp VDE/MJSP",
+    }
+    return {
+        "uf": "MG",
+        "name": "Minas Gerais",
+        "latest_period": mg_latest,
+        "indicators": [indicator.model_dump(mode="json") for indicator in INDICATORS],
+        "territories": {
+            "state": [{"territory_type": "state", "name": "Estado de Minas Gerais"}],
+            "municipality": [
+                {"territory_type": "municipality", "name": name}
+                for name in sorted(municipalities.values())
+            ],
+            "police_area": [],
+        },
+        "territorial_units": [],
+        "population_by_municipality": _mg_population_by_municipality(),
+        "municipality_geometries": _mg_municipality_geometries(),
+        "rio_neighborhood_geometries": {"type": "FeatureCollection", "features": []},
+        "sources": sinesp_source_metadata("MG") + _mg_ibge_source_metadata(),
+        "methodology": {
+            **methodology(),
+            "source_summary": (
+                "Minas Gerais usa o Sinesp VDE/MJSP para séries mensais por estado e, "
+                "quando disponível, por município. Alguns indicadores são publicados apenas "
+                "em abrangência estadual no VDE."
+            ),
+            "limitations": [
+                "MG começa em 2015 nesta integração porque o VDE cobre 2015-2026.",
+                "Roubo de rua não é exibido para MG porque o VDE não publica uma rubrica municipal compatível.",
+                "Roubo de veículo, roubo de carga, estupro e armas apreendidas aparecem no VDE em abrangência estadual.",
+                "Não há divisão por CISP/bairro para MG nesta versão; o nível subestadual é municipal.",
+            ],
+        },
+        "series": _series_for_sp_frame(frame, month_keys, month_index),
+        "coverage": {
+            "state_start_year": 2015,
+            "municipality_start_year": 2015,
+            "police_area_start_year": None,
+            "map_drilldown": None,
+        },
+    }
+
+
+def _es_state_payload(
+    month_keys: list[str],
+    month_index: dict[str, int],
+    latest_year: int,
+    latest_month: int,
+) -> dict[str, object]:
+    municipalities = _es_municipality_code_to_name()
+    normalized_names = {_normalize_name(name): name for name in municipalities.values()}
+    frame = sinesp_state_monthly_rows(
+        SinespStateConfig(uf="ES", state_name="Estado do Espírito Santo", start_year=2015),
+        normalized_names,
+        latest_year,
+        latest_month,
+    )
+    latest_row = frame.sort_values(["year", "month"]).iloc[-1]
+    es_latest = {
+        "year": int(latest_row["year"]),
+        "month": int(latest_row["month"]),
+        "period_date": period_date(int(latest_row["year"]), int(latest_row["month"])),
+        "source_name": "Sinesp VDE/MJSP",
+    }
+    return {
+        "uf": "ES",
+        "name": "Espírito Santo",
+        "latest_period": es_latest,
+        "indicators": [indicator.model_dump(mode="json") for indicator in INDICATORS],
+        "territories": {
+            "state": [{"territory_type": "state", "name": "Estado do Espírito Santo"}],
+            "municipality": [
+                {"territory_type": "municipality", "name": name}
+                for name in sorted(municipalities.values())
+            ],
+            "police_area": [],
+        },
+        "territorial_units": [],
+        "population_by_municipality": _es_population_by_municipality(),
+        "municipality_geometries": _es_municipality_geometries(),
+        "rio_neighborhood_geometries": {"type": "FeatureCollection", "features": []},
+        "sources": sinesp_source_metadata("ES") + _es_ibge_source_metadata(),
+        "methodology": {
+            **methodology(),
+            "source_summary": (
+                "Espírito Santo usa o Sinesp VDE/MJSP para séries mensais por estado e, "
+                "quando disponível, por município. Alguns indicadores são publicados apenas "
+                "em abrangência estadual no VDE."
+            ),
+            "limitations": [
+                "ES começa em 2015 nesta integração porque o VDE cobre 2015-2026.",
+                "Roubo de rua não é exibido para ES porque o VDE não publica uma rubrica municipal compatível.",
+                "Roubo de veículo, roubo de carga, estupro e armas apreendidas aparecem no VDE em abrangência estadual.",
+                "Não há divisão por CISP/bairro para ES nesta versão; o nível subestadual é municipal.",
             ],
         },
         "series": _series_for_sp_frame(frame, month_keys, month_index),
@@ -512,6 +725,78 @@ def _sc_ibge_source_metadata() -> list[dict[str, object]]:
     ]
 
 
+def _rs_ibge_source_metadata() -> list[dict[str, object]]:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    return [
+        _file_source_row(
+            "ibge_population_municipalities_rs",
+            IBGE_RS_POPULATION_URL,
+            raw_ibge_dir / "population_municipalities_rs_latest.json",
+            "population",
+        ),
+        _file_source_row(
+            "ibge_municipality_geometries_rs",
+            IBGE_RS_MUNICIPALITIES_GEOJSON_URL,
+            raw_ibge_dir / "rs_municipalities_min.geojson",
+            "geometry",
+        ),
+        _file_source_row(
+            "ibge_municipality_names_rs",
+            IBGE_RS_MUNICIPALITIES_URL,
+            raw_ibge_dir / "rs_municipalities.json",
+            "territory",
+        ),
+    ]
+
+
+def _mg_ibge_source_metadata() -> list[dict[str, object]]:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    return [
+        _file_source_row(
+            "ibge_population_municipalities_mg",
+            IBGE_MG_POPULATION_URL,
+            raw_ibge_dir / "population_municipalities_mg_latest.json",
+            "population",
+        ),
+        _file_source_row(
+            "ibge_municipality_geometries_mg",
+            IBGE_MG_MUNICIPALITIES_GEOJSON_URL,
+            raw_ibge_dir / "mg_municipalities_min.geojson",
+            "geometry",
+        ),
+        _file_source_row(
+            "ibge_municipality_names_mg",
+            IBGE_MG_MUNICIPALITIES_URL,
+            raw_ibge_dir / "mg_municipalities.json",
+            "territory",
+        ),
+    ]
+
+
+def _es_ibge_source_metadata() -> list[dict[str, object]]:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    return [
+        _file_source_row(
+            "ibge_population_municipalities_es",
+            IBGE_ES_POPULATION_URL,
+            raw_ibge_dir / "population_municipalities_es_latest.json",
+            "population",
+        ),
+        _file_source_row(
+            "ibge_municipality_geometries_es",
+            IBGE_ES_MUNICIPALITIES_GEOJSON_URL,
+            raw_ibge_dir / "es_municipalities_min.geojson",
+            "geometry",
+        ),
+        _file_source_row(
+            "ibge_municipality_names_es",
+            IBGE_ES_MUNICIPALITIES_URL,
+            raw_ibge_dir / "es_municipalities.json",
+            "territory",
+        ),
+    ]
+
+
 def _file_source_row(name: str, url: str, path: Path, category: str) -> dict[str, object]:
     exists = path.exists()
     return {
@@ -601,6 +886,78 @@ def _sc_municipality_geometries() -> dict[str, object]:
     path = _ensure_sc_municipality_geometries_file()
     data = json.loads(path.read_text(encoding="utf-8"))
     code_to_name = _sc_municipality_code_to_name()
+    features = []
+    for feature in data.get("features", []):
+        properties = feature.get("properties") or {}
+        ibge_code = str(properties.get("codarea") or "")
+        name = code_to_name.get(ibge_code)
+        if not name:
+            continue
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": feature.get("geometry"),
+                "properties": {
+                    "ibge_code": ibge_code,
+                    "territory_name": name,
+                },
+            }
+        )
+    return {"type": "FeatureCollection", "features": features}
+
+
+def _rs_municipality_geometries() -> dict[str, object]:
+    path = _ensure_rs_municipality_geometries_file()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    code_to_name = _rs_municipality_code_to_name()
+    features = []
+    for feature in data.get("features", []):
+        properties = feature.get("properties") or {}
+        ibge_code = str(properties.get("codarea") or "")
+        name = code_to_name.get(ibge_code)
+        if not name:
+            continue
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": feature.get("geometry"),
+                "properties": {
+                    "ibge_code": ibge_code,
+                    "territory_name": name,
+                },
+            }
+        )
+    return {"type": "FeatureCollection", "features": features}
+
+
+def _mg_municipality_geometries() -> dict[str, object]:
+    path = _ensure_mg_municipality_geometries_file()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    code_to_name = _mg_municipality_code_to_name()
+    features = []
+    for feature in data.get("features", []):
+        properties = feature.get("properties") or {}
+        ibge_code = str(properties.get("codarea") or "")
+        name = code_to_name.get(ibge_code)
+        if not name:
+            continue
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": feature.get("geometry"),
+                "properties": {
+                    "ibge_code": ibge_code,
+                    "territory_name": name,
+                },
+            }
+        )
+    return {"type": "FeatureCollection", "features": features}
+
+
+def _es_municipality_geometries() -> dict[str, object]:
+    path = _ensure_es_municipality_geometries_file()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    code_to_name = _es_municipality_code_to_name()
     features = []
     for feature in data.get("features", []):
         properties = feature.get("properties") or {}
@@ -775,6 +1132,114 @@ def _ensure_sc_population_file() -> Path:
     return path
 
 
+def _ensure_rs_municipality_geometries_file() -> Path:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    raw_ibge_dir.mkdir(parents=True, exist_ok=True)
+    path = raw_ibge_dir / "rs_municipalities_min.geojson"
+    if path.exists() and path.stat().st_size > 0:
+        return path
+    response = httpx.get(IBGE_RS_MUNICIPALITIES_GEOJSON_URL, timeout=90)
+    response.raise_for_status()
+    path.write_bytes(response.content)
+    return path
+
+
+def _ensure_rs_municipality_names_file() -> Path:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    raw_ibge_dir.mkdir(parents=True, exist_ok=True)
+    path = raw_ibge_dir / "rs_municipalities.json"
+    if path.exists() and path.stat().st_size > 0:
+        return path
+    response = httpx.get(IBGE_RS_MUNICIPALITIES_URL, timeout=90)
+    response.raise_for_status()
+    path.write_bytes(response.content)
+    return path
+
+
+def _ensure_rs_population_file() -> Path:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    raw_ibge_dir.mkdir(parents=True, exist_ok=True)
+    path = raw_ibge_dir / "population_municipalities_rs_latest.json"
+    if path.exists() and path.stat().st_size > 0:
+        return path
+    response = httpx.get(IBGE_RS_POPULATION_URL, timeout=90)
+    response.raise_for_status()
+    path.write_bytes(response.content)
+    return path
+
+
+def _ensure_mg_municipality_geometries_file() -> Path:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    raw_ibge_dir.mkdir(parents=True, exist_ok=True)
+    path = raw_ibge_dir / "mg_municipalities_min.geojson"
+    if path.exists() and path.stat().st_size > 0:
+        return path
+    response = httpx.get(IBGE_MG_MUNICIPALITIES_GEOJSON_URL, timeout=90)
+    response.raise_for_status()
+    path.write_bytes(response.content)
+    return path
+
+
+def _ensure_mg_municipality_names_file() -> Path:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    raw_ibge_dir.mkdir(parents=True, exist_ok=True)
+    path = raw_ibge_dir / "mg_municipalities.json"
+    if path.exists() and path.stat().st_size > 0:
+        return path
+    response = httpx.get(IBGE_MG_MUNICIPALITIES_URL, timeout=90)
+    response.raise_for_status()
+    path.write_bytes(response.content)
+    return path
+
+
+def _ensure_mg_population_file() -> Path:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    raw_ibge_dir.mkdir(parents=True, exist_ok=True)
+    path = raw_ibge_dir / "population_municipalities_mg_latest.json"
+    if path.exists() and path.stat().st_size > 0:
+        return path
+    response = httpx.get(IBGE_MG_POPULATION_URL, timeout=90)
+    response.raise_for_status()
+    path.write_bytes(response.content)
+    return path
+
+
+def _ensure_es_municipality_geometries_file() -> Path:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    raw_ibge_dir.mkdir(parents=True, exist_ok=True)
+    path = raw_ibge_dir / "es_municipalities_min.geojson"
+    if path.exists() and path.stat().st_size > 0:
+        return path
+    response = httpx.get(IBGE_ES_MUNICIPALITIES_GEOJSON_URL, timeout=90)
+    response.raise_for_status()
+    path.write_bytes(response.content)
+    return path
+
+
+def _ensure_es_municipality_names_file() -> Path:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    raw_ibge_dir.mkdir(parents=True, exist_ok=True)
+    path = raw_ibge_dir / "es_municipalities.json"
+    if path.exists() and path.stat().st_size > 0:
+        return path
+    response = httpx.get(IBGE_ES_MUNICIPALITIES_URL, timeout=90)
+    response.raise_for_status()
+    path.write_bytes(response.content)
+    return path
+
+
+def _ensure_es_population_file() -> Path:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    raw_ibge_dir.mkdir(parents=True, exist_ok=True)
+    path = raw_ibge_dir / "population_municipalities_es_latest.json"
+    if path.exists() and path.stat().st_size > 0:
+        return path
+    response = httpx.get(IBGE_ES_POPULATION_URL, timeout=90)
+    response.raise_for_status()
+    path.write_bytes(response.content)
+    return path
+
+
 def _ensure_rio_neighborhood_geometries_file() -> Path:
     raw_ibge_dir = settings.data_dir / "raw" / "ibge"
     raw_ibge_dir.mkdir(parents=True, exist_ok=True)
@@ -864,6 +1329,24 @@ def _sc_municipality_code_to_name() -> dict[str, str]:
     return {str(row["id"]): str(row["nome"]) for row in rows if row.get("id") and row.get("nome")}
 
 
+def _rs_municipality_code_to_name() -> dict[str, str]:
+    path = _ensure_rs_municipality_names_file()
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    return {str(row["id"]): str(row["nome"]) for row in rows if row.get("id") and row.get("nome")}
+
+
+def _mg_municipality_code_to_name() -> dict[str, str]:
+    path = _ensure_mg_municipality_names_file()
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    return {str(row["id"]): str(row["nome"]) for row in rows if row.get("id") and row.get("nome")}
+
+
+def _es_municipality_code_to_name() -> dict[str, str]:
+    path = _ensure_es_municipality_names_file()
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    return {str(row["id"]): str(row["nome"]) for row in rows if row.get("id") and row.get("nome")}
+
+
 def _pr_population_by_municipality() -> dict[str, float]:
     path = _ensure_pr_population_file()
     rows = json.loads(path.read_text(encoding="utf-8"))
@@ -883,6 +1366,45 @@ def _sc_population_by_municipality() -> dict[str, float]:
     output: dict[str, float] = {}
     for row in rows[1:]:
         name = re.sub(r"\s+-\s+SC$", "", str(row.get("D1N", "")).strip())
+        value = row.get("V")
+        if not name or value in {None, "", "-"}:
+            continue
+        output[name] = float(str(value).replace(".", "").replace(",", "."))
+    return output
+
+
+def _rs_population_by_municipality() -> dict[str, float]:
+    path = _ensure_rs_population_file()
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    output: dict[str, float] = {}
+    for row in rows[1:]:
+        name = re.sub(r"\s+-\s+RS$", "", str(row.get("D1N", "")).strip())
+        value = row.get("V")
+        if not name or value in {None, "", "-"}:
+            continue
+        output[name] = float(str(value).replace(".", "").replace(",", "."))
+    return output
+
+
+def _mg_population_by_municipality() -> dict[str, float]:
+    path = _ensure_mg_population_file()
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    output: dict[str, float] = {}
+    for row in rows[1:]:
+        name = re.sub(r"\s+-\s+MG$", "", str(row.get("D1N", "")).strip())
+        value = row.get("V")
+        if not name or value in {None, "", "-"}:
+            continue
+        output[name] = float(str(value).replace(".", "").replace(",", "."))
+    return output
+
+
+def _es_population_by_municipality() -> dict[str, float]:
+    path = _ensure_es_population_file()
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    output: dict[str, float] = {}
+    for row in rows[1:]:
+        name = re.sub(r"\s+-\s+ES$", "", str(row.get("D1N", "")).strip())
         value = row.get("V")
         if not name or value in {None, "", "-"}:
             continue
