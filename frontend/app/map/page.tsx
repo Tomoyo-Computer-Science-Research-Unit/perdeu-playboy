@@ -1,9 +1,9 @@
 import { MunicipalityChoroplethPanel } from "@/components/MunicipalityChoroplethPanel";
 import { SourceBadge } from "@/components/SourceBadge";
-import { getCrimeRateMapData, getIndicators, getLatestPeriod } from "@/lib/api";
+import { getCrimeRateMapData, getLatestPeriod, getMapIndicators } from "@/lib/api";
 
 export default async function MapPage() {
-  const [indicators, latest] = await Promise.all([getIndicators(), getLatestPeriod()]);
+  const [indicators, latest] = await Promise.all([getMapIndicators(), getLatestPeriod()]);
   const mapData = await getCrimeRateMapData(latest.year, latest.month);
 
   return (

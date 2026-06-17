@@ -6,6 +6,7 @@ export {
   getLatestChanges,
   getMethodology,
   getMapData,
+  getMapIndicators,
   getCrimeRateMapData,
   getRankings,
   getRioCityMapData,

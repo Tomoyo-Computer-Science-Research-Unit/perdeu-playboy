@@ -79,6 +79,12 @@ export async function getIndicators(uf?: string): Promise<Indicator[]> {
   return indicatorsWithData(data);
 }
 
+export async function getMapIndicators(uf?: string, view: "state" | "rio_city" = "state"): Promise<Indicator[]> {
+  const data = stateData(uf);
+  const territoryType: TerritoryType = view === "rio_city" && enabledUf(uf) === "RJ" ? "police_area" : "municipality";
+  return data.indicators.filter((indicator) => indicatorHasTerritoryData(indicator.code, territoryType, data));
+}
+
 export async function getLatestPeriod(uf?: string): Promise<StaticSnapshot["latest_period"]> {
   return stateData(uf).latest_period;
 }
@@ -615,6 +621,13 @@ function indicatorHasData(indicator: string, data: StateSnapshot): boolean {
   const byTerritoryType = data.series[indicator] ?? {};
   return Object.values(byTerritoryType).some((byName) =>
     Object.entries(byName).some(([name, values]) => !isIgnoredTerritory(name) && values.some((value) => Number(value) > 0))
+  );
+}
+
+function indicatorHasTerritoryData(indicator: string, territoryType: TerritoryType, data: StateSnapshot): boolean {
+  const byName = data.series[indicator]?.[territoryType] ?? {};
+  return Object.entries(byName).some(([name, values]) =>
+    !isIgnoredTerritory(name) && values.some((value) => Number(value) > 0)
   );
 }
 

@@ -191,9 +191,9 @@ export function MunicipalityChoroplethPanel({
 
       if (nextState.uf !== "RJ") {
         try {
-          const { getIndicators, getLatestPeriod } = await import("@/lib/api");
+          const { getLatestPeriod, getMapIndicators } = await import("@/lib/api");
           [nextIndicatorOptions, nextLatest] = await Promise.all([
-            getIndicators(nextState.uf),
+            getMapIndicators(nextState.uf, nextView),
             getLatestPeriod(nextState.uf)
           ]);
           setIndicatorOptions(nextIndicatorOptions);
@@ -283,8 +283,8 @@ export function MunicipalityChoroplethPanel({
     setLoading(true);
     setError(null);
     try {
-      const { getIndicators, getLatestPeriod } = await import("@/lib/api");
-      const [nextIndicators, nextLatest] = await Promise.all([getIndicators(nextUf), getLatestPeriod(nextUf)]);
+      const { getLatestPeriod, getMapIndicators } = await import("@/lib/api");
+      const [nextIndicators, nextLatest] = await Promise.all([getMapIndicators(nextUf, "state"), getLatestPeriod(nextUf)]);
       const nextIndicator = indicator === "crime_geral" || nextIndicators.some((item) => item.code === indicator)
         ? indicator
         : nextIndicators[0]?.code ?? "crime_geral";
@@ -304,24 +304,36 @@ export function MunicipalityChoroplethPanel({
     }
   }
 
-  function openRioCity() {
+  async function openRioCity() {
     if (uf !== "RJ") {
       return;
     }
+    const nextOptions = await mapIndicatorsFor("RJ", "rio_city");
+    const nextIndicator = indicator === "crime_geral" || nextOptions.some((item) => item.code === indicator)
+      ? indicator
+      : nextOptions[0]?.code ?? "crime_geral";
+    setIndicatorOptions(nextOptions);
+    setIndicator(nextIndicator);
     setView("rio_city");
-    void loadMap("rio_city", periodIndex, indicator, mode, uf);
+    await loadMap("rio_city", periodIndex, nextIndicator, nextIndicator === "crime_geral" ? "rate" : mode, uf);
   }
 
-  function backToState() {
+  async function backToState() {
+    const nextOptions = await mapIndicatorsFor(uf, "state");
+    const nextIndicator = indicator === "crime_geral" || nextOptions.some((item) => item.code === indicator)
+      ? indicator
+      : nextOptions[0]?.code ?? "crime_geral";
+    setIndicatorOptions(nextOptions);
+    setIndicator(nextIndicator);
     setView("state");
     const period = periods[periodIndex];
     if (period && period.year < 2014) {
       const stateIndex = periods.findIndex((item) => item.year === 2014 && item.month === 1);
       setPeriodIndex(stateIndex);
-      void loadMap("state", stateIndex, indicator, mode, uf);
+      await loadMap("state", stateIndex, nextIndicator, nextIndicator === "crime_geral" ? "rate" : mode, uf);
       return;
     }
-    void loadMap("state", periodIndex, indicator, mode, uf);
+    await loadMap("state", periodIndex, nextIndicator, nextIndicator === "crime_geral" ? "rate" : mode, uf);
   }
 
   function changePeriod(nextVisibleIndex: number) {
@@ -389,7 +401,7 @@ export function MunicipalityChoroplethPanel({
 
         {view === "rio_city" ? (
           <div className="flex items-end justify-end gap-3 font-mono text-xs uppercase tracking-widest text-muted md:col-span-2">
-            <button type="button" className="border border-border px-3 py-2 text-foreground hover:border-foreground" onClick={backToState}>
+            <button type="button" className="border border-border px-3 py-2 text-foreground hover:border-foreground" onClick={() => void backToState()}>
               Voltar
             </button>
           </div>
@@ -418,11 +430,11 @@ export function MunicipalityChoroplethPanel({
                       className={canOpenRio ? "cursor-pointer transition-opacity hover:opacity-80" : "transition-opacity hover:opacity-80"}
                       onMouseEnter={() => setSelected(feature.properties)}
                       onFocus={() => setSelected(feature.properties)}
-                      onClick={canOpenRio ? openRioCity : undefined}
+                      onClick={canOpenRio ? () => void openRioCity() : undefined}
                       onKeyDown={(event) => {
                         if (canOpenRio && (event.key === "Enter" || event.key === " ")) {
                           event.preventDefault();
-                          openRioCity();
+                          void openRioCity();
                         }
                       }}
                       tabIndex={0}
@@ -519,6 +531,15 @@ function viewStartYear(view: MapView, uf: UfCode = "RJ") {
     return 2015;
   }
   return view === "rio_city" ? 2003 : 2014;
+}
+
+async function mapIndicatorsFor(uf: UfCode, view: MapView): Promise<Indicator[]> {
+  try {
+    const { getMapIndicators } = await import("@/lib/api");
+    return getMapIndicators(uf, view);
+  } catch {
+    return [];
+  }
 }
 
 function clampPeriodToRange(
