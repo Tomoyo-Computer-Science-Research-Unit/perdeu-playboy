@@ -35,6 +35,7 @@ type StaticSnapshot = {
   governor_performance: GovernorPerformanceResponse;
   series: SeriesStore;
   states?: Record<string, StateSnapshot>;
+  brazil_state_geometries?: GeoFeatureCollection;
 };
 type StateSnapshot = Omit<StaticSnapshot, "generated_at" | "analysis_start_year" | "month_keys" | "governor_performance" | "states"> & {
   uf?: string;
@@ -87,9 +88,210 @@ const ES_GOVERNOR_TERMS = [
   { governor: "Renato Casagrande", party_or_condition: "PSB", term_start: "2019-01-01", term_end: null }
 ];
 
+const GO_GOVERNOR_TERMS = [
+  { governor: "Marconi Perillo", party_or_condition: "PSDB", term_start: "2015-01-01", term_end: "2018-04-06" },
+  { governor: "José Eliton", party_or_condition: "PSDB", term_start: "2018-04-06", term_end: "2018-12-31" },
+  { governor: "Ronaldo Caiado", party_or_condition: "DEM / União Brasil", term_start: "2019-01-01", term_end: null }
+];
+
+const MT_GOVERNOR_TERMS = [
+  { governor: "Pedro Taques", party_or_condition: "PDT", term_start: "2015-01-01", term_end: "2018-12-31" },
+  { governor: "Mauro Mendes", party_or_condition: "DEM / União Brasil", term_start: "2019-01-01", term_end: null }
+];
+
+const MS_GOVERNOR_TERMS = [
+  { governor: "Reinaldo Azambuja", party_or_condition: "PSDB", term_start: "2015-01-01", term_end: "2022-12-31" },
+  { governor: "Eduardo Riedel", party_or_condition: "PSDB", term_start: "2023-01-01", term_end: null }
+];
+
+const DF_GOVERNOR_TERMS = [
+  { governor: "Rodrigo Rollemberg", party_or_condition: "PSB", term_start: "2015-01-01", term_end: "2018-12-31" },
+  { governor: "Ibaneis Rocha", party_or_condition: "MDB", term_start: "2019-01-01", term_end: null }
+];
+
+const MA_GOVERNOR_TERMS = [
+  { governor: "Flávio Dino", party_or_condition: "PCdoB", term_start: "2015-01-01", term_end: "2022-04-02" },
+  { governor: "Carlos Brandão", party_or_condition: "PSB", term_start: "2022-04-02", term_end: null }
+];
+
+const PI_GOVERNOR_TERMS = [
+  { governor: "Wellington Dias", party_or_condition: "PT", term_start: "2015-01-01", term_end: "2022-03-31" },
+  { governor: "Regina Sousa", party_or_condition: "PT", term_start: "2022-04-01", term_end: "2022-12-31" },
+  { governor: "Rafael Fonteles", party_or_condition: "PT", term_start: "2023-01-01", term_end: null }
+];
+
+const CE_GOVERNOR_TERMS = [
+  { governor: "Camilo Santana", party_or_condition: "PT", term_start: "2015-01-01", term_end: "2022-04-02" },
+  { governor: "Izolda Cela", party_or_condition: "PDT", term_start: "2022-04-02", term_end: "2022-12-31" },
+  { governor: "Elmano de Freitas", party_or_condition: "PT", term_start: "2023-01-01", term_end: null }
+];
+
+const RN_GOVERNOR_TERMS = [
+  { governor: "Robinson Faria", party_or_condition: "PSD", term_start: "2015-01-01", term_end: "2018-12-31" },
+  { governor: "Fátima Bezerra", party_or_condition: "PT", term_start: "2019-01-01", term_end: null }
+];
+
+const PB_GOVERNOR_TERMS = [
+  { governor: "Ricardo Coutinho", party_or_condition: "PSB", term_start: "2015-01-01", term_end: "2018-12-31" },
+  { governor: "João Azevêdo", party_or_condition: "PSB / Cidadania", term_start: "2019-01-01", term_end: null }
+];
+
+const PE_GOVERNOR_TERMS = [
+  { governor: "Paulo Câmara", party_or_condition: "PSB", term_start: "2015-01-01", term_end: "2022-12-31" },
+  { governor: "Raquel Lyra", party_or_condition: "PSDB", term_start: "2023-01-01", term_end: null }
+];
+
+const AL_GOVERNOR_TERMS = [
+  { governor: "Renan Filho", party_or_condition: "MDB", term_start: "2015-01-01", term_end: "2022-04-01" },
+  { governor: "Paulo Dantas", party_or_condition: "MDB", term_start: "2022-05-15", term_end: null }
+];
+
+const SE_GOVERNOR_TERMS = [
+  { governor: "Jackson Barreto", party_or_condition: "MDB", term_start: "2015-01-01", term_end: "2018-12-31" },
+  { governor: "Belivaldo Chagas", party_or_condition: "PSD", term_start: "2019-01-01", term_end: "2022-12-31" },
+  { governor: "Fábio Mitidieri", party_or_condition: "PSD", term_start: "2023-01-01", term_end: null }
+];
+
+const BA_GOVERNOR_TERMS = [
+  { governor: "Rui Costa", party_or_condition: "PT", term_start: "2015-01-01", term_end: "2022-12-31" },
+  { governor: "Jerônimo Rodrigues", party_or_condition: "PT", term_start: "2023-01-01", term_end: null }
+];
+
+const RO_GOVERNOR_TERMS = [
+  { governor: "Confúcio Moura", party_or_condition: "MDB", term_start: "2015-01-01", term_end: "2018-12-31" },
+  { governor: "Marcos Rocha", party_or_condition: "PSL / União Brasil", term_start: "2019-01-01", term_end: null }
+];
+
+const AC_GOVERNOR_TERMS = [
+  { governor: "Tião Viana", party_or_condition: "PT", term_start: "2015-01-01", term_end: "2018-12-31" },
+  { governor: "Gladson Cameli", party_or_condition: "PP", term_start: "2019-01-01", term_end: null }
+];
+
+const AM_GOVERNOR_TERMS = [
+  { governor: "José Melo", party_or_condition: "PROS", term_start: "2015-01-01", term_end: "2017-05-31" },
+  { governor: "Amazonino Mendes", party_or_condition: "PDT", term_start: "2017-06-01", term_end: "2018-12-31" },
+  { governor: "Wilson Lima", party_or_condition: "PSC / União Brasil", term_start: "2019-01-01", term_end: null }
+];
+
+const RR_GOVERNOR_TERMS = [
+  { governor: "Suely Campos", party_or_condition: "PP", term_start: "2015-01-01", term_end: "2018-12-31" },
+  { governor: "Antônio Denarium", party_or_condition: "PSL / PP", term_start: "2019-01-01", term_end: null }
+];
+
+const PA_GOVERNOR_TERMS = [
+  { governor: "Simão Jatene", party_or_condition: "PSDB", term_start: "2015-01-01", term_end: "2018-12-31" },
+  { governor: "Helder Barbalho", party_or_condition: "MDB", term_start: "2019-01-01", term_end: null }
+];
+
+const AP_GOVERNOR_TERMS = [
+  { governor: "Waldez Góes", party_or_condition: "PDT", term_start: "2015-01-01", term_end: "2022-12-31" },
+  { governor: "Clécio Luís", party_or_condition: "Solidariedade", term_start: "2023-01-01", term_end: null }
+];
+
+const TO_GOVERNOR_TERMS = [
+  { governor: "Marcelo Miranda", party_or_condition: "MDB", term_start: "2015-01-01", term_end: "2018-04-04" },
+  { governor: "Mauro Carlesse", party_or_condition: "PSL", term_start: "2018-04-04", term_end: "2022-09-25" },
+  { governor: "Wanderlei Barbosa", party_or_condition: "Republicanos", term_start: "2022-09-25", term_end: null }
+];
+
+let brazilAggregate: StateSnapshot | null = null;
+
+// Builds a synthetic "Brasil" snapshot that aggregates every state. Each state is
+// mapped into the "municipality" slot so the existing municipality-level map,
+// rankings and changes logic renders the 27 states as the unit, while the
+// "state" slot holds the national rollup ("Brasil").
+function getBrazilAggregate(): StateSnapshot {
+  if (brazilAggregate) {
+    return brazilAggregate;
+  }
+  const states = DATA.states ?? {};
+  const codes = Object.keys(states).filter((code) => code !== "BR");
+  const latestIndex = Math.min(
+    ...codes.map((code) => monthIndex(states[code].latest_period.year, states[code].latest_period.month))
+  );
+  const latestKey = DATA.month_keys[Math.max(0, latestIndex)] ?? DATA.month_keys[DATA.month_keys.length - 1];
+  const latestParts = splitMonthKey(latestKey);
+  const monthCount = DATA.month_keys.length;
+  const nameByCode: Record<string, string> = {};
+  for (const code of codes) {
+    nameByCode[code] = states[code].name ?? code;
+  }
+
+  const indicatorCodes = new Set<string>();
+  for (const code of codes) {
+    for (const indicator of Object.keys(states[code].series ?? {})) {
+      indicatorCodes.add(indicator);
+    }
+  }
+
+  const series: SeriesStore = {};
+  for (const indicator of indicatorCodes) {
+    const national = new Array<number>(monthCount).fill(0);
+    const byState: Record<string, number[]> = {};
+    for (const code of codes) {
+      const stateBucket = states[code].series[indicator]?.state ?? {};
+      const stateSeries = new Array<number>(monthCount).fill(0);
+      for (const key of Object.keys(stateBucket)) {
+        const values = stateBucket[key] ?? [];
+        for (let index = 0; index < monthCount; index += 1) {
+          stateSeries[index] += values[index] ?? 0;
+        }
+      }
+      byState[nameByCode[code]] = stateSeries;
+      for (let index = 0; index < monthCount; index += 1) {
+        national[index] += stateSeries[index];
+      }
+    }
+    series[indicator] = { state: { Brasil: national }, municipality: byState, police_area: {} };
+  }
+
+  const population: Record<string, number> = {};
+  for (const code of codes) {
+    const pops = states[code].population_by_municipality ?? {};
+    population[nameByCode[code]] = Object.values(pops).reduce((sum, value) => sum + (value || 0), 0);
+  }
+
+  brazilAggregate = {
+    uf: "BR",
+    name: "Brasil",
+    latest_period: {
+      year: latestParts.year,
+      month: latestParts.month,
+      period_date: periodDate(latestParts.year, latestParts.month),
+      source_name: "ISP / SSP-SP / Sinesp"
+    },
+    indicators: DATA.indicators,
+    territories: {
+      state: [{ territory_type: "state", name: "Brasil" }],
+      municipality: codes.map((code) => ({ territory_type: "municipality", name: nameByCode[code] })),
+      police_area: []
+    },
+    territorial_units: [],
+    population_by_municipality: population,
+    municipality_geometries: DATA.brazil_state_geometries ?? { type: "FeatureCollection", features: [] },
+    rio_neighborhood_geometries: { type: "FeatureCollection", features: [] },
+    sources: uniqueSources(codes.flatMap((code) => states[code].sources ?? [])),
+    methodology: DATA.methodology,
+    series,
+    coverage: { state_start_year: 2015, municipality_start_year: 2015, police_area_start_year: null, map_drilldown: null }
+  } as StateSnapshot;
+  return brazilAggregate;
+}
+
 function stateData(uf?: string): StateSnapshot {
   const code = enabledUf(uf);
+  if (code === "BR") {
+    return getBrazilAggregate();
+  }
   return DATA.states?.[code] ?? DATA;
+}
+
+function uniqueSources(sources: DataSource[]): DataSource[] {
+  const output = new Map<string, DataSource>();
+  for (const source of sources) {
+    output.set(`${source.name}:${source.url}:${source.file_name}`, source);
+  }
+  return [...output.values()];
 }
 
 export async function getIndicators(uf?: string): Promise<Indicator[]> {
@@ -256,6 +458,13 @@ export async function getRankings(
 
 export async function getGovernorPerformance(uf?: string): Promise<GovernorPerformanceResponse> {
   const code = enabledUf(uf);
+  if (code === "BR") {
+    return {
+      methodology: "Selecione uma UF para comparar governadores. O recorte Brasil agrega estados e não tem um único governo estadual.",
+      indicators: GOVERNOR_INDICATORS,
+      rows: []
+    };
+  }
   if (code === "SP") {
     return governorPerformanceForState(stateData("SP"), SP_GOVERNOR_TERMS);
   }
@@ -273,6 +482,66 @@ export async function getGovernorPerformance(uf?: string): Promise<GovernorPerfo
   }
   if (code === "ES") {
     return governorPerformanceForState(stateData("ES"), ES_GOVERNOR_TERMS);
+  }
+  if (code === "GO") {
+    return governorPerformanceForState(stateData("GO"), GO_GOVERNOR_TERMS);
+  }
+  if (code === "MT") {
+    return governorPerformanceForState(stateData("MT"), MT_GOVERNOR_TERMS);
+  }
+  if (code === "MS") {
+    return governorPerformanceForState(stateData("MS"), MS_GOVERNOR_TERMS);
+  }
+  if (code === "DF") {
+    return governorPerformanceForState(stateData("DF"), DF_GOVERNOR_TERMS);
+  }
+  if (code === "MA") {
+    return governorPerformanceForState(stateData("MA"), MA_GOVERNOR_TERMS);
+  }
+  if (code === "PI") {
+    return governorPerformanceForState(stateData("PI"), PI_GOVERNOR_TERMS);
+  }
+  if (code === "CE") {
+    return governorPerformanceForState(stateData("CE"), CE_GOVERNOR_TERMS);
+  }
+  if (code === "RN") {
+    return governorPerformanceForState(stateData("RN"), RN_GOVERNOR_TERMS);
+  }
+  if (code === "PB") {
+    return governorPerformanceForState(stateData("PB"), PB_GOVERNOR_TERMS);
+  }
+  if (code === "PE") {
+    return governorPerformanceForState(stateData("PE"), PE_GOVERNOR_TERMS);
+  }
+  if (code === "AL") {
+    return governorPerformanceForState(stateData("AL"), AL_GOVERNOR_TERMS);
+  }
+  if (code === "SE") {
+    return governorPerformanceForState(stateData("SE"), SE_GOVERNOR_TERMS);
+  }
+  if (code === "BA") {
+    return governorPerformanceForState(stateData("BA"), BA_GOVERNOR_TERMS);
+  }
+  if (code === "RO") {
+    return governorPerformanceForState(stateData("RO"), RO_GOVERNOR_TERMS);
+  }
+  if (code === "AC") {
+    return governorPerformanceForState(stateData("AC"), AC_GOVERNOR_TERMS);
+  }
+  if (code === "AM") {
+    return governorPerformanceForState(stateData("AM"), AM_GOVERNOR_TERMS);
+  }
+  if (code === "RR") {
+    return governorPerformanceForState(stateData("RR"), RR_GOVERNOR_TERMS);
+  }
+  if (code === "PA") {
+    return governorPerformanceForState(stateData("PA"), PA_GOVERNOR_TERMS);
+  }
+  if (code === "AP") {
+    return governorPerformanceForState(stateData("AP"), AP_GOVERNOR_TERMS);
+  }
+  if (code === "TO") {
+    return governorPerformanceForState(stateData("TO"), TO_GOVERNOR_TERMS);
   }
   return DATA.governor_performance;
 }
@@ -297,10 +566,11 @@ export async function getMapData(
   }
   const municipalityRankings = await getRankings(indicator, mode, "municipality", period.year, period.month, enabledUf(uf));
   const byMunicipality = new Map(municipalityRankings.map((row) => [row.territory_name, row]));
+  const unitLabel = enabledUf(uf) === "BR" ? "UF" : "Município";
   const features = data.municipality_geometries.features.map((feature) => {
     const territoryName = String(feature.properties?.territory_name ?? "");
     const row = byMunicipality.get(territoryName);
-    return featureWithStats(feature, row, mode, "Município");
+    return featureWithStats(feature, row, mode, unitLabel);
   });
 
   const ranked = [...features].sort((a, b) => Number(b.properties.metric_value ?? 0) - Number(a.properties.metric_value ?? 0));
@@ -329,11 +599,12 @@ export async function getCrimeRateMapData(
     return cached;
   }
   const periodIndex = monthIndex(period.year, period.month);
+  const unitLabel = enabledUf(uf) === "BR" ? "UF" : "Município";
   const features = data.municipality_geometries.features.map((feature) => {
     const territoryName = String(feature.properties?.territory_name ?? "");
     const population = data.population_by_municipality[territoryName] ?? null;
     const value = rollingCrimeValue("municipality", territoryName, periodIndex, data);
-    return featureWithCrimeRate(feature, value, population, "Município");
+    return featureWithCrimeRate(feature, value, population, unitLabel);
   });
   rankFeatures(features);
   const collection = { type: "FeatureCollection", features } satisfies GeoFeatureCollection;
@@ -420,6 +691,11 @@ export async function getLatestChanges(uf?: string): Promise<LatestChangesRespon
           changeSection("CISPs com maior piora", "police_area", "increase", latest.year, latest.month, data),
           changeSection("CISPs com maior queda", "police_area", "decrease", latest.year, latest.month, data)
         ]
+      : code === "BR"
+        ? [
+            changeSection("UFs com maior piora", "municipality", "increase", latest.year, latest.month, data),
+            changeSection("UFs com maior queda", "municipality", "decrease", latest.year, latest.month, data)
+          ]
       : [
           changeSection("Municípios com maior piora", "municipality", "increase", latest.year, latest.month, data),
           changeSection("Municípios com maior queda", "municipality", "decrease", latest.year, latest.month, data)

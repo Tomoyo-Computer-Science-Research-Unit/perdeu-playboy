@@ -1,6 +1,6 @@
 # Perdeu, Playboy
 
-Dashboard publico de dados sobre violencia e seguranca publica no Brasil, com foco inicial em Rio de Janeiro, Sao Paulo, Minas Gerais, Espirito Santo, Parana, Santa Catarina e Rio Grande do Sul.
+Dashboard publico de dados sobre violencia e seguranca publica no Brasil, cobrindo todas as 27 unidades federativas (26 estados e o Distrito Federal).
 
 O projeto agrega bases oficiais, normaliza series historicas e publica um site estatico com indicadores, mapas, rankings, tendencias e comparacoes por governo. O tom editorial e de dados civicos: sem identificacao de vitimas, sem enderecos privados e sem linguagem sensacionalista.
 
@@ -113,6 +113,94 @@ Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VD
 
 - Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
 - Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
+
+Uso atual:
+
+- Estado e municipios.
+- Serie desde 2015, ate o periodo mais recente publicado no VDE.
+- Indicadores municipais quando o VDE informa municipio; indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
+- Sem divisao por bairro ou area policial nesta versao.
+
+### Goias
+
+Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
+
+- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
+- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
+
+Uso atual:
+
+- Estado e municipios.
+- Serie desde 2015, ate o periodo mais recente publicado no VDE.
+- Indicadores municipais quando o VDE informa municipio; indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
+- Sem divisao por bairro ou area policial nesta versao.
+
+### Mato Grosso
+
+Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
+
+- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
+- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
+
+Uso atual:
+
+- Estado e municipios.
+- Serie desde 2015, ate o periodo mais recente publicado no VDE.
+- Indicadores municipais quando o VDE informa municipio; indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
+- Sem divisao por bairro ou area policial nesta versao.
+
+### Mato Grosso do Sul
+
+Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
+
+- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
+- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
+
+Uso atual:
+
+- Estado e municipios.
+- Serie desde 2015, ate o periodo mais recente publicado no VDE.
+- Indicadores municipais quando o VDE informa municipio; indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
+- Sem divisao por bairro ou area policial nesta versao.
+
+### Distrito Federal
+
+Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
+
+- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
+- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
+
+Uso atual:
+
+- Unidade federativa de municipio unico; o nivel estadual e o municipal coincidem em Brasilia.
+- Serie desde 2015, ate o periodo mais recente publicado no VDE.
+- Indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
+- Sem divisao por bairro ou area policial nesta versao.
+
+### Nordeste (MA, PI, CE, RN, PB, PE, AL, SE, BA)
+
+Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
+
+- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
+- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
+
+Estados: Maranhao, Piaui, Ceara, Rio Grande do Norte, Paraiba, Pernambuco, Alagoas, Sergipe e Bahia.
+
+Uso atual:
+
+- Estado e municipios.
+- Serie desde 2015, ate o periodo mais recente publicado no VDE.
+- Indicadores municipais quando o VDE informa municipio; indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
+- Sem divisao por bairro ou area policial nesta versao.
+
+### Norte (RO, AC, AM, RR, PA, AP, TO)
+
+Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
+
+- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
+- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
+
+Estados: Rondonia, Acre, Amazonas, Roraima, Para, Amapa e Tocantins.
 
 Uso atual:
 

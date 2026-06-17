@@ -40,6 +40,13 @@ export function GovernorsPerformanceTable({ rows }: { rows: GovernorPerformanceR
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={10} className="px-4 py-8 text-center font-mono text-xs uppercase tracking-widest text-muted">
+                Selecione uma UF para comparar governadores.
+              </td>
+            </tr>
+          ) : null}
           {rows.map((row) => (
             <tr key={`${row.governor}-${row.term_start}`} className="align-top transition-colors hover:bg-background/50">
               <td className="px-4 py-3 font-mono font-bold text-muted">{row.rank ?? "-"}</td>

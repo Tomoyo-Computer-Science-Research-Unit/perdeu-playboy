@@ -4,9 +4,9 @@ import { getIndicators, getTerritories, getTimeseries } from "@/lib/api";
 
 export default async function TrendsPage() {
   const [indicators, territories, timeseries] = await Promise.all([
-    getIndicators(),
-    getTerritories("state"),
-    getTimeseries("roubo_rua", "state", "Estado do Rio de Janeiro", ANALYSIS_START_YEAR, 2026)
+    getIndicators("BR"),
+    getTerritories("state", "BR"),
+    getTimeseries("roubo_rua", "state", "Brasil", ANALYSIS_START_YEAR, 2026, "BR")
   ]);
 
   return (

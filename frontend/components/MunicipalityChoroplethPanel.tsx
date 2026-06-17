@@ -102,7 +102,7 @@ function periodsFrom(startYear: number, latestYear: number, latestMonth: number)
 }
 
 function defaultMapState(periods: Array<{ year: number; month: number }>): MapInitialState {
-  return { indicator: "crime_geral", mode: "rate", view: "state", periodIndex: periods.length - 1, uf: "RJ" };
+  return { indicator: "crime_geral", mode: "rate", view: "state", periodIndex: periods.length - 1, uf: "BR" };
 }
 
 function browserMapState(periods: Array<{ year: number; month: number }>): MapInitialState {
@@ -318,6 +318,19 @@ export function MunicipalityChoroplethPanel({
     await loadMap("rio_city", periodIndex, nextIndicator, nextIndicator === "crime_geral" ? "rate" : mode, uf);
   }
 
+  function openUf(nextUf: unknown) {
+    const resolvedUf = enabledUf(String(nextUf ?? ""));
+    if (resolvedUf === "BR") {
+      return;
+    }
+    window.localStorage.setItem("selected_uf", resolvedUf);
+    const params = new URLSearchParams(window.location.search);
+    params.set("uf", resolvedUf);
+    params.set("view", "state");
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+    window.dispatchEvent(new CustomEvent("ufchange", { detail: { uf: resolvedUf } }));
+  }
+
   async function backToState() {
     const nextOptions = await mapIndicatorsFor(uf, "state");
     const nextIndicator = indicator === "crime_geral" || nextOptions.some((item) => item.code === indicator)
@@ -365,6 +378,7 @@ export function MunicipalityChoroplethPanel({
   );
   const startYear = viewStartYear(view, uf);
   const currentMetricLabel = metricLabel(indicator, mode);
+  const mapUnitLabel = uf === "BR" ? "UF" : view === "rio_city" ? "Bairro" : "Município";
 
   return (
     <section className="grid gap-4">
@@ -413,33 +427,39 @@ export function MunicipalityChoroplethPanel({
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
           <div>
             <div className="relative">
-              <svg viewBox="0 0 1000 680" role="img" aria-label={view === "rio_city" ? "Mapa da cidade do Rio de Janeiro por bairros" : `Mapa de ${uf} por municípios`} className="h-[420px] w-full sm:h-[560px] lg:h-[680px]">
+              <svg viewBox="0 0 1000 680" role="img" aria-label={uf === "BR" ? "Mapa do Brasil por estados" : view === "rio_city" ? "Mapa da cidade do Rio de Janeiro por bairros" : `Mapa de ${uf} por municípios`} className="h-[420px] w-full sm:h-[560px] lg:h-[680px]">
                 <rect width="1000" height="680" fill="#050505" />
                 {data.features.map((feature) => {
                   const value = Number(feature.properties.metric_value ?? 0);
                   const name = String(feature.properties.territory_name ?? "");
                   const sourceName = String(feature.properties.source_territory_name ?? "");
                   const canOpenRio = uf === "RJ" && view === "state" && name === "Rio de Janeiro";
+                  const canOpenUf = uf === "BR" && view === "state" && Boolean(feature.properties.uf);
+                  const isClickable = canOpenRio || canOpenUf;
                   return (
                     <path
                       key={`${name}-${sourceName}`}
                       d={geometryPath(feature.geometry, bbox)}
                       fill={hasMapData ? color(value, maxMetric, indicator, mode) : "#1f1f1f"}
                       stroke="#050505"
-                      strokeWidth={canOpenRio ? "2.4" : "1.2"}
-                      className={canOpenRio ? "cursor-pointer transition-opacity hover:opacity-80" : "transition-opacity hover:opacity-80"}
+                      strokeWidth={isClickable ? "2.4" : "1.2"}
+                      className={isClickable ? "cursor-pointer transition-opacity hover:opacity-80" : "transition-opacity hover:opacity-80"}
                       onMouseEnter={() => setSelected(feature.properties)}
                       onFocus={() => setSelected(feature.properties)}
-                      onClick={canOpenRio ? () => void openRioCity() : undefined}
+                      onClick={canOpenRio ? () => void openRioCity() : canOpenUf ? () => openUf(feature.properties.uf) : undefined}
                       onKeyDown={(event) => {
-                        if (canOpenRio && (event.key === "Enter" || event.key === " ")) {
+                        if (isClickable && (event.key === "Enter" || event.key === " ")) {
                           event.preventDefault();
-                          void openRioCity();
+                          if (canOpenRio) {
+                            void openRioCity();
+                          } else {
+                            openUf(feature.properties.uf);
+                          }
                         }
                       }}
                       tabIndex={0}
                     >
-                      <title>{canOpenRio ? "Rio de Janeiro · abrir bairros" : sourceName ? `${name} · ${sourceName}` : name}</title>
+                      <title>{canOpenRio ? "Rio de Janeiro · abrir bairros" : canOpenUf ? `${name} · abrir UF` : sourceName ? `${name} · ${sourceName}` : name}</title>
                     </path>
                   );
                 })}
@@ -466,7 +486,7 @@ export function MunicipalityChoroplethPanel({
 
           <aside className="border border-border bg-background p-5 shadow-hard">
             <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">
-              {view === "rio_city" ? "Bairro" : "Município"}
+              {mapUnitLabel}
             </p>
             <h3 className="mt-2 text-3xl font-display uppercase leading-none text-foreground">
               {String(selected?.territory_name ?? "Passe o mouse")}

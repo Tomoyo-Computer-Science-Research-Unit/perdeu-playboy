@@ -8,7 +8,7 @@ import type { GovernorPerformanceResponse } from "@/types/api";
 
 export function GovernorsExplorer({ initialPerformance }: { initialPerformance: GovernorPerformanceResponse }) {
   const [performance, setPerformance] = useState(initialPerformance);
-  const [uf, setUf] = useState<UfCode>("RJ");
+  const [uf, setUf] = useState<UfCode>("BR");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,7 +21,7 @@ export function GovernorsExplorer({ initialPerformance }: { initialPerformance: 
     window.addEventListener("ufchange", handleUfChange);
     const params = new URLSearchParams(window.location.search);
     const initialUf = enabledUf(params.get("uf") ?? window.localStorage.getItem("selected_uf"));
-    if (initialUf !== "RJ") {
+    if (initialUf !== "BR") {
       void reload(initialUf);
     }
     return () => window.removeEventListener("ufchange", handleUfChange);

@@ -24,7 +24,7 @@ const sources = [
   },
   {
     label: "Sinesp VDE/MJSP",
-    description: "Base nacional oficial usada para Minas Gerais, Espírito Santo, Paraná, Santa Catarina e Rio Grande do Sul e como complemento de indicadores em SP.",
+    description: "Base nacional oficial usada para todos os estados cobertos pelo painel, exceto Rio de Janeiro e São Paulo, e como complemento de indicadores em SP.",
     href: "https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica"
   },
   {

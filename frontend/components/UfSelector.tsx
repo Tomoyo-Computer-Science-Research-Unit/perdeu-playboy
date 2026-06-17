@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { enabledUf, ufOptions, type UfCode } from "@/lib/ufs";
 
 export function UfSelector() {
-  const [uf, setUf] = useState<UfCode>("RJ");
+  const [uf, setUf] = useState<UfCode>("BR");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

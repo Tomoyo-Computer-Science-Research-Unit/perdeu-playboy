@@ -27,10 +27,10 @@ export function RankingsExplorer({
 }) {
   const [indicator, setIndicator] = useState("crime_geral");
   const [indicatorOptions, setIndicatorOptions] = useState([GENERAL_CRIME_INDICATOR, ...indicators]);
-  const [uf, setUf] = useState<UfCode>("RJ");
+  const [uf, setUf] = useState<UfCode>("BR");
   const [mode, setMode] = useState<RankingMode>("rate");
   const [year, setYear] = useState(2026);
-  const [month, setMonth] = useState(3);
+  const [month, setMonth] = useState(2);
   const [municipalityRows, setMunicipalityRows] = useState(initialMunicipalityRows);
   const [policeAreaRows, setPoliceAreaRows] = useState(initialPoliceAreaRows);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
@@ -80,7 +80,7 @@ export function RankingsExplorer({
     window.addEventListener("ufchange", handleUfChange);
     const params = new URLSearchParams(window.location.search);
     const initialUf = enabledUf(params.get("uf") ?? window.localStorage.getItem("selected_uf"));
-    if (initialUf !== "RJ") {
+    if (initialUf !== "BR") {
       setUf(initialUf);
       void reloadUf(initialUf);
     }
@@ -165,7 +165,7 @@ export function RankingsExplorer({
 
       <section className="grid gap-4">
         <div className="border-l-4 border-border pl-4">
-          <h3 className="m-0 text-3xl font-display uppercase leading-none text-foreground">Municípios</h3>
+          <h3 className="m-0 text-3xl font-display uppercase leading-none text-foreground">{uf === "BR" ? "UFs" : "Municípios"}</h3>
         </div>
         <RankingTable rows={municipalityRows} sortKey={sortKey ?? undefined} sortDirection={sortDirection} onSort={handleSort} />
       </section>

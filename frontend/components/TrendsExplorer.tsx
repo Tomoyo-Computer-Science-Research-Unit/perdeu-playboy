@@ -15,11 +15,11 @@ interface TrendsExplorerProps {
 export function TrendsExplorer({ indicators, initialTerritories, initialData }: TrendsExplorerProps) {
   const [indicator, setIndicator] = useState("roubo_rua");
   const [indicatorOptions, setIndicatorOptions] = useState(indicators);
-  const [uf, setUf] = useState<UfCode>("RJ");
+  const [uf, setUf] = useState<UfCode>("BR");
   const [territoryType, setTerritoryType] = useState<TerritoryType>("state");
-  const [territoryName, setTerritoryName] = useState("Estado do Rio de Janeiro");
+  const [territoryName, setTerritoryName] = useState("Brasil");
   const [territories, setTerritories] = useState<Territory[]>(initialTerritories);
-  const [startYear, setStartYear] = useState(ANALYSIS_START_YEAR);
+  const [startYear, setStartYear] = useState(2015);
   const [endYear, setEndYear] = useState(2026);
   const [data, setData] = useState<TimeSeriesPoint[]>(initialData);
   const [loading, setLoading] = useState(false);
@@ -94,7 +94,7 @@ export function TrendsExplorer({ indicators, initialTerritories, initialData }: 
     window.addEventListener("ufchange", handleUfChange);
     const params = new URLSearchParams(window.location.search);
     const initialUf = enabledUf(params.get("uf") ?? window.localStorage.getItem("selected_uf"));
-    if (initialUf !== "RJ") {
+    if (initialUf !== "BR") {
       setUf(initialUf);
       void reloadUf(initialUf);
     }
@@ -155,8 +155,8 @@ export function TrendsExplorer({ indicators, initialTerritories, initialData }: 
               value={territoryType}
               onChange={(event) => setTerritoryType(event.target.value as TerritoryType)}
             >
-              <option value="state">ESTADO</option>
-              <option value="municipality">MUNICÍPIO</option>
+              <option value="state">{uf === "BR" ? "BRASIL" : "ESTADO"}</option>
+              <option value="municipality">{uf === "BR" ? "UF" : "MUNICÍPIO"}</option>
               {uf === "RJ" ? <option value="police_area">ÁREA POLICIAL</option> : null}
             </select>
           </label>

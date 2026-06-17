@@ -49,7 +49,7 @@ function ChangeTable({ rows }: { rows: ChangeRow[] }) {
 
 export function ChangesExplorer({ initialChanges }: { initialChanges: LatestChangesResponse }) {
   const [changes, setChanges] = useState(initialChanges);
-  const [uf, setUf] = useState<UfCode>("RJ");
+  const [uf, setUf] = useState<UfCode>("BR");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,7 +62,7 @@ export function ChangesExplorer({ initialChanges }: { initialChanges: LatestChan
     window.addEventListener("ufchange", handleUfChange);
     const params = new URLSearchParams(window.location.search);
     const initialUf = enabledUf(params.get("uf") ?? window.localStorage.getItem("selected_uf"));
-    if (initialUf !== "RJ") {
+    if (initialUf !== "BR") {
       void reload(initialUf);
     }
     return () => window.removeEventListener("ufchange", handleUfChange);

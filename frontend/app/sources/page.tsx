@@ -17,7 +17,36 @@ function formatBytes(value: number | null) {
 }
 
 export default async function SourcesPage() {
-  const [rjSources, spSources, prSources, scSources, rsSources, mgSources, esSources, snapshot] = await Promise.all([
+  const [
+    rjSources,
+    spSources,
+    prSources,
+    scSources,
+    rsSources,
+    mgSources,
+    esSources,
+    goSources,
+    mtSources,
+    msSources,
+    dfSources,
+    maSources,
+    piSources,
+    ceSources,
+    rnSources,
+    pbSources,
+    peSources,
+    alSources,
+    seSources,
+    baSources,
+    roSources,
+    acSources,
+    amSources,
+    rrSources,
+    paSources,
+    apSources,
+    toSources,
+    snapshot
+  ] = await Promise.all([
     getDataSources("RJ"),
     getDataSources("SP"),
     getDataSources("PR"),
@@ -25,6 +54,26 @@ export default async function SourcesPage() {
     getDataSources("RS"),
     getDataSources("MG"),
     getDataSources("ES"),
+    getDataSources("GO"),
+    getDataSources("MT"),
+    getDataSources("MS"),
+    getDataSources("DF"),
+    getDataSources("MA"),
+    getDataSources("PI"),
+    getDataSources("CE"),
+    getDataSources("RN"),
+    getDataSources("PB"),
+    getDataSources("PE"),
+    getDataSources("AL"),
+    getDataSources("SE"),
+    getDataSources("BA"),
+    getDataSources("RO"),
+    getDataSources("AC"),
+    getDataSources("AM"),
+    getDataSources("RR"),
+    getDataSources("PA"),
+    getDataSources("AP"),
+    getDataSources("TO"),
     getSnapshotMeta()
   ]);
   const sources = [
@@ -34,7 +83,27 @@ export default async function SourcesPage() {
     ...scSources.map((source) => ({ ...source, name: `SC · ${source.name}` })),
     ...rsSources.map((source) => ({ ...source, name: `RS · ${source.name}` })),
     ...mgSources.map((source) => ({ ...source, name: `MG · ${source.name}` })),
-    ...esSources.map((source) => ({ ...source, name: `ES · ${source.name}` }))
+    ...esSources.map((source) => ({ ...source, name: `ES · ${source.name}` })),
+    ...goSources.map((source) => ({ ...source, name: `GO · ${source.name}` })),
+    ...mtSources.map((source) => ({ ...source, name: `MT · ${source.name}` })),
+    ...msSources.map((source) => ({ ...source, name: `MS · ${source.name}` })),
+    ...dfSources.map((source) => ({ ...source, name: `DF · ${source.name}` })),
+    ...maSources.map((source) => ({ ...source, name: `MA · ${source.name}` })),
+    ...piSources.map((source) => ({ ...source, name: `PI · ${source.name}` })),
+    ...ceSources.map((source) => ({ ...source, name: `CE · ${source.name}` })),
+    ...rnSources.map((source) => ({ ...source, name: `RN · ${source.name}` })),
+    ...pbSources.map((source) => ({ ...source, name: `PB · ${source.name}` })),
+    ...peSources.map((source) => ({ ...source, name: `PE · ${source.name}` })),
+    ...alSources.map((source) => ({ ...source, name: `AL · ${source.name}` })),
+    ...seSources.map((source) => ({ ...source, name: `SE · ${source.name}` })),
+    ...baSources.map((source) => ({ ...source, name: `BA · ${source.name}` })),
+    ...roSources.map((source) => ({ ...source, name: `RO · ${source.name}` })),
+    ...acSources.map((source) => ({ ...source, name: `AC · ${source.name}` })),
+    ...amSources.map((source) => ({ ...source, name: `AM · ${source.name}` })),
+    ...rrSources.map((source) => ({ ...source, name: `RR · ${source.name}` })),
+    ...paSources.map((source) => ({ ...source, name: `PA · ${source.name}` })),
+    ...apSources.map((source) => ({ ...source, name: `AP · ${source.name}` })),
+    ...toSources.map((source) => ({ ...source, name: `TO · ${source.name}` }))
   ];
 
   return (

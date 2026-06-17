@@ -25,9 +25,9 @@ export function DashboardExplorer({
   initialTerritorialUnits: TerritorialUnit[];
 }) {
   const [territoryMode, setTerritoryMode] = useState<DashboardTerritoryMode>("state");
-  const [uf, setUf] = useState<UfCode>("RJ");
+  const [uf, setUf] = useState<UfCode>("BR");
   const [activeLatestYear, setActiveLatestYear] = useState(latestYear);
-  const [selectedMunicipality, setSelectedMunicipality] = useState("Rio de Janeiro");
+  const [selectedMunicipality, setSelectedMunicipality] = useState(preferredMunicipality("BR", municipalities));
   const [selectedTerritorialUnit, setSelectedTerritorialUnit] = useState("");
   const [municipalityOptions, setMunicipalityOptions] = useState(municipalities);
   const [summary, setSummary] = useState(initialSummary);
@@ -102,7 +102,7 @@ export function DashboardExplorer({
     window.addEventListener("ufchange", handleUfChange);
     const params = new URLSearchParams(window.location.search);
     const initialUf = enabledUf(params.get("uf") ?? window.localStorage.getItem("selected_uf"));
-    if (initialUf !== "RJ") {
+    if (initialUf !== "BR") {
       setUf(initialUf);
       void reloadUf(initialUf);
     }
@@ -142,7 +142,7 @@ export function DashboardExplorer({
     return bValue - aValue;
   });
   const territoryTitle = {
-    state: `Indicadores acumulados em ${uf}`,
+    state: `Indicadores acumulados em ${uf === "BR" ? "Brasil" : uf}`,
     municipality: canUseTerritorialUnit && selectedUnit
       ? `Indicadores acumulados em ${selectedUnit.name}`
       : `Indicadores acumulados em ${selectedMunicipality}`
@@ -174,13 +174,13 @@ export function DashboardExplorer({
               setSelectedTerritorialUnit("");
             }}
           >
-            <option value="state">ESTADO</option>
-            <option value="municipality">MUNICÍPIO</option>
+            <option value="state">{uf === "BR" ? "BRASIL" : "ESTADO"}</option>
+            <option value="municipality">{uf === "BR" ? "UF" : "MUNICÍPIO"}</option>
           </select>
         </label>
 
         <label className="grid min-w-0 gap-2 font-mono text-xs font-bold uppercase tracking-widest text-muted">
-          Município
+          {uf === "BR" ? "UF" : "Município"}
           <select
             className="h-10 w-full min-w-0 border border-border bg-surface px-3 text-sm text-foreground transition-colors disabled:opacity-40 focus:border-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
             value={selectedMunicipality}
