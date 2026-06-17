@@ -6,7 +6,7 @@ import { MetricCard } from "@/components/MetricCard";
 import { SourceBadge } from "@/components/SourceBadge";
 import { TrendChart } from "@/components/TrendChart";
 import { ANALYSIS_START_YEAR } from "@/lib/constants";
-import { enabledUf, type UfCode } from "@/lib/ufs";
+import { enabledUf, preferredMunicipalityForUf, sourceLabelForUf, stateNameForUf, type UfCode } from "@/lib/ufs";
 import type { SummaryResponse, TerritorialUnit, Territory, TimeSeriesPoint } from "@/types/api";
 
 type DashboardTerritoryMode = "state" | "municipality";
@@ -55,7 +55,7 @@ export function DashboardExplorer({
         territoryMode === "state" ? "state" : canUseTerritorialUnit && selectedUnit ? "police_area" : "municipality";
       const territoryName =
         territoryMode === "state"
-          ? uf === "SP" ? "Estado de São Paulo" : "Estado do Rio de Janeiro"
+          ? stateNameForUf(uf)
           : canUseTerritorialUnit && selectedUnit
             ? selectedUnit.police_area_name
             : selectedMunicipality;
@@ -118,7 +118,7 @@ export function DashboardExplorer({
         getLatestPeriod(nextUf),
         getTerritories("municipality", nextUf)
       ]);
-      const stateName = nextUf === "SP" ? "Estado de São Paulo" : "Estado do Rio de Janeiro";
+      const stateName = stateNameForUf(nextUf);
       const [nextSummary, nextTimeseries] = await Promise.all([
         getSummary(nextLatest.year, "state", stateName, nextUf),
         getTimeseries("letalidade_violenta", "state", stateName, Math.max(ANALYSIS_START_YEAR, nextLatest.year - 2), nextLatest.year, nextUf)
@@ -155,7 +155,7 @@ export function DashboardExplorer({
           <h2 className="m-0 mt-1 text-4xl font-display uppercase leading-none text-foreground">{territoryTitle}</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <SourceBadge label={uf === "SP" ? "SP - SSP-SP + Sinesp" : "RJ - ISP Dados Abertos"} />
+          <SourceBadge label={sourceLabelForUf(uf)} />
           <span className="inline-flex items-center gap-2 border border-border bg-surface px-3 py-1.5 font-mono text-xs uppercase tracking-wide text-muted">
             <CalendarDays size={14} aria-hidden="true" className="text-muted" />
             Último mês: {summary.latest_month}/{summary.year}
@@ -241,6 +241,6 @@ export function DashboardExplorer({
 }
 
 function preferredMunicipality(uf: UfCode, municipalities: Territory[]) {
-  const preferred = uf === "SP" ? "São Paulo" : "Rio de Janeiro";
+  const preferred = preferredMunicipalityForUf(uf);
   return municipalities.find((item) => item.name === preferred)?.name ?? municipalities[0]?.name ?? "";
 }

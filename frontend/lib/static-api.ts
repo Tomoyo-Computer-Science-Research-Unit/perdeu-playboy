@@ -56,6 +56,12 @@ const SP_GOVERNOR_TERMS = [
   { governor: "Tarcísio de Freitas", party_or_condition: "Republicanos", term_start: "2023-01-01", term_end: null }
 ];
 
+const PR_GOVERNOR_TERMS = [
+  { governor: "Beto Richa", party_or_condition: "PSDB", term_start: "2011-01-01", term_end: "2018-04-06" },
+  { governor: "Cida Borghetti", party_or_condition: "PP", term_start: "2018-04-06", term_end: "2018-12-31" },
+  { governor: "Ratinho Junior", party_or_condition: "PSD", term_start: "2019-01-01", term_end: null }
+];
+
 function stateData(uf?: string): StateSnapshot {
   const code = enabledUf(uf);
   return DATA.states?.[code] ?? DATA;
@@ -153,6 +159,9 @@ export async function getTimeseries(
     if (year < startYear || year > endYear) {
       continue;
     }
+    if (isAfterLatestPeriod(data, year, month)) {
+      continue;
+    }
     const value = values[index] ?? 0;
     const previousYearIndex = index - 12;
     const previousValue = previousYearIndex >= 0 ? values[previousYearIndex] ?? 0 : null;
@@ -183,7 +192,8 @@ export async function getRankings(
   uf?: string
 ): Promise<RankingRow[]> {
   const data = stateData(uf);
-  const cacheKey = `${enabledUf(uf)}:${indicator}:${mode}:${territoryType}:${year}:${month}`;
+  const period = clampPeriod(data, year, month);
+  const cacheKey = `${enabledUf(uf)}:${indicator}:${mode}:${territoryType}:${period.year}:${period.month}`;
   const cached = rankingCache.get(cacheKey);
   if (cached) {
     return cached;
@@ -191,8 +201,8 @@ export async function getRankings(
   const names = Object.keys((indicator === "crime_geral" ? data.series.letalidade_violenta : data.series[indicator])?.[territoryType] ?? {}).filter((name) => !isIgnoredTerritory(name));
   const rows = names.map((name): RankingRow => {
     const values = indicator === "crime_geral" ? [] : valuesFor(indicator, territoryType, name, data);
-    const value = indicator === "crime_geral" ? crimeGeneralYtd(territoryType, name, year, month, data) : ytd(values, year, month);
-    const previous = indicator === "crime_geral" ? crimeGeneralYtd(territoryType, name, year - 1, month, data) : ytd(values, year - 1, month);
+    const value = indicator === "crime_geral" ? crimeGeneralYtd(territoryType, name, period.year, period.month, data) : ytd(values, period.year, period.month);
+    const previous = indicator === "crime_geral" ? crimeGeneralYtd(territoryType, name, period.year - 1, period.month, data) : ytd(values, period.year - 1, period.month);
     const diff = round1(value - previous);
     return {
       rank: 0,
@@ -218,6 +228,9 @@ export async function getGovernorPerformance(uf?: string): Promise<GovernorPerfo
   if (code === "SP") {
     return governorPerformanceForState(stateData("SP"), SP_GOVERNOR_TERMS);
   }
+  if (code === "PR") {
+    return governorPerformanceForState(stateData("PR"), PR_GOVERNOR_TERMS);
+  }
   return DATA.governor_performance;
 }
 
@@ -233,12 +246,13 @@ export async function getMapData(
   uf?: string
 ): Promise<GeoFeatureCollection> {
   const data = stateData(uf);
-  const cacheKey = `map:${enabledUf(uf)}:${indicator}:${mode}:${year}:${month}`;
+  const period = clampPeriod(data, year, month);
+  const cacheKey = `map:${enabledUf(uf)}:${indicator}:${mode}:${period.year}:${period.month}`;
   const cached = mapCache.get(cacheKey);
   if (cached) {
     return cached;
   }
-  const municipalityRankings = await getRankings(indicator, mode, "municipality", year, month, enabledUf(uf));
+  const municipalityRankings = await getRankings(indicator, mode, "municipality", period.year, period.month, enabledUf(uf));
   const byMunicipality = new Map(municipalityRankings.map((row) => [row.territory_name, row]));
   const features = data.municipality_geometries.features.map((feature) => {
     const territoryName = String(feature.properties?.territory_name ?? "");
@@ -265,12 +279,13 @@ export async function getCrimeRateMapData(
   uf?: string
 ): Promise<GeoFeatureCollection> {
   const data = stateData(uf);
-  const cacheKey = `map:crime_geral:${enabledUf(uf)}:state:${year}:${month}`;
+  const period = clampPeriod(data, year, month);
+  const cacheKey = `map:crime_geral:${enabledUf(uf)}:state:${period.year}:${period.month}`;
   const cached = mapCache.get(cacheKey);
   if (cached) {
     return cached;
   }
-  const periodIndex = monthIndex(year, month);
+  const periodIndex = monthIndex(period.year, period.month);
   const features = data.municipality_geometries.features.map((feature) => {
     const territoryName = String(feature.properties?.territory_name ?? "");
     const population = data.population_by_municipality[territoryName] ?? null;
@@ -294,12 +309,13 @@ export async function getRioCityMapData(
   if (enabledUf(uf) !== "RJ") {
     return { type: "FeatureCollection", features: [] };
   }
-  const cacheKey = `map:rio:${indicator}:${mode}:${year}:${month}`;
+  const period = clampPeriod(data, year, month);
+  const cacheKey = `map:rio:${indicator}:${mode}:${period.year}:${period.month}`;
   const cached = mapCache.get(cacheKey);
   if (cached) {
     return cached;
   }
-  const policeAreaRankings = await getRankings(indicator, mode, "police_area", year, month, "RJ");
+  const policeAreaRankings = await getRankings(indicator, mode, "police_area", period.year, period.month, "RJ");
   const byPoliceArea = new Map(policeAreaRankings.map((row) => [row.territory_name, row]));
   const features = data.rio_neighborhood_geometries.features.map((feature) => {
     const sourceTerritoryName = String(feature.properties?.source_territory_name ?? "");
@@ -329,12 +345,13 @@ export async function getRioCityCrimeRateMapData(
   if (enabledUf(uf) !== "RJ") {
     return { type: "FeatureCollection", features: [] };
   }
-  const cacheKey = `map:crime_geral:rio:${year}:${month}`;
+  const period = clampPeriod(data, year, month);
+  const cacheKey = `map:crime_geral:rio:${period.year}:${period.month}`;
   const cached = mapCache.get(cacheKey);
   if (cached) {
     return cached;
   }
-  const periodIndex = monthIndex(year, month);
+  const periodIndex = monthIndex(period.year, period.month);
   const populationByPoliceArea = rioPopulationByPoliceArea(data);
   const features = data.rio_neighborhood_geometries.features.map((feature) => {
     const sourceTerritoryName = String(feature.properties?.source_territory_name ?? "");
@@ -663,6 +680,20 @@ function monthIndex(year: number, month: number): number {
 function splitMonthKey(key: string): { year: number; month: number } {
   const [year, month] = key.split("-").map(Number);
   return { year, month };
+}
+
+function clampPeriod(data: StateSnapshot, year: number, month: number): { year: number; month: number } {
+  if (isAfterLatestPeriod(data, year, month)) {
+    return {
+      year: data.latest_period.year,
+      month: data.latest_period.month
+    };
+  }
+  return { year, month };
+}
+
+function isAfterLatestPeriod(data: StateSnapshot, year: number, month: number): boolean {
+  return year > data.latest_period.year || (year === data.latest_period.year && month > data.latest_period.month);
 }
 
 function periodDate(year: number, month: number): string {

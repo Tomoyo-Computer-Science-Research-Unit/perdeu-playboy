@@ -25,8 +25,11 @@ data/raw/sinesp/
 data/raw/ssp_sp/
 data/raw/ssp_sp_*
 data/raw/ibge/population_municipalities_sp_latest.json
+data/raw/ibge/population_municipalities_pr_latest.json
 data/raw/ibge/sp_municipalities.json
+data/raw/ibge/pr_municipalities.json
 data/raw/ibge/sp_municipalities_min.geojson
+data/raw/ibge/pr_municipalities_min.geojson
 data/processed/*
 !data/processed/.gitkeep
 !data/raw/isp/.gitkeep

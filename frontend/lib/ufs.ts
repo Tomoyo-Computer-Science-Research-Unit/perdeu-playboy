@@ -52,7 +52,7 @@ export const ufOptions: UfOption[] = [
   { code: "MG", name: "Minas Gerais", enabled: false, status: "disabled" },
   { code: "PA", name: "Para", enabled: false, status: "disabled" },
   { code: "PB", name: "Paraiba", enabled: false, status: "disabled" },
-  { code: "PR", name: "Parana", enabled: false, status: "disabled" },
+  { code: "PR", name: "Parana", enabled: true, status: "loaded" },
   { code: "PE", name: "Pernambuco", enabled: false, status: "disabled" },
   { code: "PI", name: "Piaui", enabled: false, status: "disabled" },
   { code: "RN", name: "Rio Grande do Norte", enabled: false, status: "disabled" },
@@ -68,4 +68,40 @@ export function enabledUf(code: string | null | undefined): UfCode {
   const normalized = String(code ?? "RJ").toUpperCase();
   const option = ufOptions.find((item) => item.code === normalized && item.enabled);
   return option?.code ?? "RJ";
+}
+
+export function stateNameForUf(uf: UfCode): string {
+  const names: Partial<Record<UfCode, string>> = {
+    RJ: "Estado do Rio de Janeiro",
+    SP: "Estado de São Paulo",
+    PR: "Estado do Paraná"
+  };
+  return names[uf] ?? uf;
+}
+
+export function preferredMunicipalityForUf(uf: UfCode): string {
+  const names: Partial<Record<UfCode, string>> = {
+    RJ: "Rio de Janeiro",
+    SP: "São Paulo",
+    PR: "Curitiba"
+  };
+  return names[uf] ?? "";
+}
+
+export function sourceLabelForUf(uf: UfCode): string {
+  const labels: Partial<Record<UfCode, string>> = {
+    RJ: "RJ - ISP Dados Abertos",
+    SP: "SP - SSP-SP + Sinesp",
+    PR: "PR - Sinesp"
+  };
+  return labels[uf] ?? `${uf} - dados oficiais`;
+}
+
+export function analysisStartYearForUf(uf: UfCode): number {
+  const years: Partial<Record<UfCode, number>> = {
+    RJ: 2000,
+    SP: 2015,
+    PR: 2015
+  };
+  return years[uf] ?? 2015;
 }

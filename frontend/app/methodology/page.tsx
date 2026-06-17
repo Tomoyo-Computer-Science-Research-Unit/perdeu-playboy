@@ -24,7 +24,7 @@ const sources = [
   },
   {
     label: "Sinesp VDE/MJSP",
-    description: "Complemento nacional oficial para feminicídio e morte por intervenção de agente do Estado em SP.",
+    description: "Base nacional oficial usada para o Paraná e como complemento de indicadores em SP.",
     href: "https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica"
   },
   {

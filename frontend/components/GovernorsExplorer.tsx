@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { GovernorsPerformanceTable } from "@/components/GovernorsPerformanceTable";
 import { SourceBadge } from "@/components/SourceBadge";
-import { enabledUf, type UfCode } from "@/lib/ufs";
+import { enabledUf, sourceLabelForUf, type UfCode } from "@/lib/ufs";
 import type { GovernorPerformanceResponse } from "@/types/api";
 
 export function GovernorsExplorer({ initialPerformance }: { initialPerformance: GovernorPerformanceResponse }) {
@@ -48,7 +48,7 @@ export function GovernorsExplorer({ initialPerformance }: { initialPerformance: 
           <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">Governadores</p>
           <h2 className="m-0 mt-1 text-4xl font-display uppercase leading-none text-foreground">Performance por mandato</h2>
         </div>
-        <SourceBadge label={uf === "SP" ? "SP - SSP-SP + Sinesp" : "RJ - ISP Dados Abertos"} />
+        <SourceBadge label={sourceLabelForUf(uf)} />
       </section>
 
       <div className="min-h-5 font-mono text-xs uppercase tracking-widest text-muted">

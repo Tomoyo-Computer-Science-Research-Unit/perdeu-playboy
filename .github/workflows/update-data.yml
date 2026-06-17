@@ -47,7 +47,7 @@ jobs:
         working-directory: backend
         run: python -m pip install -e .
 
-      - name: Export static ISP snapshot
+      - name: Export static official-data snapshot
         working-directory: backend
         run: |
           python -m app.etl.export_static_frontend || {
@@ -77,7 +77,7 @@ jobs:
             exit 0
           fi
           git add frontend/lib/static-data.generated.json
-          git commit -m "Update static ISP snapshot"
+          git commit -m "Update static official-data snapshot"
           git push
           echo "changed=true" >> "$GITHUB_OUTPUT"
 

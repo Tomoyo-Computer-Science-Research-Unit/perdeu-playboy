@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SourceBadge } from "@/components/SourceBadge";
-import { enabledUf, type UfCode } from "@/lib/ufs";
+import { enabledUf, sourceLabelForUf, type UfCode } from "@/lib/ufs";
 import type { ChangeRow, LatestChangesResponse } from "@/types/api";
 
 function formatNumber(value: number | null) {
@@ -90,7 +90,7 @@ export function ChangesExplorer({ initialChanges }: { initialChanges: LatestChan
           <h2 className="m-0 mt-1 text-4xl font-display uppercase leading-none text-foreground">O que mudou no último período</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <SourceBadge label={uf === "SP" ? "SP - SSP-SP + Sinesp" : "RJ - ISP Dados Abertos"} />
+          <SourceBadge label={sourceLabelForUf(uf)} />
           <SourceBadge label={`${changes.latest_period.month}/${changes.latest_period.year}`} />
         </div>
       </section>

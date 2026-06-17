@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TrendChart } from "@/components/TrendChart";
 import { ANALYSIS_START_YEAR } from "@/lib/constants";
-import { enabledUf, type UfCode } from "@/lib/ufs";
+import { analysisStartYearForUf, enabledUf, preferredMunicipalityForUf, stateNameForUf, type UfCode } from "@/lib/ufs";
 import type { Indicator, Territory, TerritoryType, TimeSeriesPoint } from "@/types/api";
 
 interface TrendsExplorerProps {
@@ -37,7 +37,7 @@ export function TrendsExplorer({ indicators, initialTerritories, initialData }: 
         return;
       }
       const { getTerritories } = await import("@/lib/api");
-      const nextType = uf === "SP" && territoryType === "police_area" ? "municipality" : territoryType;
+      const nextType = uf !== "RJ" && territoryType === "police_area" ? "municipality" : territoryType;
       const nextTerritories = await getTerritories(nextType, uf);
       if (cancelled) {
         return;
@@ -111,8 +111,8 @@ export function TrendsExplorer({ indicators, initialTerritories, initialData }: 
         getTerritories("state", nextUf),
         getIndicators(nextUf)
       ]);
-      const stateName = nextTerritories[0]?.name ?? (nextUf === "SP" ? "Estado de São Paulo" : "Estado do Rio de Janeiro");
-      const nextStart = Math.max(ANALYSIS_START_YEAR, nextUf === "SP" ? 2015 : ANALYSIS_START_YEAR);
+      const stateName = nextTerritories[0]?.name ?? stateNameForUf(nextUf);
+      const nextStart = Math.max(ANALYSIS_START_YEAR, analysisStartYearForUf(nextUf));
       const nextIndicator = nextIndicators.some((item) => item.code === indicator) ? indicator : nextIndicators[0]?.code ?? "letalidade_violenta";
       const nextData = await getTimeseries(nextIndicator, "state", stateName, nextStart, latest.year, nextUf);
       setIndicatorOptions(nextIndicators);
@@ -215,10 +215,10 @@ export function TrendsExplorer({ indicators, initialTerritories, initialData }: 
 
 function preferredTerritoryName(uf: UfCode, territoryType: TerritoryType, territories: Territory[]) {
   if (territoryType === "state") {
-    return territories[0]?.name ?? (uf === "SP" ? "Estado de São Paulo" : "Estado do Rio de Janeiro");
+    return territories[0]?.name ?? stateNameForUf(uf);
   }
   if (territoryType === "municipality") {
-    const preferred = uf === "SP" ? "São Paulo" : "Rio de Janeiro";
+    const preferred = preferredMunicipalityForUf(uf);
     return territories.find((territory) => territory.name === preferred)?.name ?? territories[0]?.name ?? "";
   }
   return territories[0]?.name ?? "";

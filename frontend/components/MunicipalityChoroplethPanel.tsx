@@ -153,7 +153,11 @@ export function MunicipalityChoroplethPanel({
   const [periodIndex, setPeriodIndex] = useState(initialState.periodIndex);
   const [view, setView] = useState<MapView>(initialState.view);
   const [uf, setUf] = useState<UfCode>(initialState.uf);
-  const visiblePeriods = useMemo(() => periodsFrom(viewStartYear(view, uf), latestYear, latestMonth), [latestMonth, latestYear, view, uf]);
+  const [activeLatest, setActiveLatest] = useState({ year: latestYear, month: latestMonth });
+  const visiblePeriods = useMemo(
+    () => periodsFrom(viewStartYear(view, uf), activeLatest.year, activeLatest.month),
+    [activeLatest.month, activeLatest.year, view, uf]
+  );
   const [data, setData] = useState(initialData);
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
@@ -181,12 +185,17 @@ export function MunicipalityChoroplethPanel({
     async function hydrateFromUrl() {
       const nextState = browserMapState(periods);
       let nextIndicator = nextState.indicator;
+      const nextView = nextState.uf === "RJ" ? nextState.view : "state";
       let nextIndicatorOptions = indicatorOptions;
+      let nextLatest = { year: latestYear, month: latestMonth };
 
       if (nextState.uf !== "RJ") {
         try {
-          const { getIndicators } = await import("@/lib/api");
-          nextIndicatorOptions = await getIndicators(nextState.uf);
+          const { getIndicators, getLatestPeriod } = await import("@/lib/api");
+          [nextIndicatorOptions, nextLatest] = await Promise.all([
+            getIndicators(nextState.uf),
+            getLatestPeriod(nextState.uf)
+          ]);
           setIndicatorOptions(nextIndicatorOptions);
         } catch {
           setError("Falha ao carregar mapa.");
@@ -201,13 +210,15 @@ export function MunicipalityChoroplethPanel({
       }
 
       const nextMode = nextIndicator === "crime_geral" ? "rate" : nextState.mode;
+      const nextPeriodIndex = clampPeriodToRange(nextState.periodIndex, nextView, nextState.uf, periods, nextLatest.year, nextLatest.month);
       setUf(nextState.uf);
-      setView(nextState.view);
+      setView(nextView);
+      setActiveLatest(nextLatest);
       setIndicator(nextIndicator);
       setMode(nextMode);
-      setPeriodIndex(nextState.periodIndex);
+      setPeriodIndex(nextPeriodIndex);
       urlHydrated.current = true;
-      await loadMap(nextState.view, nextState.periodIndex, nextIndicator, nextMode, nextState.uf);
+      await loadMap(nextView, nextPeriodIndex, nextIndicator, nextMode, nextState.uf);
     }
 
     void hydrateFromUrl();
@@ -272,14 +283,15 @@ export function MunicipalityChoroplethPanel({
     setLoading(true);
     setError(null);
     try {
-      const { getIndicators } = await import("@/lib/api");
-      const nextIndicators = await getIndicators(nextUf);
+      const { getIndicators, getLatestPeriod } = await import("@/lib/api");
+      const [nextIndicators, nextLatest] = await Promise.all([getIndicators(nextUf), getLatestPeriod(nextUf)]);
       const nextIndicator = indicator === "crime_geral" || nextIndicators.some((item) => item.code === indicator)
         ? indicator
         : nextIndicators[0]?.code ?? "crime_geral";
-      const nextPeriodIndex = clampPeriodToStart(periodIndex, "state", nextUf, periods);
+      const nextPeriodIndex = clampPeriodToRange(periodIndex, "state", nextUf, periods, nextLatest.year, nextLatest.month);
       setUf(nextUf);
       setView("state");
+      setActiveLatest(nextLatest);
       setSelected(null);
       setIndicatorOptions(nextIndicators);
       setIndicator(nextIndicator);
@@ -389,7 +401,7 @@ export function MunicipalityChoroplethPanel({
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
           <div>
             <div className="relative">
-              <svg viewBox="0 0 1000 680" role="img" aria-label={view === "rio_city" ? "Mapa da cidade do Rio de Janeiro por bairros" : "Mapa do estado do Rio de Janeiro por municípios"} className="h-[420px] w-full sm:h-[560px] lg:h-[680px]">
+              <svg viewBox="0 0 1000 680" role="img" aria-label={view === "rio_city" ? "Mapa da cidade do Rio de Janeiro por bairros" : `Mapa de ${uf} por municípios`} className="h-[420px] w-full sm:h-[560px] lg:h-[680px]">
                 <rect width="1000" height="680" fill="#050505" />
                 {data.features.map((feature) => {
                   const value = Number(feature.properties.metric_value ?? 0);
@@ -486,7 +498,7 @@ export function MunicipalityChoroplethPanel({
         <div className="flex items-center justify-between gap-4 font-mono text-xs font-bold uppercase tracking-widest text-muted">
           <span>{startYear}</span>
           <span className="text-foreground">{selectedPeriod?.label}</span>
-          <span>{latestYear}</span>
+          <span>{activeLatest.year}</span>
         </div>
         <input
           aria-label="Linha do tempo do mapa"
@@ -503,23 +515,33 @@ export function MunicipalityChoroplethPanel({
 }
 
 function viewStartYear(view: MapView, uf: UfCode = "RJ") {
-  if (uf === "SP") {
+  if (uf !== "RJ") {
     return 2015;
   }
   return view === "rio_city" ? 2003 : 2014;
 }
 
-function clampPeriodToStart(
+function clampPeriodToRange(
   periodIndex: number,
   view: MapView,
   uf: UfCode,
-  periods: Array<{ year: number; month: number }>
+  periods: Array<{ year: number; month: number }>,
+  latestYear: number,
+  latestMonth: number
 ) {
   const period = periods[periodIndex];
   const startYear = viewStartYear(view, uf);
-  if (period && period.year >= startYear) {
+  const latestIndex = periods.findIndex((item) => item.year === latestYear && item.month === latestMonth);
+  if (
+    period
+    && period.year >= startYear
+    && (period.year < latestYear || (period.year === latestYear && period.month <= latestMonth))
+  ) {
     return periodIndex;
   }
-  const startIndex = periods.findIndex((item) => item.year === startYear && item.month === 1);
-  return startIndex >= 0 ? startIndex : Math.max(0, periods.length - 1);
+  if (period && period.year < startYear) {
+    const startIndex = periods.findIndex((item) => item.year === startYear && item.month === 1);
+    return startIndex >= 0 ? startIndex : Math.max(0, latestIndex);
+  }
+  return latestIndex >= 0 ? latestIndex : Math.max(0, periods.length - 1);
 }

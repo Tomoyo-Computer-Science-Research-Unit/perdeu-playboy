@@ -3,7 +3,7 @@ import type { MetadataRoute } from "next";
 export const dynamic = "force-static";
 
 const baseUrl = "https://perdeu-playboy.online";
-const lastModified = new Date("2026-06-08T00:00:00-03:00");
+const lastModified = new Date("2026-06-17T00:00:00-03:00");
 
 const routes = [
   "",
