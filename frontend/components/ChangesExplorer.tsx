@@ -12,7 +12,11 @@ function formatNumber(value: number | null) {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(value);
 }
 
-function ChangeTable({ rows }: { rows: ChangeRow[] }) {
+function ChangeTable({ rows, direction }: { rows: ChangeRow[]; direction: "increase" | "decrease" }) {
+  const emptyLabel = direction === "increase"
+    ? "Sem piora neste período."
+    : "Sem queda neste período.";
+
   return (
     <div className="overflow-x-auto border border-border bg-surface shadow-hard">
       <table className="w-full min-w-[760px] divide-y divide-border text-sm">
@@ -27,6 +31,13 @@ function ChangeTable({ rows }: { rows: ChangeRow[] }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={6} className="px-4 py-8 text-center font-mono text-xs uppercase tracking-widest text-muted">
+                {emptyLabel}
+              </td>
+            </tr>
+          ) : null}
           {rows.map((row) => (
             <tr key={`${row.territory_type}-${row.territory_name}`} className="hover:bg-background/50">
               <td className="px-4 py-3 font-mono font-bold text-muted">{row.rank}</td>
@@ -106,7 +117,7 @@ export function ChangesExplorer({ initialChanges }: { initialChanges: LatestChan
             <div className="border-l-4 border-border pl-4">
               <h3 className="m-0 text-3xl font-display uppercase leading-none text-foreground">{section.title}</h3>
             </div>
-            <ChangeTable rows={section.rows} />
+            <ChangeTable rows={section.rows} direction={section.direction} />
           </section>
         ))}
       </div>

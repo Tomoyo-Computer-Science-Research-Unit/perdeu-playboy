@@ -45,6 +45,7 @@ type StateSnapshot = Omit<StaticSnapshot, "generated_at" | "analysis_start_year"
 
 const DATA = snapshot as StaticSnapshot;
 const CRIME_RATE_INDICATORS = ["letalidade_violenta", "roubo_rua", "roubo_veiculo", "roubo_carga", "estupro"];
+const NATIONAL_COMPARABLE_CRIME_INDICATORS = CRIME_RATE_INDICATORS.filter((indicator) => indicator !== "roubo_rua");
 const GOVERNOR_INDICATORS = ["letalidade_violenta", "homicidio_doloso", "latrocinio", "roubo_veiculo", "roubo_carga"];
 const rankingCache = new Map<string, RankingRow[]>();
 const mapCache = new Map<string, GeoFeatureCollection>();
@@ -723,11 +724,12 @@ function changeSection(
 ) {
   const periodIndex = monthIndex(year, month);
   const previousIndex = monthIndex(year - 1, month);
+  const indicators = data.uf === "BR" ? NATIONAL_COMPARABLE_CRIME_INDICATORS : CRIME_RATE_INDICATORS;
   const names = Object.keys(data.series.letalidade_violenta?.[territoryType] ?? {}).filter((name) => !isIgnoredTerritory(name));
   const rows = names
     .map((name) => {
-      const currentValue = rollingCrimeValue(territoryType, name, periodIndex, data);
-      const previousValue = rollingCrimeValue(territoryType, name, previousIndex, data);
+      const currentValue = rollingCrimeValue(territoryType, name, periodIndex, data, indicators);
+      const previousValue = rollingCrimeValue(territoryType, name, previousIndex, data, indicators);
       const absoluteChange = round1(currentValue - previousValue);
       return {
         rank: 0,
@@ -740,6 +742,7 @@ function changeSection(
       };
     })
     .filter((row) => row.previous_value > 0 || row.current_value > 0)
+    .filter((row) => direction === "increase" ? row.absolute_change > 0 : row.absolute_change < 0)
     .sort((a, b) => direction === "increase" ? b.absolute_change - a.absolute_change : a.absolute_change - b.absolute_change)
     .slice(0, 12)
     .map((row, index) => ({ ...row, rank: index + 1 }));
@@ -789,13 +792,19 @@ function featureWithStats(
   };
 }
 
-function rollingCrimeValue(territoryType: TerritoryType, territoryName: string, periodIndex: number, data: StateSnapshot = DATA): number {
+function rollingCrimeValue(
+  territoryType: TerritoryType,
+  territoryName: string,
+  periodIndex: number,
+  data: StateSnapshot = DATA,
+  indicators = CRIME_RATE_INDICATORS
+): number {
   if (periodIndex < 0) {
     return 0;
   }
   const start = Math.max(0, periodIndex - 11);
   let total = 0;
-  for (const indicator of CRIME_RATE_INDICATORS) {
+  for (const indicator of indicators) {
     const values = data.series[indicator]?.[territoryType]?.[territoryName] ?? [];
     for (let index = start; index <= periodIndex; index += 1) {
       total += values[index] ?? 0;
