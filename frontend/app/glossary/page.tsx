@@ -33,7 +33,7 @@ export default async function GlossaryPage() {
 
   return (
     <div className="grid gap-8">
-      <section className="flex flex-col gap-4 border-l-4 border-border pl-4 md:flex-row md:items-end md:justify-between">
+      <section className="flex flex-col gap-4 border-b border-border pb-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">Glossário</p>
           <h2 className="m-0 mt-1 text-4xl font-display uppercase leading-none text-foreground">Como ler os indicadores</h2>

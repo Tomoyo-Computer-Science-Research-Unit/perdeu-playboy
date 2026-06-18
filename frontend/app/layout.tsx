@@ -3,6 +3,7 @@ import { Inter, Roboto_Mono, Bebas_Neue } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import { UfSelector } from "@/components/UfSelector";
+import { SiteNav } from "@/components/SiteNav";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -64,44 +65,37 @@ export const metadata: Metadata = {
   }
 };
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/trends", label: "Tendências" },
-  { href: "/map", label: "Mapa" },
-  { href: "/rankings", label: "Rankings" },
-  { href: "/changes", label: "Mudanças" },
-  { href: "/governors", label: "Mandatos" },
-  { href: "/sources", label: "Fontes" },
-  { href: "/glossary", label: "Glossário" },
-  { href: "/methodology", label: "Metodologia" }
-];
-
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR" className={`${inter.variable} ${robotoMono.variable} ${bebasNeue.variable}`}>
-      <body className="bg-background text-foreground font-sans selection:bg-foreground selection:text-background">
-        <header className="border-b border-border bg-surface">
-          <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:py-5 md:flex-row md:items-end md:justify-between border-l-4 border-border">
-            <Link href="/dashboard" className="group flex items-center gap-3">
-              <Image
-                src="/logo_perdeu-playboy.png"
-                alt="Perdeu, Playboy"
-                width={56}
-                height={56}
-                priority
-                className="h-12 w-12 shrink-0 object-contain sm:h-14 sm:w-14"
-              />
-              <h1 className="text-3xl font-display text-foreground m-0 leading-none sm:text-4xl">Perdeu, Playboy</h1>
-            </Link>
-            <div className="flex flex-col gap-3 md:items-end">
+      <body className="bg-background text-foreground font-sans selection:bg-accent-red selection:text-foreground">
+        <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <div className="flex items-center justify-between gap-4 py-3 sm:py-4">
+              <Link href="/dashboard" className="group flex items-center gap-3">
+                <Image
+                  src="/logo_perdeu-playboy.png"
+                  alt="Perdeu, Playboy"
+                  width={56}
+                  height={56}
+                  priority
+                  className="h-10 w-10 shrink-0 object-contain sm:h-11 sm:w-11"
+                />
+                <span className="flex flex-col leading-none">
+                  <span className="font-display text-2xl tracking-wide text-foreground transition-colors group-hover:text-accent-red sm:text-[1.75rem]">
+                    Perdeu, Playboy
+                  </span>
+                  <span className="mt-1 font-mono text-[10px] uppercase tracking-[0.22em] text-muted">
+                    Segurança pública · dados oficiais
+                  </span>
+                </span>
+              </Link>
               <UfSelector />
-              <nav className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1 pb-1 font-mono text-[11px] uppercase tracking-wider text-muted sm:flex-wrap sm:text-xs md:justify-end">
-                {navItems.map((item) => (
-                  <Link key={item.href} href={item.href} className="shrink-0 px-3 py-2 border border-transparent hover:border-border hover:bg-background hover:text-foreground transition-all">
-                    [{item.label}]
-                  </Link>
-                ))}
-              </nav>
+            </div>
+          </div>
+          <div className="border-t border-border">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6">
+              <SiteNav />
             </div>
           </div>
         </header>

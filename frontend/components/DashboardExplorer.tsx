@@ -151,7 +151,7 @@ export function DashboardExplorer({
 
   return (
     <div className="grid gap-8">
-      <section className="flex flex-col gap-4 border-l-4 border-border pl-4 md:flex-row md:items-end md:justify-between">
+      <section className="flex flex-col gap-4 border-b border-border pb-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h2 className="m-0 mt-1 text-4xl font-display uppercase leading-none text-foreground">{territoryTitle}</h2>
         </div>
@@ -234,7 +234,7 @@ export function DashboardExplorer({
         </section>
 
         <section className="mt-8 grid gap-4">
-          <div className="border-l-4 border-border pl-4">
+          <div className="border-b border-border pb-3">
             <h2 className="text-3xl font-display uppercase leading-none text-foreground">Letalidade violenta no tempo</h2>
           </div>
           <TrendChart data={timeseries} />

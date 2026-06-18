@@ -11,7 +11,7 @@ export default async function TrendsPage() {
 
   return (
     <div className="grid gap-8">
-      <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-l-4 border-border pl-4">
+      <section className="flex flex-col gap-4 border-b border-border pb-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">Tendências</p>
           <h2 className="mt-1 text-4xl font-display text-foreground m-0 leading-none uppercase">Séries históricas por indicador</h2>

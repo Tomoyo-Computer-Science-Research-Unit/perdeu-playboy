@@ -96,7 +96,7 @@ export function ChangesExplorer({ initialChanges }: { initialChanges: LatestChan
 
   return (
     <div className="grid gap-8">
-      <section className="flex flex-col gap-4 border-l-4 border-border pl-4 md:flex-row md:items-end md:justify-between">
+      <section className="flex flex-col gap-4 border-b border-border pb-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">Mudanças</p>
           <h2 className="m-0 mt-1 text-4xl font-display uppercase leading-none text-foreground">O que mudou no último período</h2>
@@ -116,7 +116,7 @@ export function ChangesExplorer({ initialChanges }: { initialChanges: LatestChan
         {loading ? <LoadingOverlay label="Atualizando mudanças" /> : null}
         {changes.sections.map((section) => (
           <section key={section.title} className="grid gap-4">
-            <div className="border-l-4 border-border pl-4">
+            <div className="border-b border-border pb-3">
               <h3 className="m-0 text-3xl font-display uppercase leading-none text-foreground">{section.title}</h3>
             </div>
             <ChangeTable rows={section.rows} direction={section.direction} />

@@ -11,7 +11,7 @@ export default async function RankingsPage() {
 
   return (
     <div className="grid gap-8">
-      <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-l-4 border-border pl-4">
+      <section className="flex flex-col gap-4 border-b border-border pb-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">Rankings</p>
           <h2 className="mt-1 text-4xl font-display text-foreground m-0 leading-none uppercase">Territórios por indicador</h2>

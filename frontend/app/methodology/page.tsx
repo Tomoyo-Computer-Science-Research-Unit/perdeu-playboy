@@ -37,7 +37,7 @@ const sources = [
 export default function MethodologyPage() {
   return (
     <div className="grid gap-8">
-      <section className="border-l-4 border-border pl-4">
+      <section className="border-b border-border pb-4">
         <div>
           <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">Metodologia</p>
           <h2 className="mt-1 text-4xl font-display text-foreground m-0 leading-none uppercase">Código e fontes</h2>

@@ -108,7 +108,7 @@ export default async function SourcesPage() {
 
   return (
     <div className="grid gap-8">
-      <section className="border-l-4 border-border pl-4">
+      <section className="border-b border-border pb-4">
         <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">Fontes</p>
         <h2 className="m-0 mt-1 text-4xl font-display uppercase leading-none text-foreground">Dados e checksums</h2>
       </section>

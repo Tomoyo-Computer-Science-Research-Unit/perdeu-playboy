@@ -248,11 +248,14 @@ export function MunicipalityChoroplethPanel({
     function handleUfChange(event: Event) {
       const detail = (event as CustomEvent<{ uf?: string }>).detail;
       const nextUf = enabledUf(detail?.uf);
+      if (nextUf === uf) {
+        return;
+      }
       void reloadUf(nextUf);
     }
     window.addEventListener("ufchange", handleUfChange);
     return () => window.removeEventListener("ufchange", handleUfChange);
-  }, [indicator, mode, periodIndex, view]);
+  }, [indicator, mode, periodIndex, uf, view]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
