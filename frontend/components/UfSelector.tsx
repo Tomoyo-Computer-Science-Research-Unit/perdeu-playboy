@@ -7,11 +7,18 @@ export function UfSelector() {
   const [uf, setUf] = useState<UfCode>("BR");
 
   useEffect(() => {
+    function handleUfChange(event: Event) {
+      const detail = (event as CustomEvent<{ uf?: string }>).detail;
+      setUf(enabledUf(detail?.uf));
+    }
+
+    window.addEventListener("ufchange", handleUfChange);
     const params = new URLSearchParams(window.location.search);
     const nextUf = enabledUf(params.get("uf") ?? window.localStorage.getItem("selected_uf"));
     setUf(nextUf);
     window.localStorage.setItem("selected_uf", nextUf);
     window.dispatchEvent(new CustomEvent("ufchange", { detail: { uf: nextUf } }));
+    return () => window.removeEventListener("ufchange", handleUfChange);
   }, []);
 
   function changeUf(nextUf: UfCode) {
