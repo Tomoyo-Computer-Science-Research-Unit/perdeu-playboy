@@ -19,6 +19,7 @@ type MapInitialState = {
 const MAP_WIDTH = 1000;
 const MAP_HEIGHT = 680;
 const MAP_PADDING = 18;
+const MIN_PROJECTED_SPAN = 0.000001;
 
 function formatNumber(value: unknown) {
   const number = Number(value ?? 0);
@@ -36,8 +37,8 @@ function projectPoint(lon: number, lat: number, bbox: [number, number, number, n
   const [minLon, minLat, maxLon, maxLat] = bbox;
   const centerLat = ((minLat + maxLat) / 2) * (Math.PI / 180);
   const lonScale = Math.max(0.2, Math.cos(centerLat));
-  const rawWidth = Math.max((maxLon - minLon) * lonScale, 1);
-  const rawHeight = Math.max(maxLat - minLat, 1);
+  const rawWidth = Math.max((maxLon - minLon) * lonScale, MIN_PROJECTED_SPAN);
+  const rawHeight = Math.max(maxLat - minLat, MIN_PROJECTED_SPAN);
   const usableWidth = MAP_WIDTH - MAP_PADDING * 2;
   const usableHeight = MAP_HEIGHT - MAP_PADDING * 2;
   const scale = Math.min(usableWidth / rawWidth, usableHeight / rawHeight);
