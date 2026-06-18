@@ -379,6 +379,9 @@ export function MunicipalityChoroplethPanel({
   const startYear = viewStartYear(view, uf);
   const currentMetricLabel = metricLabel(indicator, mode);
   const mapUnitLabel = uf === "BR" ? "UF" : view === "rio_city" ? "Bairro" : "Município";
+  const showRioCoverageNote = uf === "BR"
+    && view === "state"
+    && (selected?.uf === "RJ" || selected?.territory_name === "Rio de Janeiro");
 
   return (
     <section className="grid gap-4">
@@ -494,6 +497,12 @@ export function MunicipalityChoroplethPanel({
             {selected?.source_territory_name ? (
               <p className="mt-2 font-mono text-xs uppercase tracking-wide text-muted">
                 {String(selected.source_territory_name)}
+              </p>
+            ) : null}
+            {showRioCoverageNote ? (
+              <p className="mt-4 border border-border bg-surface p-3 font-mono text-[11px] uppercase leading-5 tracking-wide text-muted">
+                Rio de Janeiro fica em evidência por ter uma maior informação oficial que a maioria das outras UFs,
+                especialmente com relação a crimes de Roubo de Rua, dado não exposto na SINESP VDE.
               </p>
             ) : null}
             <dl className="mt-6 grid gap-4 font-mono text-xs uppercase tracking-wide">

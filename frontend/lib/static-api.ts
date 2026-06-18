@@ -552,7 +552,7 @@ export async function getMethodology(): Promise<Methodology> {
 
 export async function getMapData(
   indicator = "letalidade_violenta",
-  mode: RankingMode = "count",
+  mode: RankingMode = "rate",
   year = DATA.latest_period.year,
   month = DATA.latest_period.month,
   uf?: string
@@ -614,7 +614,7 @@ export async function getCrimeRateMapData(
 
 export async function getRioCityMapData(
   indicator = "letalidade_violenta",
-  mode: RankingMode = "count",
+  mode: RankingMode = "rate",
   year = DATA.latest_period.year,
   month = DATA.latest_period.month,
   uf?: string
