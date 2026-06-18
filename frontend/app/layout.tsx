@@ -70,7 +70,7 @@ const navItems = [
   { href: "/map", label: "Mapa" },
   { href: "/rankings", label: "Rankings" },
   { href: "/changes", label: "Mudanças" },
-  { href: "/governors", label: "Governadores" },
+  { href: "/governors", label: "Mandatos" },
   { href: "/sources", label: "Fontes" },
   { href: "/glossary", label: "Glossário" },
   { href: "/methodology", label: "Metodologia" }

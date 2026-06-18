@@ -21,14 +21,24 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("pt-BR", { month: "2-digit", year: "numeric" }).format(new Date(`${value}T00:00:00`));
 }
 
-export function GovernorsPerformanceTable({ rows }: { rows: GovernorPerformanceRow[] }) {
+export function GovernorsPerformanceTable({
+  rows,
+  personLabel = "Governador"
+}: {
+  rows: GovernorPerformanceRow[];
+  personLabel?: "Governador" | "Presidente";
+}) {
+  const emptyLabel = personLabel === "Presidente"
+    ? "Sem presidentes para este recorte."
+    : "Selecione uma UF para comparar governadores.";
+
   return (
     <div className="overflow-x-auto border border-border bg-surface shadow-hard">
       <table className="min-w-full divide-y divide-border text-sm">
         <thead className="bg-background text-left font-mono text-xs font-bold uppercase tracking-wide text-muted">
           <tr>
             <th className="px-4 py-3">Rank</th>
-            <th className="px-4 py-3">Governador</th>
+            <th className="px-4 py-3">{personLabel}</th>
             <th className="px-4 py-3">Período</th>
             <th className="px-4 py-3 text-right">Redução média</th>
             <th className="px-4 py-3 text-right">Meses do mandato</th>
@@ -43,7 +53,7 @@ export function GovernorsPerformanceTable({ rows }: { rows: GovernorPerformanceR
           {rows.length === 0 ? (
             <tr>
               <td colSpan={10} className="px-4 py-8 text-center font-mono text-xs uppercase tracking-widest text-muted">
-                Selecione uma UF para comparar governadores.
+                {emptyLabel}
               </td>
             </tr>
           ) : null}

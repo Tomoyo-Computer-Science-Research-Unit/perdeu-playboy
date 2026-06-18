@@ -11,6 +11,9 @@ export function GovernorsExplorer({ initialPerformance }: { initialPerformance: 
   const [uf, setUf] = useState<UfCode>("BR");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isBrazil = uf === "BR";
+  const entityPlural = isBrazil ? "Presidentes" : "Governadores";
+  const entitySingular = isBrazil ? "Presidente" : "Governador";
 
   useEffect(() => {
     function handleUfChange(event: Event) {
@@ -35,7 +38,7 @@ export function GovernorsExplorer({ initialPerformance }: { initialPerformance: 
       const { getGovernorPerformance } = await import("@/lib/api");
       setPerformance(await getGovernorPerformance(nextUf));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar governadores.");
+      setError(err instanceof Error ? err.message : "Erro ao carregar mandatos.");
     } finally {
       setLoading(false);
     }
@@ -45,18 +48,18 @@ export function GovernorsExplorer({ initialPerformance }: { initialPerformance: 
     <div className="grid gap-8">
       <section className="flex flex-col gap-4 border-l-4 border-border pl-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">Governadores</p>
+          <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">{entityPlural}</p>
           <h2 className="m-0 mt-1 text-4xl font-display uppercase leading-none text-foreground">Performance por mandato</h2>
         </div>
         <SourceBadge label={sourceLabelForUf(uf)} />
       </section>
 
       <div className="min-h-5 font-mono text-xs uppercase tracking-widest text-muted">
-        {loading ? "Carregando governadores..." : null}
+        {loading ? `Carregando ${entityPlural.toLowerCase()}...` : null}
         {error ? <span className="text-accent-red">{error}</span> : null}
       </div>
 
-      <GovernorsPerformanceTable rows={performance.rows} />
+      <GovernorsPerformanceTable rows={performance.rows} personLabel={entitySingular} />
     </div>
   );
 }

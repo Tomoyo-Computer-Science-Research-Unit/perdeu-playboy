@@ -49,6 +49,13 @@ const GOVERNOR_INDICATORS = ["letalidade_violenta", "homicidio_doloso", "latroci
 const rankingCache = new Map<string, RankingRow[]>();
 const mapCache = new Map<string, GeoFeatureCollection>();
 
+const PRESIDENT_TERMS = [
+  { governor: "Dilma Rousseff", party_or_condition: "PT", term_start: "2015-01-01", term_end: "2016-08-31" },
+  { governor: "Michel Temer", party_or_condition: "PMDB / MDB", term_start: "2016-08-31", term_end: "2018-12-31" },
+  { governor: "Jair Bolsonaro", party_or_condition: "PSL / PL", term_start: "2019-01-01", term_end: "2022-12-31" },
+  { governor: "Luiz Inácio Lula da Silva", party_or_condition: "PT", term_start: "2023-01-01", term_end: null }
+];
+
 const SP_GOVERNOR_TERMS = [
   { governor: "Geraldo Alckmin", party_or_condition: "PSDB", term_start: "2015-01-01", term_end: "2018-04-06" },
   { governor: "Márcio França", party_or_condition: "PSB", term_start: "2018-04-06", term_end: "2018-12-31" },
@@ -459,11 +466,11 @@ export async function getRankings(
 export async function getGovernorPerformance(uf?: string): Promise<GovernorPerformanceResponse> {
   const code = enabledUf(uf);
   if (code === "BR") {
-    return {
-      methodology: "Selecione uma UF para comparar governadores. O recorte Brasil agrega estados e não tem um único governo estadual.",
-      indicators: GOVERNOR_INDICATORS,
-      rows: []
-    };
+    return governorPerformanceForState(
+      stateData("BR"),
+      PRESIDENT_TERMS,
+      "Comparação descritiva por mandato presidencial com dados oficiais disponíveis para o Brasil."
+    );
   }
   if (code === "SP") {
     return governorPerformanceForState(stateData("SP"), SP_GOVERNOR_TERMS);
@@ -836,21 +843,27 @@ function indicatorsWithData(data: StateSnapshot): Indicator[] {
 
 function governorPerformanceForState(
   data: StateSnapshot,
-  terms: Array<{ governor: string; party_or_condition: string; term_start: string; term_end: string | null }>
+  terms: Array<{ governor: string; party_or_condition: string; term_start: string; term_end: string | null }>,
+  methodology = "Comparação descritiva por mandato com dados oficiais disponíveis para a UF selecionada."
 ): GovernorPerformanceResponse {
   const stateName = resolveTerritoryName("state", undefined, data);
+  const coverageStart = stateCoverageStartIndex(data);
   const rows = terms.map((term) => {
     const startIndex = monthIndexFromDate(term.term_start);
     const endIndex = term.term_end ? monthIndexFromDate(term.term_end) : monthIndex(data.latest_period.year, data.latest_period.month);
-    const boundedStart = Math.max(0, startIndex);
+    const boundedStart = Math.max(coverageStart, startIndex);
     const boundedEnd = Math.min(endIndex, monthIndex(data.latest_period.year, data.latest_period.month));
     const currentValues = GOVERNOR_INDICATORS.map((indicator) => {
       const values = data.series[indicator]?.state?.[stateName] ?? [];
       return annualizedSlice(values, boundedStart, boundedEnd);
     });
-    const baselineStart = Math.max(0, boundedStart - 12);
+    const hasFullBaseline = boundedStart - 12 >= coverageStart;
+    const baselineStart = boundedStart - 12;
     const baselineEnd = boundedStart - 1;
     const baselineValues = GOVERNOR_INDICATORS.map((indicator) => {
+      if (!hasFullBaseline) {
+        return null;
+      }
       const values = data.series[indicator]?.state?.[stateName] ?? [];
       return annualizedSlice(values, baselineStart, baselineEnd);
     });
@@ -871,7 +884,7 @@ function governorPerformanceForState(
     })).filter((item): item is { indicator: string; reduction: number } => item.reduction !== null);
     const rankedIndicators = [...indicatorResults].sort((a, b) => b.reduction - a.reduction);
     const monthsCount = boundedEnd >= boundedStart ? boundedEnd - boundedStart + 1 : 0;
-    const baselineMonthsCount = baselineEnd >= baselineStart ? baselineEnd - baselineStart + 1 : 0;
+    const baselineMonthsCount = hasFullBaseline && baselineEnd >= baselineStart ? baselineEnd - baselineStart + 1 : 0;
     return {
       rank: null,
       governor: term.governor,
@@ -892,10 +905,15 @@ function governorPerformanceForState(
     .sort((a, b) => (b.average_reduction_percent ?? Number.NEGATIVE_INFINITY) - (a.average_reduction_percent ?? Number.NEGATIVE_INFINITY))
     .map((row, index) => ({ ...row, rank: row.average_reduction_percent === null ? null : index + 1 }));
   return {
-    methodology: "Comparação descritiva por mandato com dados oficiais disponíveis para a UF selecionada.",
+    methodology,
     indicators: GOVERNOR_INDICATORS,
     rows: ranked
   };
+}
+
+function stateCoverageStartIndex(data: StateSnapshot): number {
+  const startYear = Number(data.coverage?.state_start_year ?? DATA.analysis_start_year);
+  return Number.isFinite(startYear) ? monthIndex(startYear, 1) : 0;
 }
 
 function annualizedSlice(values: number[], startIndex: number, endIndex: number): number | null {
