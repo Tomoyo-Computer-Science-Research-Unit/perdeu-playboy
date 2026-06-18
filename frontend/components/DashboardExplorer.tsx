@@ -2,6 +2,7 @@
 
 import { CalendarDays } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { LoadingOverlay } from "@/components/LoadingState";
 import { MetricCard } from "@/components/MetricCard";
 import { SourceBadge } from "@/components/SourceBadge";
 import { TrendChart } from "@/components/TrendChart";
@@ -224,18 +225,21 @@ export function DashboardExplorer({
         {error ? <span className="text-accent-red">{error}</span> : null}
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {sortedCards.map((card) => (
-          <MetricCard key={card.indicator} card={card} year={summary.year} />
-        ))}
-      </section>
+      <div className="relative grid gap-8">
+        {loading ? <LoadingOverlay label="Atualizando dashboard" /> : null}
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {sortedCards.map((card) => (
+            <MetricCard key={card.indicator} card={card} year={summary.year} />
+          ))}
+        </section>
 
-      <section className="mt-8 grid gap-4">
-        <div className="border-l-4 border-border pl-4">
-          <h2 className="text-3xl font-display uppercase leading-none text-foreground">Letalidade violenta no tempo</h2>
-        </div>
-        <TrendChart data={timeseries} />
-      </section>
+        <section className="mt-8 grid gap-4">
+          <div className="border-l-4 border-border pl-4">
+            <h2 className="text-3xl font-display uppercase leading-none text-foreground">Letalidade violenta no tempo</h2>
+          </div>
+          <TrendChart data={timeseries} />
+        </section>
+      </div>
     </div>
   );
 }

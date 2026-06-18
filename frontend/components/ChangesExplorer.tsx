@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LoadingOverlay } from "@/components/LoadingState";
 import { SourceBadge } from "@/components/SourceBadge";
 import { enabledUf, sourceLabelForUf, type UfCode } from "@/lib/ufs";
 import type { ChangeRow, LatestChangesResponse } from "@/types/api";
@@ -111,7 +112,8 @@ export function ChangesExplorer({ initialChanges }: { initialChanges: LatestChan
         {error ? <span className="text-accent-red">{error}</span> : null}
       </div>
 
-      <div className="grid gap-8">
+      <div className="relative grid gap-8">
+        {loading ? <LoadingOverlay label="Atualizando mudanças" /> : null}
         {changes.sections.map((section) => (
           <section key={section.title} className="grid gap-4">
             <div className="border-l-4 border-border pl-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { LoadingOverlay } from "@/components/LoadingState";
 import { TrendChart } from "@/components/TrendChart";
 import { ANALYSIS_START_YEAR } from "@/lib/constants";
 import { analysisStartYearForUf, enabledUf, preferredMunicipalityForUf, stateNameForUf, type UfCode } from "@/lib/ufs";
@@ -208,7 +209,10 @@ export function TrendsExplorer({ indicators, initialTerritories, initialData }: 
         {error ? <span className="text-accent-red">{error}</span> : null}
       </div>
 
-      <TrendChart data={data} />
+      <div className="relative">
+        {loading ? <LoadingOverlay label="Atualizando série histórica" /> : null}
+        <TrendChart data={data} />
+      </div>
     </div>
   );
 }

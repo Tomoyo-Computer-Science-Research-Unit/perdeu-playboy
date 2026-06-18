@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { LoadingOverlay } from "@/components/LoadingState";
 import { RankingTable } from "@/components/RankingTable";
 import { ANALYSIS_START_YEAR } from "@/lib/constants";
 import { enabledUf, type UfCode } from "@/lib/ufs";
@@ -163,21 +164,24 @@ export function RankingsExplorer({
         {error ? <span className="text-accent-red">{error}</span> : null}
       </div>
 
-      <section className="grid gap-4">
-        <div className="border-l-4 border-border pl-4">
-          <h3 className="m-0 text-3xl font-display uppercase leading-none text-foreground">{uf === "BR" ? "UFs" : "Municípios"}</h3>
-        </div>
-        <RankingTable rows={municipalityRows} sortKey={sortKey ?? undefined} sortDirection={sortDirection} onSort={handleSort} />
-      </section>
+      <div className="relative grid gap-6">
+        {loading ? <LoadingOverlay label="Atualizando rankings" /> : null}
+        <section className="grid gap-4">
+          <div className="border-l-4 border-border pl-4">
+            <h3 className="m-0 text-3xl font-display uppercase leading-none text-foreground">{uf === "BR" ? "UFs" : "Municípios"}</h3>
+          </div>
+          <RankingTable rows={municipalityRows} sortKey={sortKey ?? undefined} sortDirection={sortDirection} onSort={handleSort} />
+        </section>
 
-      {uf === "RJ" ? (
-      <section className="grid gap-4">
-        <div className="border-l-4 border-border pl-4">
-          <h3 className="m-0 text-3xl font-display uppercase leading-none text-foreground">CISPs / Áreas policiais</h3>
-        </div>
-        <RankingTable rows={policeAreaRows} sortKey={sortKey ?? undefined} sortDirection={sortDirection} onSort={handleSort} />
-      </section>
-      ) : null}
+        {uf === "RJ" ? (
+        <section className="grid gap-4">
+          <div className="border-l-4 border-border pl-4">
+            <h3 className="m-0 text-3xl font-display uppercase leading-none text-foreground">CISPs / Áreas policiais</h3>
+          </div>
+          <RankingTable rows={policeAreaRows} sortKey={sortKey ?? undefined} sortDirection={sortDirection} onSort={handleSort} />
+        </section>
+        ) : null}
+      </div>
     </div>
   );
 }

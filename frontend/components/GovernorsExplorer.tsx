@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { GovernorsPerformanceTable } from "@/components/GovernorsPerformanceTable";
+import { LoadingOverlay } from "@/components/LoadingState";
 import { SourceBadge } from "@/components/SourceBadge";
 import { enabledUf, sourceLabelForUf, type UfCode } from "@/lib/ufs";
 import type { GovernorPerformanceResponse } from "@/types/api";
@@ -59,7 +60,10 @@ export function GovernorsExplorer({ initialPerformance }: { initialPerformance: 
         {error ? <span className="text-accent-red">{error}</span> : null}
       </div>
 
-      <GovernorsPerformanceTable rows={performance.rows} personLabel={entitySingular} />
+      <div className="relative">
+        {loading ? <LoadingOverlay label="Atualizando mandatos" /> : null}
+        <GovernorsPerformanceTable rows={performance.rows} personLabel={entitySingular} />
+      </div>
     </div>
   );
 }

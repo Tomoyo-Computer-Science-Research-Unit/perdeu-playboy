@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { LoadingOverlay } from "@/components/LoadingState";
 import { enabledUf, type UfCode } from "@/lib/ufs";
 import type { GeoFeatureCollection, Indicator, RankingMode } from "@/types/api";
 
@@ -444,7 +445,8 @@ export function MunicipalityChoroplethPanel({
         {error ? <p className="font-mono text-xs uppercase tracking-widest text-accent-red md:col-span-2">{error}</p> : null}
       </div>
 
-      <div className="overflow-hidden border border-border bg-surface p-4 shadow-hard">
+      <div className="relative overflow-hidden border border-border bg-surface p-4 shadow-hard">
+        {loading ? <LoadingOverlay label="Atualizando mapa" /> : null}
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
           <div>
             <div className="relative">
