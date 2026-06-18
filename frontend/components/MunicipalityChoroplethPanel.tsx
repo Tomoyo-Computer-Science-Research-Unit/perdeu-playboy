@@ -15,6 +15,10 @@ type MapInitialState = {
   uf: UfCode;
 };
 
+const MAP_WIDTH = 1000;
+const MAP_HEIGHT = 680;
+const MAP_PADDING = 18;
+
 function formatNumber(value: unknown) {
   const number = Number(value ?? 0);
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(number);
@@ -27,13 +31,27 @@ function formatOptionalNumber(value: unknown, suffix = "") {
   return `${formatNumber(value)}${suffix}`;
 }
 
-function polygonPath(ring: number[][], bbox: [number, number, number, number]) {
+function projectPoint(lon: number, lat: number, bbox: [number, number, number, number]) {
   const [minLon, minLat, maxLon, maxLat] = bbox;
-  const width = maxLon - minLon || 1;
-  const height = maxLat - minLat || 1;
+  const centerLat = ((minLat + maxLat) / 2) * (Math.PI / 180);
+  const lonScale = Math.max(0.2, Math.cos(centerLat));
+  const rawWidth = Math.max((maxLon - minLon) * lonScale, 1);
+  const rawHeight = Math.max(maxLat - minLat, 1);
+  const usableWidth = MAP_WIDTH - MAP_PADDING * 2;
+  const usableHeight = MAP_HEIGHT - MAP_PADDING * 2;
+  const scale = Math.min(usableWidth / rawWidth, usableHeight / rawHeight);
+  const offsetX = (MAP_WIDTH - rawWidth * scale) / 2;
+  const offsetY = (MAP_HEIGHT - rawHeight * scale) / 2;
+
+  return {
+    x: offsetX + (lon - minLon) * lonScale * scale,
+    y: offsetY + (maxLat - lat) * scale
+  };
+}
+
+function polygonPath(ring: number[][], bbox: [number, number, number, number]) {
   const points = ring.map(([lon, lat]) => {
-    const x = ((lon - minLon) / width) * 1000;
-    const y = (1 - (lat - minLat) / height) * 680;
+    const { x, y } = projectPoint(lon, lat, bbox);
     return `${x.toFixed(2)},${y.toFixed(2)}`;
   });
   return points.length ? `M${points.join("L")}Z` : "";
