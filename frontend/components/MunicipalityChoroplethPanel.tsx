@@ -284,12 +284,12 @@ export function MunicipalityChoroplethPanel({
       if (nextIndicator === "crime_geral") {
         nextData =
           nextView === "rio_city" && nextUf === "RJ"
-            ? await getRioCityCrimeRateMapData(period.year, period.month)
+            ? await getRioCityCrimeRateMapData(period.year, period.month, nextUf)
             : await getCrimeRateMapData(period.year, period.month, nextUf);
       } else {
         nextData =
           nextView === "rio_city" && nextUf === "RJ"
-            ? await getRioCityMapData(nextIndicator, nextMode, period.year, period.month)
+            ? await getRioCityMapData(nextIndicator, nextMode, period.year, period.month, nextUf)
             : await getMapData(nextIndicator, nextMode, period.year, period.month, nextUf);
       }
       setData(nextData);
