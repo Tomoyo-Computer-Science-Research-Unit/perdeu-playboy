@@ -1,6 +1,6 @@
 import { Github } from "lucide-react";
 
-const GITHUB_URL = process.env.NEXT_PUBLIC_GITHUB_URL ?? "https://github.com/c3c4d4/perdeu-playboy";
+const GITHUB_URL = process.env.NEXT_PUBLIC_GITHUB_URL ?? "https://github.com/Tomoyo-Computer-Science-Research-Unit/perdeu-playboy";
 const sources = [
   {
     label: "ISP Dados Abertos",

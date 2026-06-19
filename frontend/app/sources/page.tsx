@@ -127,7 +127,7 @@ export default async function SourcesPage() {
         <div>
           <p className="font-mono text-xs uppercase tracking-widest text-muted">Workflow</p>
           <a
-            href="https://github.com/c3c4d4/perdeu-playboy/actions/workflows/update-data.yml"
+            href="https://github.com/Tomoyo-Computer-Science-Research-Unit/perdeu-playboy/actions/workflows/update-data.yml"
             target="_blank"
             rel="noreferrer"
             className="mt-2 inline-flex items-center gap-2 font-mono text-sm font-bold text-foreground underline decoration-border underline-offset-4 hover:text-accent-red"
