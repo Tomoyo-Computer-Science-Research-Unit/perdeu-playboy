@@ -138,6 +138,42 @@ dd {
   text-transform: uppercase;
 }
 
+/* Barras de rolagem quadradas, pretas, chapadas: Plan 9 / Unix dos anos 80–90. */
+* {
+  scrollbar-width: auto;
+  scrollbar-color: var(--ink) var(--paper);
+}
+
+::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+  background: var(--paper);
+}
+
+::-webkit-scrollbar-track {
+  background: var(--paper);
+  border-left: 1px solid var(--ink);
+  border-top: 1px solid var(--ink);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ink);
+  border: 2px solid var(--paper);
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--paper);
+  border-left: 1px solid var(--ink);
+  border-top: 1px solid var(--ink);
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 /* --- Componentes --------------------------------------------------------------- */
 
 .rule {
@@ -563,8 +599,6 @@ input[type="range"]::-moz-range-thumb {
   min-height: 0;
   overflow: auto;
   padding: 12px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--fog) transparent;
 }
 
 .panel__body--flush {
