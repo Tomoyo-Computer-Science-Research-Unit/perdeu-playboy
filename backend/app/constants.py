@@ -1,4 +1,4 @@
-ANALYSIS_START_YEAR = 2000
+ANALYSIS_START_YEAR = 1991
 
 CISP_TO_UNIDADE_TERRITORIAL = {
     9: "Catete, Cosme Velho, Flamengo, Glória e Laranjeiras",

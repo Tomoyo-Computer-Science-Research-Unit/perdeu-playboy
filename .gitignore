@@ -21,13 +21,8 @@ marketing/**/preview-frames/
 *.tsbuildinfo
 data/raw/isp/*.csv
 data/raw/isp/*.jsonl
-data/raw/sinesp/
-data/raw/ssp_sp/
-data/raw/ssp_sp_*
-data/raw/ibge/population_municipalities_*_latest.json
 data/raw/ibge/*_municipalities.json
 data/raw/ibge/*_municipalities_min.geojson
-data/raw/ibge/brazil_states_min.geojson
 data/processed/*
 !data/processed/.gitkeep
 !data/raw/isp/.gitkeep

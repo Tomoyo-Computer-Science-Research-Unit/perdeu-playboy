@@ -35,8 +35,6 @@ jobs:
         with:
           path: |
             data/raw/isp
-            data/raw/ssp_sp
-            data/raw/sinesp
             data/raw/ibge
             data/processed
           key: official-data-${{ runner.os }}-${{ github.run_id }}
@@ -72,11 +70,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- frontend/lib/static-data.generated.json; then
+          if git diff --quiet -- frontend/lib/static-data.generated.json frontend/lib/static-geo.generated.json; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git add frontend/lib/static-data.generated.json
+          git add frontend/lib/static-data.generated.json frontend/lib/static-geo.generated.json
           git commit -m "Update static official-data snapshot"
           git push
           echo "changed=true" >> "$GITHUB_OUTPUT"

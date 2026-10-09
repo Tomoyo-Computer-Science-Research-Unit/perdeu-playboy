@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import unicodedata
 from calendar import monthrange
 from functools import lru_cache
 from pathlib import Path
@@ -19,6 +20,9 @@ from app.services.territory_repository import territorial_units
 logger = logging.getLogger(__name__)
 
 OFFICIAL_SOURCE_NAME = "ISP Dados Abertos"
+MUNICIPALITY_NAME_ALIASES = {
+    "Bom Jesus de Itabapoana": "Bom Jesus do Itabapoana",
+}
 
 _SOURCES = default_isp_sources()
 SOURCE_BY_TERRITORY = {
@@ -120,7 +124,11 @@ def _read_normalized_source(source: IspSource) -> pd.DataFrame:
         value_name="value",
     )
     melted["indicator"] = melted["raw_indicator"].map(INDICATOR_COLUMN_MAP)
-    melted["value"] = pd.to_numeric(melted["value"], errors="coerce").fillna(0.0)
+    # Celulas vazias no CSV oficial significam "indicador ainda nao apurado naquele mes"
+    # (ex.: estupro antes de 2003, feminicidio antes de 2024-10). Elas sao descartadas em vez de
+    # viraram zero, para que o snapshot distinga "sem dado" de "zero ocorrencias".
+    melted["value"] = pd.to_numeric(melted["value"], errors="coerce")
+    melted = melted.dropna(subset=["value"])
     melted["period_date"] = melted.apply(
         lambda row: pd.Timestamp(
             int(row["year"]),
@@ -208,9 +216,13 @@ def _municipality_weapons_frame() -> pd.DataFrame:
         if municipality not in cisp_to_municipalities[cisp]:
             cisp_to_municipalities[cisp].append(municipality)
 
+    canonical = _canonical_municipality_names()
     rows: list[dict[str, object]] = []
     for weapon_row in raw.to_dict(orient="records"):
-        municipalities = cisp_to_municipalities.get(int(weapon_row["cisp"]), [])
+        municipalities = [
+            canonical.get(_name_key(name), name)
+            for name in cisp_to_municipalities.get(int(weapon_row["cisp"]), [])
+        ]
         if not municipalities:
             continue
         shared_value = float(weapon_row["value"]) / len(municipalities)
@@ -275,6 +287,40 @@ def _empty_stats_frame() -> pd.DataFrame:
     )
 
 
+def repair_mojibake(value: str) -> str:
+    """Undo UTF-8 text that was decoded as latin-1 (e.g. 'AperibÃ©' -> 'Aperibé').
+
+    O CSV municipal do ISP mistura linhas em UTF-8 e latin-1, entao uma mesma cidade pode
+    aparecer com dois nomes. Sem isso o municipio vira dois territorios distintos.
+    """
+
+    if "Ã" not in value and "Â" not in value:
+        return value
+    try:
+        return value.encode("latin-1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return value
+
+
+def _name_key(value: str) -> str:
+    text = unicodedata.normalize("NFKD", repair_mojibake(value))
+    return "".join(ch for ch in text if not unicodedata.combining(ch)).casefold().strip()
+
+
+@lru_cache(maxsize=1)
+def _canonical_municipality_names() -> dict[str, str]:
+    """Map accent-insensitive keys to the municipality spelling used by the ISP monthly CSV."""
+
+    frame = _read_normalized_source(SOURCE_BY_TERRITORY["municipality"])
+    names = frame["territory_name"].dropna().drop_duplicates()
+    canonical = {_name_key(str(name)): str(name) for name in names}
+    # A relacao RISP/AISP/CISP do ISP grafa alguns municipios diferente do CSV mensal.
+    for alias, official in MUNICIPALITY_NAME_ALIASES.items():
+        if _name_key(official) in canonical:
+            canonical[_name_key(alias)] = canonical[_name_key(official)]
+    return canonical
+
+
 def _municipality_name_to_ibge_code() -> dict[str, str]:
     frame = _read_normalized_source(SOURCE_BY_TERRITORY["municipality"])
     pairs = frame[["territory_name", "ibge_code"]].drop_duplicates()
@@ -289,7 +335,7 @@ def _territory_name(frame: pd.DataFrame, territory_type: str) -> pd.Series:
     if territory_type == "state":
         return pd.Series(["Estado do Rio de Janeiro"] * len(frame), index=frame.index)
     if territory_type == "municipality":
-        return frame["fmun"].astype(str)
+        return frame["fmun"].astype(str).map(repair_mojibake)
     if territory_type == "police_area":
         cisps_int = pd.to_numeric(frame["cisp"], errors="coerce").fillna(0).astype(int)
         # Retorna apenas o nome da Unidade Territorial como "Botafogo, Humaitá e Urca"
