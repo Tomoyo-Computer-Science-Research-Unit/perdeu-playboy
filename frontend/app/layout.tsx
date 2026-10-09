@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Perdeu, Playboy" }]
   },
   twitter: { card: "summary_large_image", title: "Perdeu, Playboy", description: DESCRIPTION, images: ["/og-image.png"] },
-  icons: { icon: "/favicon.png", shortcut: "/favicon.png", apple: "/favicon.png" }
+  icons: { icon: `${BASE_PATH}/favicon.png`, shortcut: `${BASE_PATH}/favicon.png`, apple: `${BASE_PATH}/favicon.png` }
 };
 
 // Aplica o tema antes da primeira pintura para não piscar (mesma técnica do tomoyo.systems).
@@ -67,7 +67,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               {/* O mon da Tomoyo com sangue no olho direito: marca do projeto, inquebrável. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={`${BASE_PATH}/logo_perdeu-playboy.png`} alt="" width={30} height={30} className="h-[30px] w-[30px] shrink-0" data-brand />
-              <span className="wordmark text-[15px] leading-none" data-brand>
+              <span className="wordmark text-[14px] uppercase leading-none" data-brand>
                 Perdeu, Playboy
               </span>
             </Link>

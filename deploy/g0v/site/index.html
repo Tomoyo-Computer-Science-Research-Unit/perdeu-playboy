@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>g0v · Tomoyo</title>
+<meta name="description" content="g0v da Tomoyo: iniciativa de tecnologia cívica inspirada no movimento g0v de Taiwan. Dados públicos, código aberto.">
+<link rel="icon" href="/perdeu-playboy/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500&family=Archivo:wdth,wght@125,900&display=swap">
+<link rel="stylesheet" href="/g0v.css">
+<script>
+(() => {
+  let theme = null, fx = null;
+  try { theme = localStorage.getItem('pp-theme'); fx = localStorage.getItem('pp-fx'); } catch (e) {}
+  const dark = theme ? theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  if (fx !== 'off') document.documentElement.classList.add('fx');
+})();
+</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<filter id="print-fx-light" x="-4%" y="-4%" width="108%" height="108%"><feTurbulence type="turbulence" baseFrequency="0.018" numOctaves="1" seed="0" result="grain"/><feDisplacementMap in="SourceGraphic" in2="grain" scale="1.2" xChannelSelector="R" yChannelSelector="G" result="sheet"/><feTurbulence type="turbulence" baseFrequency="0.008" numOctaves="1" seed="7" result="drift"/><feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -.47 -.47 -.47 0 1.2" result="inkonly"/><feComposite in="inkonly" in2="SourceAlpha" operator="in" result="linework"/><feDisplacementMap in="linework" in2="drift" scale="1.8" xChannelSelector="R" yChannelSelector="G" result="wet"/><feFlood flood-color="#0e0e0e" result="inkwell"/><feComposite in="inkwell" in2="wet" operator="in" result="plate"/><feMerge><feMergeNode in="plate"/><feMergeNode in="sheet"/></feMerge></filter>
+<filter id="print-fx-dark" x="-4%" y="-4%" width="108%" height="108%"><feTurbulence type="turbulence" baseFrequency="0.018" numOctaves="1" seed="0" result="grain"/><feDisplacementMap in="SourceGraphic" in2="grain" scale="1.2" xChannelSelector="R" yChannelSelector="G" result="sheet"/><feTurbulence type="turbulence" baseFrequency="0.008" numOctaves="1" seed="7" result="drift"/><feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  .47 .47 .47 0 -.2" result="inkonly"/><feComposite in="inkonly" in2="SourceAlpha" operator="in" result="linework"/><feDisplacementMap in="linework" in2="drift" scale="1.8" xChannelSelector="R" yChannelSelector="G" result="wet"/><feFlood flood-color="#f4f4f3" result="inkwell"/><feComposite in="inkwell" in2="wet" operator="in" result="plate"/><feMerge><feMergeNode in="plate"/><feMergeNode in="sheet"/></feMerge></filter>
+</defs></svg>
+
+<div class="page">
+
+<div class="banner" data-brand>
+  <img src="/perdeu-playboy/logo_perdeu-playboy.png" alt="" width="96" height="96" data-brand>
+  <div class="banner__text" data-brand>
+    <span class="banner__title">g0v.tomoyo.systems</span>
+    <span class="banner__sub">零時政府 · TOMOYO</span>
+  </div>
+</div>
+
+<div class="box box--bar">
+  <div class="bar"><h2>Bem-vindo ao g0v da Tomoyo — 政府をフォークする</h2></div>
+  <div class="pad">
+    Frente de tecnologia cívica da Tomoyo, inspirada no movimento g0v de Taiwan. Pega dados que o Estado publica mal e devolve em sites que qualquer pessoa consegue ler, com o código aberto.
+  </div>
+</div>
+
+<p class="links">
+  <a href="/perdeu-playboy/">Perdeu, Playboy</a> |
+  <a href="https://github.com/Tomoyo-Computer-Science-Research-Unit">GitHub</a> |
+  <a href="https://tomoyo.systems">tomoyo.systems</a> |
+  <a href="https://g0v.tw" rel="noreferrer">g0v.tw</a>
+</p>
+
+<div class="box">
+  <div class="bar"><h2>Origem: o g0v de Taiwan</h2></div>
+  <div class="pad">
+    <p>Em outubro de 2012 o governo de Taiwan pôs no ar um anúncio sobre seu plano econômico dizendo que o conteúdo era complicado demais para explicar. Um grupo de programadores respondeu num hackathon da Yahoo com um site que mostrava o orçamento público inteiro em um gráfico. Em dezembro do mesmo ano fizeram o primeiro hackathon próprio e chamaram o grupo de g0v, "governo zero": o "o" de gov trocado pelo zero, de recomeçar do zero, e também de pensar em binário.</p>
+    <p>A regra era simples: para cada site do governo em <code>.gov.tw</code>, fazer um <code>.g0v.tw</code> que mostra os mesmos dados de um jeito que se entende. Não há presidente, nem filiação, nem pedido de permissão. Quem pergunta "por que ninguém faz isso?" ouve que ninguém é você.</p>
+    <p>Desde então o g0v faz hackathons a cada dois meses. Em março de 2014, durante a ocupação do parlamento pelo Movimento Girassol, foram eles que transmitiram ao vivo de dentro do plenário. Dali saíram o dicionário MoeDict, a plataforma de consulta pública vTaiwan, o verificador de boatos Cofacts, e uma ministra digital, Audrey Tang, que participava das reuniões antes de entrar no governo em 2016.</p>
+    <div class="caption">"Fork the government." — lema do g0v. Fork, em programação, é copiar um projeto para mudá-lo por conta própria.</div>
+  </div>
+</div>
+
+<div class="box">
+  <div class="bar"><h2>A frente na Tomoyo</h2></div>
+  <div class="pad">
+    <p>A Tomoyo é um coletivo doujin brasileiro com frentes de arte, software e social. A frente g0v começou em maio de 2026 com um painel sobre violência no Rio de Janeiro e ganhou este subdomínio em outubro de 2026 para reunir os projetos do mesmo tipo.</p>
+    <p>O método copia o original: só fontes oficiais, cada arquivo baixado com checksum publicado, metodologia escrita em português corrente, código no GitHub da Tomoyo. Sem identificar vítimas, sem endereço privado, sem manchete. O que os dados não dizem, o site também não diz.</p>
+    <p>Os sites são feitos para caber numa tela, como um jogo: teclado, painéis, nada de rolar para achar o número.</p>
+  </div>
+</div>
+
+<div class="box">
+  <div class="bar"><h2>Projetos</h2></div>
+  <div class="pad">
+    <div class="project">
+      <a href="/perdeu-playboy/" class="project__thumb"><img src="/perdeu-playboy/og-image.png" alt="Perdeu, Playboy" width="300" height="158"></a>
+      <div class="project__body">
+        <h3><a href="/perdeu-playboy/">Perdeu, Playboy</a></h3>
+        <p>Violência e segurança pública no Estado do Rio de Janeiro. Série mensal do Instituto de Segurança Pública desde 1991 para o estado, desde 2003 por área policial e desde 2014 por município: homicídio doloso, letalidade violenta, roubos, estupro, armas apreendidas. Acumulado do ano contra o ano anterior, mínimos e máximos históricos, taxas por 100 mil habitantes com população do IBGE, mapa por município e por bairro do Rio, comparação entre mandatos de governador.</p>
+        <p class="meta">desde maio de 2026 · dados até agosto de 2026 · <a href="https://github.com/Tomoyo-Computer-Science-Research-Unit/perdeu-playboy">código</a></p>
+      </div>
+    </div>
+    <div class="caption">O nome vem do grito de assalto carioca. O mon da Tomoyo com sangue no olho direito é a marca do projeto.</div>
+  </div>
+</div>
+
+<div class="box">
+  <div class="bar"><h2>Detalhes</h2></div>
+  <div class="pad">
+    <ul>
+      <li><b>Dados:</b> ISP Dados Abertos (RJ), IBGE/SIDRA, Data.Rio. Nenhuma fonte privada.</li>
+      <li><b>Atualização:</b> um fluxo automático rebaixa os arquivos toda semana e republica quando há mês novo.</li>
+      <li><b>Código:</b> Python para o tratamento, Next.js para o site, tudo no GitHub.</li>
+      <li><b>Teclas:</b> <kbd>1</kbd>–<kbd>7</kbd> trocam de tela dentro dos painéis, <kbd>T</kbd> tema, <kbd>F</kbd> efeitos de impressão.</li>
+      <li><b>Contato:</b> pelo GitHub ou pelos canais da <a href="https://tomoyo.systems">Tomoyo</a>.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="box box--bar">
+  <div class="bar"><h2>Sobre g0v.tomoyo.systems</h2></div>
+  <div class="pad small">
+    Este endereço reúne as frentes políticas da Tomoyo. Visual e efeitos são os de <a href="https://tomoyo.systems">tomoyo.systems</a>; a estrutura desta página segue a tradição dos imageboards. © Tomoyo. Dados públicos, código aberto.
+  </div>
+</div>
+
+</div>
+
+<div class="scope" aria-hidden="true">
+  <svg class="scope__ring" viewBox="-60 -60 120 120"><circle r="34" fill="none" stroke="currentColor" stroke-width="1.2"/><g class="scope__ticks" stroke="currentColor" stroke-width="1.2"><line x1="0" y1="-44" x2="0" y2="-38"/><line x1="0" y1="38" x2="0" y2="44"/><line x1="-44" y1="0" x2="-38" y2="0"/><line x1="38" y1="0" x2="44" y2="0"/><circle r="44" fill="none" stroke-width=".8" stroke-dasharray="2 6"/></g><g class="scope__lock" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M-30 -18V-30H-18"/><path d="M18 -30H30V-18"/><path d="M30 18V30H18"/><path d="M-18 30H-30V18"/></g></svg>
+  <svg class="scope__cross" viewBox="-60 -60 120 120"><g stroke="currentColor" stroke-width="1.2"><line x1="0" y1="-22" x2="0" y2="-7"/><line x1="0" y1="7" x2="0" y2="22"/><line x1="-22" y1="0" x2="-7" y2="0"/><line x1="7" y1="0" x2="22" y2="0"/></g><circle r="1.8" fill="currentColor"/></svg>
+</div>
+
+<script src="/g0v.js" defer></script>
+</body>
+</html>

@@ -2,8 +2,7 @@
 # Publica o site em g0v.tomoyo.systems/perdeu-playboy no servidor principal da Tomoyo.
 #
 # O droplet é resolvido pelo doctl (nome em DROPLET, padrão mail.tomoyo.systems); os arquivos
-# sobem por rsync/ssh como root e o nginx estático é recriado com docker compose atrás do Traefik
-# (recriar, não recarregar: o nginx.conf é um bind mount de arquivo e o rsync troca o inode).
+# sobem por rsync/ssh como root e o nginx estático (docker compose, atrás do Traefik) é recarregado.
 #
 #   scripts/deploy-g0v.sh            # build + deploy
 #   SKIP_BUILD=1 scripts/deploy-g0v.sh
@@ -27,8 +26,11 @@ fi
 
 ssh "root@$IP" "mkdir -p '$REMOTE_DIR/site$BASE_PATH'"
 rsync -az --delete "$ROOT/frontend/out/" "root@$IP:$REMOTE_DIR/site$BASE_PATH/"
-rsync -az "$ROOT/deploy/g0v/index.html" "root@$IP:$REMOTE_DIR/site/index.html"
-rsync -az "$ROOT/deploy/g0v/nginx.conf" "$ROOT/deploy/g0v/docker-compose.yml" "root@$IP:$REMOTE_DIR/"
-ssh "root@$IP" "cd '$REMOTE_DIR' && docker compose up -d --force-recreate --remove-orphans"
+rsync -az "$ROOT/deploy/g0v/site/" "root@$IP:$REMOTE_DIR/site/"
+rsync -az "$ROOT/deploy/g0v/conf/" "root@$IP:$REMOTE_DIR/conf/"
+rsync -az "$ROOT/deploy/g0v/docker-compose.yml" "root@$IP:$REMOTE_DIR/"
+# Sem recriar o container: um container novo some do Traefik por alguns segundos e a Cloudflare
+# guarda os 404 dos assets. Só recria quando o compose muda; senão recarrega o nginx.
+ssh "root@$IP" "cd '$REMOTE_DIR' && docker compose up -d --remove-orphans && docker exec g0v-static nginx -s reload"
 
 echo "✓ https://g0v.tomoyo.systems$BASE_PATH/"

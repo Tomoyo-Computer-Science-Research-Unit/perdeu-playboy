@@ -37,7 +37,8 @@ const STEPS = [
   ["Sem dado ≠ zero", "Meses em que o ISP ainda não apurava um indicador ficam vazios. Nenhuma soma, mínimo ou variação usa um mês vazio."],
   ["Acumulados", "Resumo e rankings somam de janeiro até o último mês publicado e comparam com os mesmos meses do ano anterior."],
   ["Taxas", "Ocorrências ÷ população do ano × 100 mil, só para anos completos. CISPs não têm população oficial; bairros do Rio usam o Censo 2022."],
-  ["Mandatos", "Média mensal durante o governo contra a média dos 12 meses anteriores à posse. Descreve, não explica."]
+  ["Mandatos", "Média mensal durante o governo contra a média dos 12 meses anteriores à posse. Descreve, não explica."],
+  ["Notificação", "Registro não é crime: tipologias novas (feminicídio, 2024 no ISP), leis que mudam a definição (estupro, 2009) e mais disposição para denunciar sobem a série sem que o crime suba. Os indicadores afetados trazem esse aviso no rodapé."]
 ];
 
 export default function MethodologyPage() {

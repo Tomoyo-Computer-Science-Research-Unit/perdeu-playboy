@@ -20,7 +20,8 @@ import {
   getTerritories,
   resolveTerritoryName
 } from "@/lib/api";
-import { deltaClass, deltaGlyph, formatNumber, formatPercent, formatPeriodRange, formatRate, monthShort } from "@/lib/format";
+import { deltaClass, deltaGlyph, formatNumber, formatPercent, formatPeriodRange, formatRate } from "@/lib/format";
+import { noteFor } from "@/lib/notes";
 import type { AnnualPoint, SummaryCardData } from "@/types/api";
 
 type Metric = "count" | "rate";
@@ -142,7 +143,7 @@ export function DashboardExplorer() {
           </>
         }
         fill
-        foot={`${latest.year} até ${monthShort(latest.month)}, tracejado. Meses não apurados pelo ISP ficam de fora.`}
+        foot={noteFor(activeIndicator) ?? undefined}
       >
         <HistoryChart
           points={chartPoints}

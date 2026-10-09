@@ -20,6 +20,7 @@ import {
   resolveTerritoryName
 } from "@/lib/api";
 import { formatMonthYear, formatPeriodRange, monthShort } from "@/lib/format";
+import { noteFor } from "@/lib/notes";
 import type { AnnualPoint, MonthlyPoint, TerritoryType } from "@/types/api";
 
 type View = "annual" | "monthly" | "rolling";
@@ -242,13 +243,7 @@ export function TrendsExplorer() {
         }
         aside={<span>{subtitle(view, effectiveMetric, startYear, endYear, latest.year, latest.month)}</span>}
         fill
-        foot={
-          view === "monthly"
-            ? "Linha fina: valor do mês. Linha cinza: média dos últimos 12 meses (soma ÷ 12). Interrupções são meses sem dado publicado."
-            : view === "rolling"
-              ? "Cada ponto acumula os 12 meses terminados naquele mês; remove a sazonalidade."
-              : "Ano corrente tracejado. Taxas por 100 mil só para anos completos, com população do ano (IBGE)."
-        }
+        foot={noteFor(activeIndicator) ?? undefined}
       >
         <HistoryChart
           points={points}
@@ -261,7 +256,7 @@ export function TrendsExplorer() {
         />
       </Panel>
 
-      <Panel title={<><b>Ano a ano</b> {startYear}–{endYear}</>} flush foot="* ano incompleto, variação sobre os mesmos meses. ~ população interpolada (IBGE).">
+      <Panel title={<><b>Ano a ano</b> {startYear}–{endYear}</>} flush foot="* ano incompleto · ~ população interpolada">
         <AnnualTable points={annual} latestMonth={latest.month} unitLabel={indicatorMeta?.unit === "armas" ? "armas" : "ocorrências"} compact indicator={activeIndicator} />
       </Panel>
     </Screen>

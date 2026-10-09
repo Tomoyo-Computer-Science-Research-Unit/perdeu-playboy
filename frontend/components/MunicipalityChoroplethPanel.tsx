@@ -6,6 +6,7 @@ import { useScreenHotkeys } from "@/components/Hotkeys";
 import { Panel, Screen, Segmented, Stat } from "@/components/ui";
 import { CRIME_GENERAL_CODE, getIndicator, getIndicators, getLatestPeriod, getMapData, getSnapshotMeta } from "@/lib/api";
 import { deltaClass, formatMonthYear, formatNumber, formatPercent, formatRate } from "@/lib/format";
+import { noteFor } from "@/lib/notes";
 import type { GeoFeatureCollection, RankingMode } from "@/types/api";
 
 type MapView = "state" | "rio_city";
@@ -245,7 +246,7 @@ export function MunicipalityChoroplethPanel() {
 
   return (
     <Screen columns="260px minmax(0, 1fr) 280px">
-      <Panel title={<b>Mapa</b>} flush foot={`Municípios desde ${coverage.municipality_start_year ?? 2014}; bairros do Rio por CISP desde ${coverage.police_area_start_year ?? 2003}.`}>
+      <Panel title={<b>Mapa</b>} flush>
         <div className="grid gap-2 border-b border-line p-3">
           <Segmented
             label="Recorte"
@@ -370,7 +371,7 @@ export function MunicipalityChoroplethPanel() {
 
       <Panel
         title={<b>{unitLabel}</b>}
-        foot={view === "rio_city" ? "Bairros herdam o valor da CISP que os cobre; população do Censo 2022 por bairro." : "Acumulado de janeiro até o mês escolhido. População do ano, IBGE."}
+        foot={noteFor(indicator) ?? (view === "rio_city" ? "Bairros herdam o valor da CISP que os cobre." : undefined)}
       >
         <h3 className="serif text-[18px] leading-snug text-ink">{selected ? String(selected.territory_name) : "Passe o mouse pelo mapa"}</h3>
         {selected?.source_territory_name ? <p className="mt-1 text-[11px] leading-5 text-ash">{String(selected.source_territory_name)}</p> : null}
