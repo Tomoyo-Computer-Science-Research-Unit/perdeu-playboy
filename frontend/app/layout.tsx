@@ -72,14 +72,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="bg-paper text-sumi">
         <div className="app">
           <header className="app__header">
-            <Link href="/" className="flex shrink-0 items-center gap-3 whitespace-nowrap text-ink" data-brand>
-              {/* O mon da Tomoyo com sangue no olho direito: marca do projeto, inquebrável. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`${BASE_PATH}/logo_perdeu-playboy.png`} alt="" width={30} height={30} className="h-[30px] w-[30px] shrink-0" data-brand />
-              <span className="wordmark text-[14px] uppercase leading-none" data-brand>
+            <span className="flex shrink-0 items-center gap-3 whitespace-nowrap text-ink" data-brand>
+              {/* O mon da Tomoyo com sangue no olho direito leva de volta à home do g0v. */}
+              <a href="https://g0v.tomoyo.systems/" aria-label="g0v.tomoyo.systems" data-brand>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`${BASE_PATH}/logo_perdeu-playboy.png`} alt="" width={30} height={30} className="h-[30px] w-[30px] shrink-0" data-brand />
+              </a>
+              <Link href="/" className="wordmark text-[14px] uppercase leading-none" data-brand>
                 Perdeu, Playboy
-              </span>
-            </Link>
+              </Link>
+            </span>
             <SiteNav />
             <ThemeToggle />
           </header>

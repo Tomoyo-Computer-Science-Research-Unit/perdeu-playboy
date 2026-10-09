@@ -351,3 +351,98 @@ html.scope-off .scope {
   pointer-events: none;
 }
 
+
+/* --- Mon flutuante, como o Discord e o cubo do tomoyo.systems: arrastável, clique abre o site --- */
+.mon-float {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 10px;
+  touch-action: none;
+  user-select: none;
+}
+
+.mon-float__link {
+  display: block;
+}
+
+.mon-float img {
+  display: block;
+  width: 200px;
+  height: 200px;
+  transition: transform 0.12s ease-out;
+}
+
+.mon-float .mon-night,
+[data-theme="dark"] .mon-float .mon-day {
+  display: none;
+}
+
+[data-theme="dark"] .mon-float .mon-night {
+  display: block;
+}
+
+.mon-float__link:hover img,
+.mon-float__link:focus-visible img {
+  transform: scale(1.06);
+}
+
+.mon-float.is-dragging img {
+  transition: none;
+}
+
+html .mon-float,
+html .mon-float * {
+  cursor: url(/cursor-grab.png) 16 16, grab !important;
+}
+
+html .mon-float.is-holding,
+html .mon-float.is-holding * {
+  cursor: url(/cursor-grabbing.png) 16 16, grabbing !important;
+}
+
+.float-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.mon-float:hover .float-close,
+.mon-float:focus-within .float-close {
+  opacity: 1;
+}
+
+.float-close:hover,
+.float-close:focus-visible {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+html[data-hide~="mon"] .mon-float {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .mon-float img {
+    width: 120px;
+    height: 120px;
+  }
+}
