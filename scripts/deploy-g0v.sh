@@ -26,7 +26,12 @@ fi
 
 ssh "root@$IP" "mkdir -p '$REMOTE_DIR/site$BASE_PATH'"
 rsync -az --delete "$ROOT/frontend/out/" "root@$IP:$REMOTE_DIR/site$BASE_PATH/"
-rsync -az "$ROOT/deploy/g0v/site/" "root@$IP:$REMOTE_DIR/site/"
+# A Cloudflare guarda css/js por 7 dias: o HTML referencia os assets com o hash do commit.
+STAGE="$(mktemp -d)"
+cp -r "$ROOT/deploy/g0v/site/." "$STAGE/"
+sed -i "s/VERSION/$(git -C "$ROOT" rev-parse --short HEAD)/g" "$STAGE/index.html"
+rsync -az "$STAGE/" "root@$IP:$REMOTE_DIR/site/"
+rm -rf "$STAGE"
 rsync -az "$ROOT/deploy/g0v/conf/" "root@$IP:$REMOTE_DIR/conf/"
 rsync -az "$ROOT/deploy/g0v/docker-compose.yml" "root@$IP:$REMOTE_DIR/"
 # Sem recriar o container: um container novo some do Traefik por alguns segundos e a Cloudflare
