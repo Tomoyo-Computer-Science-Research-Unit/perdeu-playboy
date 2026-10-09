@@ -53,8 +53,7 @@ test("theme toggle switches to dark", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
 
-test("desktop screens fit the viewport without page scroll", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "chromium-desktop", "só faz sentido em desktop");
+test("screens fit the viewport without page scroll", async ({ page }) => {
   for (const path of ["/", "/trends", "/map", "/rankings", "/changes", "/governors", "/methodology"]) {
     await page.goto(path);
     await page.waitForLoadState("networkidle");

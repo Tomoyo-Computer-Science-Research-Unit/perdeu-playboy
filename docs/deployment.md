@@ -1,31 +1,16 @@
-# Deploy e dominio
+# Deploy
 
-O site publico roda como export estatico do Next.js. O backend continua no repositorio para ETL, modelagem e validacao, mas a producao publicada na Vercel consome `frontend/lib/static-data.generated.json`.
+Produção: https://g0v.tomoyo.systems/perdeu-playboy/
 
-## Vercel
+- Servidor: droplet `mail.tomoyo.systems` (DigitalOcean, `doctl compute droplet list`).
+- Container: `g0v-static` (nginx:alpine) em `/root/g0v`, atrás do Traefik com o middleware
+  `cloudflare-only` e certificado Let's Encrypt via DNS Cloudflare (`traefik.http.routers.g0v`).
+- DNS: wildcard `*.tomoyo.systems` → droplet, proxied pela Cloudflare.
+- Publicar: `scripts/deploy-g0v.sh` (build com `NEXT_PUBLIC_BASE_PATH=/perdeu-playboy`, rsync, compose).
 
-- Projeto: `perdeu-playboy`
-- URL atual: `https://perdeu-playboy.vercel.app`
-- Build command: `npm run build`
-- Output directory: `out`
-- Root directory: `frontend`
+A raiz `https://g0v.tomoyo.systems/` é `deploy/g0v/index.html`, a lista de projetos da frente g0v.
 
-## Dominio proprio
+## Domínio antigo
 
-1. Abrir o projeto na Vercel e entrar em `Settings > Domains`.
-2. Adicionar o dominio desejado.
-3. Configurar o DNS exatamente como a Vercel indicar para o dominio.
-4. Aguardar propagacao e validar HTTPS.
-5. Atualizar `metadataBase` em `frontend/app/layout.tsx` quando o dominio definitivo estiver ativo.
-
-## Atualizacao automatica dos dados
-
-O workflow `.github/workflows/update-data.yml` roda semanalmente e tambem manualmente. Ele recompila o snapshot estatico e, se houver mudanca, faz commit do arquivo gerado.
-
-Para tambem publicar automaticamente na Vercel, configurar estes secrets no GitHub:
-
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
-
-Sem esses secrets, o workflow atualiza o snapshot e pula apenas a etapa de deploy.
+`perdeu-playboy.online` continua na Vercel só como redirecionamento 308 para o endereço novo
+(`deploy/vercel-redirect/vercel.json`). O workflow semanal de dados não publica mais na Vercel.

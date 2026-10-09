@@ -1,0 +1,26 @@
+# g0v.tomoyo.systems: coisas políticas da Tomoyo, inspiradas no g0v taiwanês.
+# Um nginx estático atrás do Traefik do servidor principal; cada projeto vive num subdiretório.
+name: g0v
+
+services:
+  web:
+    image: nginx:alpine
+    container_name: g0v-static
+    restart: always
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.g0v.entrypoints=websecure"
+      - "traefik.http.routers.g0v.rule=Host(`g0v.tomoyo.systems`)"
+      - "traefik.http.routers.g0v.middlewares=cloudflare-only@file"
+      - "traefik.http.routers.g0v.tls.certresolver=letsencrypt"
+      - "traefik.http.services.g0v.loadbalancer.server.port=80"
+
+networks:
+  proxy:
+    external: true

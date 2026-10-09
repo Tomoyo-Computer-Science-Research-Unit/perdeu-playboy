@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { EmptyState, Panel, Screen } from "@/components/ui";
-import { formatMonthYear, formatNumber, formatPercent, formatSigned } from "@/lib/format";
+import { deltaClass, formatMonthYear, formatNumber, formatPercent, formatSigned } from "@/lib/format";
 import type { ChangeRow, ChangeSection, LatestPeriod, TerritoryType } from "@/types/api";
 
 function ChangeTable({ rows, territoryType }: { rows: ChangeRow[]; territoryType: TerritoryType }) {
@@ -34,8 +34,8 @@ function ChangeTable({ rows, territoryType }: { rows: ChangeRow[]; territoryType
             </td>
             <td className="num right">{formatNumber(row.current_value)}</td>
             <td className="num right faint">{formatNumber(row.previous_value)}</td>
-            <td className="num right">{formatSigned(row.absolute_change)}</td>
-            <td className="num right">{formatPercent(row.percent_change)}</td>
+            <td className={`num right ${deltaClass(row.absolute_change)}`}>{formatSigned(row.absolute_change)}</td>
+            <td className={`num right ${deltaClass(row.percent_change)}`}>{formatPercent(row.percent_change)}</td>
           </tr>
         ))}
       </tbody>
@@ -50,7 +50,7 @@ export function ChangesExplorer({ sections, latest }: { sections: ChangeSection[
         <Panel
           key={section.title}
           title={<b>{section.title}</b>}
-          aside={<span>crime geral · 12 meses até {formatMonthYear(latest.year, latest.month)}</span>}
+          aside={<span>12 meses até {formatMonthYear(latest.year, latest.month)}</span>}
           flush
         >
           <ChangeTable rows={section.rows} territoryType={section.territory_type} />

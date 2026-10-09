@@ -20,7 +20,7 @@ import {
   getTerritories,
   resolveTerritoryName
 } from "@/lib/api";
-import { deltaGlyph, formatNumber, formatPercent, formatPeriodRange, formatRate, monthShort } from "@/lib/format";
+import { deltaClass, deltaGlyph, formatNumber, formatPercent, formatPeriodRange, formatRate, monthShort } from "@/lib/format";
 import type { AnnualPoint, SummaryCardData } from "@/types/api";
 
 type Metric = "count" | "rate";
@@ -81,8 +81,8 @@ export function DashboardExplorer() {
   return (
     <Screen columns="320px minmax(0, 1fr)" rows="minmax(0, 1fr) 150px">
       <Panel
-        title="Recorte e indicadores"
-        aside={<Link href={trendsHref} className="btn btn--ghost !h-7 !px-2 text-[10px]">Série</Link>}
+        title={<b>{territoryLabel}</b>}
+        aside={<Link href={trendsHref} className="btn !h-7 !px-2 text-[10px]">Série</Link>}
         flush
         fill
         style={{ gridRow: "1 / span 2" }}
@@ -104,7 +104,7 @@ export function DashboardExplorer() {
               <button type="button" role="option" aria-selected={item.indicator === activeIndicator} onClick={() => setIndicator(item.indicator)}>
                 <span>{item.name}</span>
                 <span className="num">{formatNumber(item.current_year_value)}</span>
-                <span className="delta num">
+                <span className={`delta num ${deltaClass(item.yoy_percent_change, item.indicator)}`}>
                   {deltaGlyph(item.yoy_percent_change)} {item.yoy_percent_change === null ? "–" : formatPercent(item.yoy_percent_change, 0)}
                 </span>
               </button>
@@ -112,9 +112,9 @@ export function DashboardExplorer() {
           ))}
         </ul>
         <p className="border-b border-line px-3 py-1.5 text-[10px] tracking-[0.08em] text-ash">
-          Acumulado {formatPeriodRange(summary.year, summary.latest_month)} · Δ vs mesmos meses de {summary.year - 1}
+          {formatPeriodRange(summary.year, summary.latest_month)} vs {formatPeriodRange(summary.year - 1, summary.latest_month)}
         </p>
-        <div className="mt-auto min-h-0 overflow-auto border-t border-line-strong p-3">
+        <div className="detail mt-auto min-h-0 overflow-auto border-t border-line-strong p-3">
           {card ? <Detail card={card} /> : <p className="text-[11px] tracking-[0.18em] text-ash">SEM DADOS</p>}
         </div>
       </Panel>
@@ -122,7 +122,7 @@ export function DashboardExplorer() {
       <Panel
         title={
           <>
-            <b>{indicatorMeta?.name}</b> · {territoryLabel} · {firstYear}–{latest.year}
+            <b>{indicatorMeta?.name}</b> {firstYear}–{latest.year}
           </>
         }
         aside={
@@ -142,7 +142,7 @@ export function DashboardExplorer() {
           </>
         }
         fill
-        foot={`${latest.year} vai até ${monthShort(latest.month)} e aparece tracejado. Meses não apurados pelo ISP ficam de fora, nunca entram como zero.`}
+        foot={`${latest.year} até ${monthShort(latest.month)}, tracejado. Meses não apurados pelo ISP ficam de fora.`}
       >
         <HistoryChart
           points={chartPoints}
@@ -154,7 +154,7 @@ export function DashboardExplorer() {
         />
       </Panel>
 
-      <Panel title={`Todos os indicadores · totais anuais ${firstYearOf(multiples)}–${latest.year}`} flush>
+      <Panel title={<><b>Totais anuais</b> {firstYearOf(multiples)}–{latest.year}</>} flush>
         <IndicatorStrip items={multiples} active={activeIndicator} onSelect={setIndicator} />
       </Panel>
     </Screen>
@@ -174,7 +174,7 @@ function Detail({ card }: { card: SummaryCardData }) {
             {card.unit === "armas" ? "armas" : "ocorrências"} · {formatPeriodRange(card.year, card.latest_month)}
           </p>
         </div>
-        <p className="num text-right text-[16px] text-ink">
+        <p className={`num text-right text-[16px] ${deltaClass(card.yoy_percent_change, card.indicator) || "text-ink"}`}>
           <span className="mr-1 text-[11px]">{deltaGlyph(card.yoy_percent_change)}</span>
           {card.yoy_percent_change === null ? "–" : formatPercent(card.yoy_percent_change)}
         </p>

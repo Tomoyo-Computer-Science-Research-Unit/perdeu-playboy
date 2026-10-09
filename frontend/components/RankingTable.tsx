@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatNumber, formatPercent, formatRate } from "@/lib/format";
+import { deltaClass, formatNumber, formatPercent, formatRate } from "@/lib/format";
 import type { RankingRow, TerritoryType } from "@/types/api";
 
 export type SortKey = "territory" | "value" | "rate" | "trend" | "variation";
@@ -8,12 +8,14 @@ export type SortDirection = "asc" | "desc";
 export function RankingTable({
   rows,
   territoryType,
+  indicator,
   sortKey,
   sortDirection,
   onSort
 }: {
   rows: RankingRow[];
   territoryType: TerritoryType;
+  indicator?: string;
   sortKey?: SortKey;
   sortDirection?: SortDirection;
   onSort?: (key: SortKey) => void;
@@ -68,9 +70,11 @@ export function RankingTable({
             </td>
             <td className="num right">{formatNumber(row.value)}</td>
             {hasRate ? <td className="num right">{formatRate(row.rate_per_100k)}</td> : null}
-            <td className="num right">{formatPercent(row.yoy_percent_change)}</td>
+            <td className={`num right ${deltaClass(row.yoy_percent_change, indicator)}`}>{formatPercent(row.yoy_percent_change)}</td>
             <td className="right">
-              <span className={`text-[9.5px] tracking-[0.16em] ${row.trend_status === "worse" ? "text-ink" : "text-ash"}`}>{(row.trend_label ?? "Inconclusivo").toUpperCase()}</span>
+              <span className={`text-[9.5px] tracking-[0.16em] ${row.trend_status === "worse" ? "worse" : row.trend_status === "better" ? "better" : "text-ash"}`}>
+                {(row.trend_label ?? "Inconclusivo").toUpperCase()}
+              </span>
             </td>
           </tr>
         ))}

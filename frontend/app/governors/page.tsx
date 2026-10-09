@@ -10,14 +10,10 @@ export default function GovernorsPage() {
   return (
     <Screen columns="minmax(0, 1fr)" rows="minmax(0, 1fr)">
       <Panel
-        title={
-          <>
-            <b>Governadores do Rio</b> · média mensal no mandato vs os 12 meses anteriores à posse
-          </>
-        }
-        aside={<span>{performance.indicators.length} indicadores</span>}
+        title={<b>Governadores do Rio</b>}
+        aside={<span>média mensal no mandato vs 12 meses antes da posse · {performance.indicators.length} indicadores</span>}
         flush
-        foot={`${performance.methodology} Comparação descritiva, não atribuição de causa.`}
+        foot="Variação negativa = menos registros durante o mandato. Comparação descritiva, não atribuição de causa; mandatos curtos entram com os meses disponíveis."
       >
         <GovernorsPerformanceTable rows={performance.rows} />
       </Panel>

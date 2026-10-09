@@ -72,7 +72,7 @@ export function RankingsExplorer() {
 
   return (
     <Screen columns="minmax(0, 1fr) minmax(0, 1fr)" rows="auto minmax(0, 1fr)">
-      <Panel title="Controles" style={{ gridColumn: "1 / span 2" }}>
+      <Panel title={<b>Rankings</b>} style={{ gridColumn: "1 / span 2" }}>
         <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
           <Field label="Indicador" className="min-w-[240px]">
             <select value={indicator} onChange={(event) => setIndicator(event.target.value)}>
@@ -122,21 +122,22 @@ export function RankingsExplorer() {
             </select>
           </Field>
           <span className="ml-auto text-[11px] tracking-[0.06em] text-ash">
-            Acumulado de {periodLabel} vs os mesmos meses de {year - 1}. Taxas com a população do ano (IBGE).
+            {periodLabel} vs {formatPeriodRange(year - 1, effectiveMonth)}
           </span>
         </div>
       </Panel>
 
-      <Panel title={<><b>Municípios</b> · {municipalityRows.length} · desde {coverage.municipality_start_year ?? "2014"}</>} flush>
-        <RankingTable rows={municipalityRows} territoryType="municipality" sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} />
+      <Panel title={<b>Municípios</b>} aside={<span>{municipalityRows.length} · desde {coverage.municipality_start_year ?? "2014"}</span>} flush>
+        <RankingTable rows={municipalityRows} territoryType="municipality" indicator={indicator} sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} />
       </Panel>
 
       <Panel
-        title={<><b>Áreas integradas (CISP)</b> · {policeAreaRows.length} · desde {coverage.police_area_start_year ?? "2003"}</>}
+        title={<b>Áreas integradas (CISP)</b>}
+        aside={<span>{policeAreaRows.length} · desde {coverage.police_area_start_year ?? "2003"}</span>}
         flush
         foot={mode === "rate" ? "Sem população oficial por CISP: ordenado por ocorrências." : undefined}
       >
-        <RankingTable rows={policeAreaRows} territoryType="police_area" sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} />
+        <RankingTable rows={policeAreaRows} territoryType="police_area" indicator={indicator} sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} />
       </Panel>
     </Screen>
   );

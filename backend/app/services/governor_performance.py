@@ -182,8 +182,10 @@ def _term_performance(term: GovernorTerm, latest_date: date) -> GovernorPerforma
         average_reduction_percent=round(sum(indicator_changes.values()) / len(indicator_changes), 1),
         annualized_current_value=round(sum(current_values) * 12, 1),
         annualized_baseline_value=round(sum(baseline_values) * 12, 1),
-        best_indicator=f"{INDICATOR_BY_CODE[best_indicator].name} ({best_value:.1f}%)",
-        worst_indicator=f"{INDICATOR_BY_CODE[worst_indicator].name} ({worst_value:.1f}%)",
+        best_indicator=INDICATOR_BY_CODE[best_indicator].name,
+        worst_indicator=INDICATOR_BY_CODE[worst_indicator].name,
+        best_indicator_change=round(-best_value, 1),
+        worst_indicator_change=round(-worst_value, 1),
         note=note,
     )
 
