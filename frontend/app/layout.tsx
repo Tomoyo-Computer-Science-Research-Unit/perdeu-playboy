@@ -48,7 +48,10 @@ export const metadata: Metadata = {
 // primeira pintura para não piscar.
 const THEME_SCRIPT = `(() => {
   const media = matchMedia('(prefers-color-scheme: dark)');
-  const apply = (dark) => { document.documentElement.dataset.theme = dark ? 'dark' : 'light'; };
+  const apply = (dark) => {
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    window.dispatchEvent(new CustomEvent('pp-theme'));
+  };
   apply(media.matches);
   media.addEventListener('change', (e) => apply(e.matches));
 })();`;
