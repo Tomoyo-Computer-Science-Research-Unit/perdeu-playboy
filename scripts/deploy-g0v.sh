@@ -2,7 +2,8 @@
 # Publica o site em g0v.tomoyo.systems/perdeu-playboy no servidor principal da Tomoyo.
 #
 # O droplet é resolvido pelo doctl (nome em DROPLET, padrão mail.tomoyo.systems); os arquivos
-# sobem por rsync/ssh como root e o nginx estático é (re)criado com docker compose atrás do Traefik.
+# sobem por rsync/ssh como root e o nginx estático é recriado com docker compose atrás do Traefik
+# (recriar, não recarregar: o nginx.conf é um bind mount de arquivo e o rsync troca o inode).
 #
 #   scripts/deploy-g0v.sh            # build + deploy
 #   SKIP_BUILD=1 scripts/deploy-g0v.sh
@@ -28,6 +29,6 @@ ssh "root@$IP" "mkdir -p '$REMOTE_DIR/site$BASE_PATH'"
 rsync -az --delete "$ROOT/frontend/out/" "root@$IP:$REMOTE_DIR/site$BASE_PATH/"
 rsync -az "$ROOT/deploy/g0v/index.html" "root@$IP:$REMOTE_DIR/site/index.html"
 rsync -az "$ROOT/deploy/g0v/nginx.conf" "$ROOT/deploy/g0v/docker-compose.yml" "root@$IP:$REMOTE_DIR/"
-ssh "root@$IP" "cd '$REMOTE_DIR' && docker compose up -d --remove-orphans && docker exec g0v-static nginx -s reload"
+ssh "root@$IP" "cd '$REMOTE_DIR' && docker compose up -d --force-recreate --remove-orphans"
 
 echo "✓ https://g0v.tomoyo.systems$BASE_PATH/"
