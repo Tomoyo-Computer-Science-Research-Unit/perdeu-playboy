@@ -166,9 +166,9 @@ dd {
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 16px;
-  height: 44px;
-  padding: 0 20px 0 24px;
+  gap: 12px;
+  height: 34px;
+  padding: 0 14px 0 16px;
   border: 1px solid var(--ink);
   background: var(--ink);
   color: var(--paper);
@@ -224,7 +224,7 @@ dd {
 
 .field select,
 .field input {
-  height: 42px;
+  height: 34px;
   min-width: 0;
   width: 100%;
   padding: 0 12px;
@@ -258,8 +258,8 @@ dd {
 }
 
 .segmented button {
-  height: 40px;
-  padding: 0 14px;
+  height: 32px;
+  padding: 0 12px;
   background: transparent;
   color: var(--slate);
   font-size: 11px;
@@ -286,15 +286,41 @@ dd {
   cursor: default;
 }
 
+/* Botão liga/desliga, mesma métrica do segmentado */
+.toggle {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--slate);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.3s var(--ease), color 0.3s var(--ease);
+}
+
+.toggle[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
 /* Tabela "ruled" no estilo das fichas do tomoyo.systems */
 .ruled {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .ruled th {
-  padding: 12px 14px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--paper);
+  padding: 8px 10px;
   border-top: 1px solid var(--line-strong);
   border-bottom: 1px solid var(--line);
   text-align: left;
@@ -307,7 +333,7 @@ dd {
 }
 
 .ruled td {
-  padding: 11px 14px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
   color: var(--char);
@@ -342,7 +368,7 @@ dd {
 }
 
 .table-line dt {
-  padding: 14px 20px 14px 0;
+  padding: 9px 16px 9px 0;
   font-family: var(--font-mincho), serif;
   font-size: 13px;
   letter-spacing: 0.12em;
@@ -350,9 +376,9 @@ dd {
 }
 
 .table-line dd {
-  padding: 14px 0 14px 20px;
-  font-size: 13.5px;
-  line-height: 1.9;
+  padding: 9px 0 9px 16px;
+  font-size: 12.5px;
+  line-height: 1.7;
   color: var(--char);
 }
 
@@ -446,4 +472,241 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 999px;
   background: var(--paper);
   cursor: pointer;
+}
+
+
+/* --- Casca de uma tela só: cabeçalho, palco, barra de status ------------------------ */
+
+.app {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.app__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 48px;
+  padding: 0 var(--gutter);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.app__main {
+  min-height: 0;
+  padding: 10px var(--gutter);
+}
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 28px;
+  padding: 0 var(--gutter);
+  border-top: 1px solid var(--line);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ash);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.kbd {
+  display: inline-block;
+  min-width: 15px;
+  margin-right: 5px;
+  padding: 0 4px;
+  border: 1px solid var(--line-strong);
+  font-size: 9px;
+  line-height: 14px;
+  text-align: center;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+}
+
+.screen {
+  display: grid;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+}
+
+.panel__head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ash);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.panel__head > :first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel__head b {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.panel__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--fog) transparent;
+}
+
+.panel__body--flush {
+  padding: 0;
+}
+
+.panel__body--fill {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel__foot {
+  flex: none;
+  padding: 6px 12px;
+  border-top: 1px solid var(--line);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--ash);
+}
+
+/* Menu selecionável (lista de indicadores, territórios) */
+.menu {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.menu button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 5px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--char);
+  font-family: var(--sans);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu button > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu button:hover:not([aria-selected="true"]) {
+  background: var(--bone);
+}
+
+.menu button[aria-selected="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.menu .num {
+  font-size: 12px;
+}
+
+.menu .delta {
+  min-width: 56px;
+  text-align: right;
+  font-size: 11px;
+}
+
+.menu button[aria-selected="true"] .faint,
+.menu button[aria-selected="true"] .delta {
+  color: var(--paper);
+  opacity: 0.75;
+}
+
+.chart-fill {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Em telas largas a página não rola: tudo cabe no palco. */
+@media (min-width: 900px) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .app {
+    height: 100vh;
+    height: 100dvh;
+  }
+}
+
+/* Em telas estreitas os painéis empilham e a página volta a rolar. */
+@media (max-width: 899px) {
+  .screen {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: none !important;
+    height: auto;
+  }
+
+  .screen > * {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  .panel {
+    max-height: 70vh;
+  }
+
+  .chart-fill {
+    min-height: 300px;
+  }
+
+  .app__header {
+    height: auto;
+    flex-wrap: wrap;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .statusbar {
+    height: auto;
+    flex-wrap: wrap;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    white-space: normal;
+  }
 }

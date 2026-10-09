@@ -41,7 +41,7 @@ test("trends accepts permalink filters", async ({ page }) => {
 
 test("map accepts permalink filters", async ({ page }) => {
   await page.goto("/map?indicator=crime_geral&mode=rate&period=2024-12&view=rio_city");
-  await expect(page.getByLabel("Indicador", { exact: true })).toHaveValue("crime_geral");
+  await expect(page.getByRole("option", { name: "Crime geral" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("text=12/2024").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Voltar" })).toBeVisible();
   await expect(page.locator("svg[role=img] path").first()).toBeVisible();
@@ -51,4 +51,22 @@ test("theme toggle switches to dark", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /tema escuro/i }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+});
+
+test("desktop screens fit the viewport without page scroll", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "só faz sentido em desktop");
+  for (const path of ["/", "/trends", "/map", "/rankings", "/changes", "/governors", "/methodology"]) {
+    await page.goto(path);
+    await page.waitForLoadState("networkidle");
+    const [scrollHeight, viewport] = await page.evaluate(() => [document.documentElement.scrollHeight, window.innerHeight]);
+    expect(scrollHeight, `${path} deve caber na tela`).toBeLessThanOrEqual(viewport);
+  }
+});
+
+test("hotkeys switch screens and indicators", async ({ page }) => {
+  await page.goto("/");
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("option", { selected: true })).not.toHaveText(/Homicidio doloso/);
+  await page.keyboard.press("2");
+  await expect(page).toHaveURL(/\/trends/);
 });

@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnnualTable } from "@/components/AnnualTable";
 import { HistoryChart, type ChartPoint } from "@/components/HistoryChart";
-import { TerritoryPicker, type TerritorySelection } from "@/components/TerritoryPicker";
-import { Field, SectionHeading, Segmented } from "@/components/ui";
+import { useScreenHotkeys } from "@/components/Hotkeys";
+import { TerritoryControls, type TerritorySelection } from "@/components/TerritoryControls";
+import { Field, Panel, Screen, Segmented } from "@/components/ui";
 import {
   CRIME_GENERAL_CODE,
   RIO_MUNICIPALITY,
@@ -23,12 +24,12 @@ import type { AnnualPoint, MonthlyPoint, TerritoryType } from "@/types/api";
 
 type View = "annual" | "monthly" | "rolling";
 type Metric = "count" | "rate";
-
+const VIEWS: View[] = ["annual", "monthly", "rolling"];
 const PRESETS: Array<{ label: string; years: number | "all" }> = [
   { label: "Tudo", years: "all" },
-  { label: "20 anos", years: 20 },
-  { label: "10 anos", years: 10 },
-  { label: "5 anos", years: 5 }
+  { label: "20a", years: 20 },
+  { label: "10a", years: 10 },
+  { label: "5a", years: 5 }
 ];
 
 export function TrendsExplorer() {
@@ -78,6 +79,7 @@ export function TrendsExplorer() {
     return general ? [...available, general] : available;
   }, [selection.type, territoryName]);
   const activeIndicator = indicators.some((item) => item.code === indicator) ? indicator : indicators[0]?.code ?? "letalidade_violenta";
+  const activeIndex = Math.max(0, indicators.findIndex((item) => item.code === activeIndicator));
   const indicatorMeta = getIndicator(activeIndicator);
 
   const annualAll = useMemo(() => getAnnualSeries(activeIndicator, selection.type, territoryName), [activeIndicator, selection.type, territoryName]);
@@ -116,12 +118,13 @@ export function TrendsExplorer() {
     window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
   }, [activeIndicator, effectiveMetric, endYear, hydrated, selection.type, startYear, territoryName, view]);
 
-  function applyPreset(years: number | "all") {
-    setRange({ start: years === "all" ? null : latest.year - years + 1, end: latest.year });
+  function applyPreset(presetYears: number | "all") {
+    setRange({ start: presetYears === "all" ? null : latest.year - presetYears + 1, end: latest.year });
   }
 
   function downloadCsv() {
-    const header = view === "annual" ? ["ano", "valor", "meses_com_dado", "completo", "variacao_pct", "populacao", "taxa_100k"] : ["periodo", "valor", "soma_12_meses", "ano_anterior", "variacao_pct"];
+    const header =
+      view === "annual" ? ["ano", "valor", "meses_com_dado", "completo", "variacao_pct", "populacao", "taxa_100k"] : ["periodo", "valor", "soma_12_meses", "ano_anterior", "variacao_pct"];
     const rows =
       view === "annual"
         ? annual.map((row) => [row.year, row.value ?? "", row.months_with_data, row.complete ? 1 : 0, row.yoy_percent_change ?? "", row.population ?? "", row.rate_per_100k ?? ""])
@@ -136,14 +139,30 @@ export function TrendsExplorer() {
     URL.revokeObjectURL(url);
   }
 
+  const hotkeys = useMemo(
+    () => ({
+      ArrowUp: () => setIndicator(indicators[(activeIndex - 1 + indicators.length) % indicators.length]?.code ?? activeIndicator),
+      ArrowDown: () => setIndicator(indicators[(activeIndex + 1) % indicators.length]?.code ?? activeIndicator),
+      ArrowLeft: () => setRange((current) => ({ ...current, start: Math.max(firstYear, startYear - 1) })),
+      ArrowRight: () => setRange((current) => ({ ...current, start: Math.min(endYear, startYear + 1) })),
+      v: () => setView((current) => VIEWS[(VIEWS.indexOf(current) + 1) % VIEWS.length]),
+      m: () => setMetric((current) => (current === "count" ? "rate" : "count")),
+      b: () => setShowTerms((current) => !current),
+      c: () => downloadCsv()
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeIndex, activeIndicator, indicators, firstYear, startYear, endYear, annual, monthly, view]
+  );
+  useScreenHotkeys(hotkeys);
+
   const territoryLabel = selection.type === "state" ? "Estado do Rio de Janeiro" : territoryName;
   const valueLabel = effectiveMetric === "rate" ? "Por 100 mil hab." : indicatorMeta?.unit === "armas" ? "Armas" : "Ocorrências";
 
   return (
-    <div className="grid gap-12">
-      <section className="grid gap-5">
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,2fr)]">
-          <Field label="Indicador">
+    <Screen columns="minmax(0, 1fr) 420px" rows="auto minmax(0, 1fr)">
+      <Panel title="Controles" style={{ gridColumn: "1 / span 2" }}>
+        <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
+          <Field label="Indicador" className="min-w-[220px]">
             <select value={activeIndicator} onChange={(event) => setIndicator(event.target.value)}>
               {indicators.map((item) => (
                 <option key={item.code} value={item.code}>
@@ -152,7 +171,7 @@ export function TrendsExplorer() {
               ))}
             </select>
           </Field>
-          <TerritoryPicker
+          <TerritoryControls
             value={selection}
             onChange={setSelection}
             municipalities={municipalities}
@@ -160,8 +179,6 @@ export function TrendsExplorer() {
             rioUnits={rioUnits}
             defaultMunicipality={RIO_MUNICIPALITY}
           />
-        </div>
-        <div className="flex flex-wrap items-end gap-x-6 gap-y-4 border-t border-line pt-5">
           <Segmented
             label="Visualização"
             value={view}
@@ -178,7 +195,7 @@ export function TrendsExplorer() {
             onChange={setMetric}
             options={[
               { value: "count", label: "Ocorrências" },
-              { value: "rate", label: "Por 100 mil", disabled: view !== "annual" || !hasRate }
+              { value: "rate", label: "100 mil", disabled: view !== "annual" || !hasRate }
             ]}
           />
           <div className="flex items-end gap-2">
@@ -200,36 +217,38 @@ export function TrendsExplorer() {
                 ))}
               </select>
             </Field>
+            <div className="segmented" role="group" aria-label="Atalhos de período">
+              {PRESETS.map((preset) => (
+                <button key={preset.label} type="button" onClick={() => applyPreset(preset.years)}>
+                  {preset.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-1.5 pb-0.5">
-            {PRESETS.map((preset) => (
-              <button
-                key={preset.label}
-                type="button"
-                onClick={() => applyPreset(preset.years)}
-                className="border border-line px-3 py-1.5 text-[10px] tracking-[0.2em] text-slate hover:border-ink hover:text-ink"
-              >
-                {preset.label.toUpperCase()}
-              </button>
-            ))}
-          </div>
-          <label className="ml-auto flex items-center gap-2 pb-2 text-[11px] tracking-[0.14em] text-slate">
-            <input type="checkbox" checked={showTerms} onChange={(event) => setShowTerms(event.target.checked)} className="h-3.5 w-3.5 accent-[var(--ink)]" />
-            MANDATOS
-          </label>
+          <button type="button" aria-pressed={showTerms} onClick={() => setShowTerms((current) => !current)} className="toggle">
+            Mandatos
+          </button>
+          <button type="button" onClick={downloadCsv} className="btn btn--ghost ml-auto">
+            CSV
+          </button>
         </div>
-      </section>
+      </Panel>
 
-      <section className="grid gap-5">
-        <SectionHeading
-          title={`${indicatorMeta?.name ?? activeIndicator} · ${territoryLabel}`}
-          sub={subtitle(view, effectiveMetric, startYear, endYear, latest.year, latest.month)}
-          aside={
-            <button type="button" onClick={downloadCsv} className="btn btn--ghost">
-              Baixar CSV
-            </button>
-          }
-        />
+      <Panel
+        title={
+          <>
+            <b>{indicatorMeta?.name}</b> · {territoryLabel} · {subtitle(view, effectiveMetric, startYear, endYear, latest.year, latest.month)}
+          </>
+        }
+        fill
+        foot={
+          view === "monthly"
+            ? "Linha fina: valor do mês. Linha cinza: média dos últimos 12 meses (soma ÷ 12). Interrupções são meses sem dado publicado."
+            : view === "rolling"
+              ? "Cada ponto acumula os 12 meses terminados naquele mês; remove a sazonalidade."
+              : "Ano corrente tracejado. Taxas por 100 mil só para anos completos, com população do ano (IBGE)."
+        }
+      >
         <HistoryChart
           points={points}
           kind={view === "annual" ? "annual" : "monthly"}
@@ -238,21 +257,13 @@ export function TrendsExplorer() {
           digits={effectiveMetric === "rate" ? 1 : view === "monthly" ? 1 : 0}
           terms={terms}
           showTerms={showTerms}
-          height={420}
         />
-        {view === "monthly" ? (
-          <p className="text-[11.5px] leading-6 tracking-[0.04em] text-ash">
-            Linha fina: valor do mês. Linha cinza: média dos últimos 12 meses (soma ÷ 12), que suaviza a sazonalidade. Interrupções indicam
-            meses sem dado publicado.
-          </p>
-        ) : null}
-      </section>
+      </Panel>
 
-      <section className="grid gap-5">
-        <SectionHeading title="Ano a ano" sub={`${territoryLabel}, ${startYear}–${endYear}.`} />
-        <AnnualTable points={annual} latestMonth={latest.month} unitLabel={indicatorMeta?.unit === "armas" ? "armas" : "ocorrências"} />
-      </section>
-    </div>
+      <Panel title={`Ano a ano · ${startYear}–${endYear}`} flush foot="* ano incompleto, variação sobre os mesmos meses. ~ população interpolada (IBGE).">
+        <AnnualTable points={annual} latestMonth={latest.month} unitLabel={indicatorMeta?.unit === "armas" ? "armas" : "ocorrências"} compact />
+      </Panel>
+    </Screen>
   );
 }
 
@@ -273,19 +284,21 @@ function monthlyToChart(points: MonthlyPoint[], view: View): ChartPoint[] {
     label: `${monthShort(point.month)} ${point.year}`,
     value: view === "rolling" ? point.rolling_12 : point.value,
     secondary: view === "monthly" && point.rolling_12 !== null ? Math.round((point.rolling_12 / 12) * 10) / 10 : null,
-    note: point.value === null ? "sem dado publicado" : point.yoy_percent_change !== null ? `${point.yoy_percent_change > 0 ? "+" : ""}${point.yoy_percent_change}% sobre ${monthShort(point.month)} ${point.year - 1}` : undefined
+    note:
+      point.value === null
+        ? "sem dado publicado"
+        : point.yoy_percent_change !== null
+          ? `${point.yoy_percent_change > 0 ? "+" : ""}${point.yoy_percent_change}% sobre ${monthShort(point.month)} ${point.year - 1}`
+          : undefined
   }));
 }
 
 function subtitle(view: View, metric: Metric, startYear: number, endYear: number, latestYear: number, latestMonth: number): string {
-  const until = endYear === latestYear ? ` Último mês publicado: ${formatMonthYear(latestYear, latestMonth)}.` : "";
+  const until = endYear === latestYear ? ` · até ${formatMonthYear(latestYear, latestMonth)}` : "";
   if (view === "annual") {
-    return `${metric === "rate" ? "Ocorrências por 100 mil habitantes" : "Totais anuais"}, ${startYear}–${endYear}.${until}`;
+    return `${metric === "rate" ? "por 100 mil" : "totais anuais"} ${startYear}–${endYear}${until}`;
   }
-  if (view === "rolling") {
-    return `Soma móvel de 12 meses, ${startYear}–${endYear}: cada ponto acumula o ano terminado naquele mês.${until}`;
-  }
-  return `Valores mensais, ${startYear}–${endYear}.${until}`;
+  return `${view === "rolling" ? "soma móvel de 12 meses" : "mensal"} ${startYear}–${endYear}${until}`;
 }
 
 function slug(value: string): string {

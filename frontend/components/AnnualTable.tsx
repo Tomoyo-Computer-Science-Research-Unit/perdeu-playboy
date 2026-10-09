@@ -1,22 +1,32 @@
 import { formatNumber, formatPercent, formatRate, monthShort } from "@/lib/format";
 import type { AnnualPoint } from "@/types/api";
 
-export function AnnualTable({ points, latestMonth, unitLabel = "ocorrências" }: { points: AnnualPoint[]; latestMonth: number; unitLabel?: string }) {
+export function AnnualTable({
+  points,
+  latestMonth,
+  unitLabel = "ocorrências",
+  compact = false
+}: {
+  points: AnnualPoint[];
+  latestMonth: number;
+  unitLabel?: string;
+  compact?: boolean;
+}) {
   const rows = [...points].reverse();
   const hasPopulation = rows.some((row) => row.population !== null);
 
   return (
-    <div className="overflow-x-auto">
-      <table className="ruled min-w-[640px]">
+    <div className={compact ? "" : "overflow-x-auto"}>
+      <table className={compact ? "ruled" : "ruled min-w-[640px]"}>
         <thead>
           <tr>
             <th>Ano</th>
             <th className="right">{unitLabel}</th>
-            <th className="right">Meses</th>
+            {compact ? null : <th className="right">Meses</th>}
             <th className="right">Variação</th>
             {hasPopulation ? (
               <>
-                <th className="right">População</th>
+                {compact ? null : <th className="right">População</th>}
                 <th className="right">Por 100 mil</th>
               </>
             ) : null}
@@ -34,28 +44,35 @@ export function AnnualTable({ points, latestMonth, unitLabel = "ocorrências" }:
                 ) : null}
               </td>
               <td className="num right">{formatNumber(row.value)}</td>
-              <td className="num right faint">{row.months_with_data}</td>
+              {compact ? null : <td className="num right faint">{row.months_with_data}</td>}
               <td className="num right">
                 {formatPercent(row.yoy_percent_change)}
                 {!row.complete && row.yoy_percent_change !== null ? <span className="ml-1 text-[10px] text-ash">*</span> : null}
               </td>
               {hasPopulation ? (
                 <>
-                  <td className="num right faint">
-                    {formatNumber(row.population)}
-                    {row.population_interpolated ? <span title="população interpolada entre anos publicados pelo IBGE">~</span> : null}
+                  {compact ? null : (
+                    <td className="num right faint">
+                      {formatNumber(row.population)}
+                      {row.population_interpolated ? <span title="população interpolada entre anos publicados pelo IBGE">~</span> : null}
+                    </td>
+                  )}
+                  <td className="num right">
+                    {formatRate(row.rate_per_100k)}
+                    {compact && row.population_interpolated && row.rate_per_100k !== null ? <span title="população interpolada">~</span> : null}
                   </td>
-                  <td className="num right">{formatRate(row.rate_per_100k)}</td>
                 </>
               ) : null}
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="mt-3 text-[11px] leading-6 tracking-[0.04em] text-ash">
-        * ano incompleto: variação calculada sobre os mesmos meses do ano anterior. ~ população interpolada entre censos e estimativas do
-        IBGE. Taxa por 100 mil só para anos completos.
-      </p>
+      {compact ? null : (
+        <p className="mt-3 text-[11px] leading-6 tracking-[0.04em] text-ash">
+          * ano incompleto: variação calculada sobre os mesmos meses do ano anterior. ~ população interpolada entre censos e estimativas do
+          IBGE. Taxa por 100 mil só para anos completos.
+        </p>
+      )}
     </div>
   );
 }

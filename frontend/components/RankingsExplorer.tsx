@@ -1,11 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useScreenHotkeys } from "@/components/Hotkeys";
 import { RankingTable, type SortDirection, type SortKey } from "@/components/RankingTable";
-import { Field, SectionHeading, Segmented } from "@/components/ui";
+import { Field, Panel, Screen, Segmented } from "@/components/ui";
 import { CRIME_GENERAL_CODE, getIndicator, getIndicators, getLatestPeriod, getRankings, getSnapshotMeta } from "@/lib/api";
 import { formatPeriodRange, monthLong } from "@/lib/format";
 import type { RankingMode, RankingRow } from "@/types/api";
+
+const MODES: RankingMode[] = ["rate", "count", "yoy"];
 
 export function RankingsExplorer() {
   const latest = getLatestPeriod();
@@ -15,51 +18,84 @@ export function RankingsExplorer() {
   const [year, setYear] = useState(latest.year);
   const [month, setMonth] = useState(latest.month);
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection } | null>(null);
-  const [showAll, setShowAll] = useState({ municipality: false, police_area: false });
-  const LIMIT = 25;
 
   const indicators = useMemo(() => {
     const general = getIndicator(CRIME_GENERAL_CODE);
     return general ? [general, ...getIndicators()] : getIndicators();
   }, []);
-  const municipalityRows = useMemo(() => sortRows(getRankings(indicator, mode, "municipality", year, month), sort), [indicator, mode, month, sort, year]);
-  const policeAreaRows = useMemo(() => sortRows(getRankings(indicator, mode === "rate" ? "count" : mode, "police_area", year, month), sort), [indicator, mode, month, sort, year]);
+  const activeIndex = Math.max(0, indicators.findIndex((item) => item.code === indicator));
+  const maxMonth = year === latest.year ? latest.month : 12;
+  const effectiveMonth = Math.min(month, maxMonth);
+  const municipalityRows = useMemo(() => sortRows(getRankings(indicator, mode, "municipality", year, effectiveMonth), sort), [indicator, mode, effectiveMonth, sort, year]);
+  const policeAreaRows = useMemo(
+    () => sortRows(getRankings(indicator, mode === "rate" ? "count" : mode, "police_area", year, effectiveMonth), sort),
+    [indicator, mode, effectiveMonth, sort, year]
+  );
   const firstYear = Math.min(coverage.municipality_start_year ?? latest.year, coverage.police_area_start_year ?? latest.year);
   const years = Array.from({ length: latest.year - firstYear + 1 }, (_, index) => latest.year - index);
-  const maxMonth = year === latest.year ? latest.month : 12;
 
   function handleSort(key: SortKey) {
     setSort((current) => ({ key, direction: current?.key === key && current.direction === "desc" ? "asc" : "desc" }));
   }
 
-  const periodLabel = formatPeriodRange(year, Math.min(month, maxMonth));
+  function stepMonth(step: number) {
+    let nextYear = year;
+    let nextMonth = effectiveMonth + step;
+    if (nextMonth < 1) {
+      nextYear -= 1;
+      nextMonth = 12;
+    } else if (nextMonth > 12) {
+      nextYear += 1;
+      nextMonth = 1;
+    }
+    if (nextYear < firstYear || nextYear > latest.year || (nextYear === latest.year && nextMonth > latest.month)) {
+      return;
+    }
+    setYear(nextYear);
+    setMonth(nextMonth);
+  }
+
+  const hotkeys = useMemo(
+    () => ({
+      ArrowUp: () => setIndicator(indicators[(activeIndex - 1 + indicators.length) % indicators.length].code),
+      ArrowDown: () => setIndicator(indicators[(activeIndex + 1) % indicators.length].code),
+      ArrowLeft: () => stepMonth(-1),
+      ArrowRight: () => stepMonth(1),
+      m: () => setMode((current) => MODES[(MODES.indexOf(current) + 1) % MODES.length])
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeIndex, indicators, year, effectiveMonth]
+  );
+  useScreenHotkeys(hotkeys);
+
+  const periodLabel = formatPeriodRange(year, effectiveMonth);
 
   return (
-    <div className="grid gap-12">
-      <section className="flex flex-wrap items-end gap-x-6 gap-y-4">
-        <Field label="Indicador">
-          <select value={indicator} onChange={(event) => setIndicator(event.target.value)} className="min-w-[260px]">
-            {indicators.map((item) => (
-              <option key={item.code} value={item.code}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Segmented
-          label="Métrica"
-          value={mode}
-          onChange={(next) => {
-            setMode(next);
-            setSort(null);
-          }}
-          options={[
-            { value: "rate", label: "Por 100 mil" },
-            { value: "count", label: "Ocorrências" },
-            { value: "yoy", label: "Variação" }
-          ]}
-        />
-        <div className="flex gap-2">
+    <Screen columns="minmax(0, 1fr) minmax(0, 1fr)" rows="auto minmax(0, 1fr)">
+      <Panel title="Controles" style={{ gridColumn: "1 / span 2" }}>
+        <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
+          <Field label="Indicador" className="min-w-[240px]">
+            <select value={indicator} onChange={(event) => setIndicator(event.target.value)}>
+              {indicators.map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Segmented
+            label="Métrica"
+            value={mode}
+            onChange={(next) => {
+              setMode(next);
+              setSort(null);
+            }}
+            options={[
+              { value: "rate", label: "Por 100 mil" },
+              { value: "count", label: "Ocorrências" },
+              { value: "yoy", label: "Variação" }
+            ]}
+          />
           <Field label="Ano">
             <select
               value={year}
@@ -77,7 +113,7 @@ export function RankingsExplorer() {
             </select>
           </Field>
           <Field label="Até o mês">
-            <select value={Math.min(month, maxMonth)} onChange={(event) => setMonth(Number(event.target.value))}>
+            <select value={effectiveMonth} onChange={(event) => setMonth(Number(event.target.value))}>
               {Array.from({ length: maxMonth }, (_, index) => index + 1).map((item) => (
                 <option key={item} value={item}>
                   {monthLong(item)}
@@ -85,35 +121,24 @@ export function RankingsExplorer() {
               ))}
             </select>
           </Field>
+          <span className="ml-auto text-[11px] tracking-[0.06em] text-ash">
+            Acumulado de {periodLabel} vs os mesmos meses de {year - 1}. Taxas com a população do ano (IBGE).
+          </span>
         </div>
-      </section>
+      </Panel>
 
-      <section className="grid gap-5">
-        <SectionHeading
-          title="Municípios"
-          sub={`Acumulado de ${periodLabel}, comparado com os mesmos meses do ano anterior. Taxas usam a população do ano (IBGE). Série municipal desde ${coverage.municipality_start_year ?? "2014"}.`}
-        />
-        <RankingTable rows={municipalityRows} territoryType="municipality" sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} limit={showAll.municipality ? undefined : LIMIT} />
-        {municipalityRows.length > LIMIT ? (
-          <button type="button" className="btn btn--ghost justify-self-start" onClick={() => setShowAll((current) => ({ ...current, municipality: !current.municipality }))}>
-            {showAll.municipality ? `Mostrar só os ${LIMIT} primeiros` : `Ver todos os ${municipalityRows.length} municípios`}
-          </button>
-        ) : null}
-      </section>
+      <Panel title={<><b>Municípios</b> · {municipalityRows.length} · desde {coverage.municipality_start_year ?? "2014"}</>} flush>
+        <RankingTable rows={municipalityRows} territoryType="municipality" sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} />
+      </Panel>
 
-      <section className="grid gap-5">
-        <SectionHeading
-          title="Áreas integradas de segurança pública (CISP)"
-          sub={`Acumulado de ${periodLabel}. Sem denominador populacional oficial por CISP, o ranking é por ocorrências${mode === "rate" ? " (a taxa não se aplica)" : ""}. Série desde ${coverage.police_area_start_year ?? "2003"}.`}
-        />
-        <RankingTable rows={policeAreaRows} territoryType="police_area" sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} limit={showAll.police_area ? undefined : LIMIT} />
-        {policeAreaRows.length > LIMIT ? (
-          <button type="button" className="btn btn--ghost justify-self-start" onClick={() => setShowAll((current) => ({ ...current, police_area: !current.police_area }))}>
-            {showAll.police_area ? `Mostrar só as ${LIMIT} primeiras` : `Ver todas as ${policeAreaRows.length} áreas`}
-          </button>
-        ) : null}
-      </section>
-    </div>
+      <Panel
+        title={<><b>Áreas integradas (CISP)</b> · {policeAreaRows.length} · desde {coverage.police_area_start_year ?? "2003"}</>}
+        flush
+        foot={mode === "rate" ? "Sem população oficial por CISP: ordenado por ocorrências." : undefined}
+      >
+        <RankingTable rows={policeAreaRows} territoryType="police_area" sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} />
+      </Panel>
+    </Screen>
   );
 }
 
