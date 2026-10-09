@@ -1,204 +1,138 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { LoadingOverlay } from "@/components/LoadingState";
-import { RankingTable } from "@/components/RankingTable";
-import { ANALYSIS_START_YEAR } from "@/lib/constants";
-import { enabledUf, type UfCode } from "@/lib/ufs";
-import type { Indicator, RankingMode, RankingRow } from "@/types/api";
+import { useMemo, useState } from "react";
+import { RankingTable, type SortDirection, type SortKey } from "@/components/RankingTable";
+import { Field, SectionHeading, Segmented } from "@/components/ui";
+import { CRIME_GENERAL_CODE, getIndicator, getIndicators, getLatestPeriod, getRankings, getSnapshotMeta } from "@/lib/api";
+import { formatPeriodRange, monthLong } from "@/lib/format";
+import type { RankingMode, RankingRow } from "@/types/api";
 
-type SortKey = "territory" | "value" | "trend" | "variation";
-type SortDirection = "asc" | "desc";
-const GENERAL_CRIME_INDICATOR: Indicator = {
-  code: "crime_geral",
-  name: "Crime geral",
-  category: "agregado",
-  unit: "ocorrências",
-  source_name: "snapshot"
-};
-
-export function RankingsExplorer({
-  indicators,
-  initialMunicipalityRows,
-  initialPoliceAreaRows
-}: {
-  indicators: Indicator[];
-  initialMunicipalityRows: RankingRow[];
-  initialPoliceAreaRows: RankingRow[];
-}) {
-  const [indicator, setIndicator] = useState("crime_geral");
-  const [indicatorOptions, setIndicatorOptions] = useState([GENERAL_CRIME_INDICATOR, ...indicators]);
-  const [uf, setUf] = useState<UfCode>("BR");
+export function RankingsExplorer() {
+  const latest = getLatestPeriod();
+  const coverage = getSnapshotMeta().coverage;
+  const [indicator, setIndicator] = useState(CRIME_GENERAL_CODE);
   const [mode, setMode] = useState<RankingMode>("rate");
-  const [year, setYear] = useState(2026);
-  const [month, setMonth] = useState(2);
-  const [municipalityRows, setMunicipalityRows] = useState(initialMunicipalityRows);
-  const [policeAreaRows, setPoliceAreaRows] = useState(initialPoliceAreaRows);
-  const [sortKey, setSortKey] = useState<SortKey | null>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const firstRankingsLoad = useRef(true);
+  const [year, setYear] = useState(latest.year);
+  const [month, setMonth] = useState(latest.month);
+  const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection } | null>(null);
+  const [showAll, setShowAll] = useState({ municipality: false, police_area: false });
+  const LIMIT = 25;
 
-  useEffect(() => {
-    let cancelled = false;
-    async function loadRankings() {
-      if (firstRankingsLoad.current) {
-        firstRankingsLoad.current = false;
-        return;
-      }
-      setLoading(true);
-      setError(null);
-      const { getRankings } = await import("@/lib/api");
-      const [nextMunicipalityRows, nextPoliceAreaRows] = await Promise.all([
-        getRankings(indicator, mode, "municipality", year, month, uf),
-        uf === "RJ" ? getRankings(indicator, mode, "police_area", year, month, uf) : Promise.resolve([])
-      ]);
-      if (!cancelled) {
-        setMunicipalityRows(sortKey ? sortRows(nextMunicipalityRows, sortKey, sortDirection) : nextMunicipalityRows);
-        setPoliceAreaRows(sortKey ? sortRows(nextPoliceAreaRows, sortKey, sortDirection) : nextPoliceAreaRows);
-      }
-    }
-    loadRankings()
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Erro ao carregar ranking."))
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [indicator, mode, year, month, sortKey, sortDirection, uf]);
+  const indicators = useMemo(() => {
+    const general = getIndicator(CRIME_GENERAL_CODE);
+    return general ? [general, ...getIndicators()] : getIndicators();
+  }, []);
+  const municipalityRows = useMemo(() => sortRows(getRankings(indicator, mode, "municipality", year, month), sort), [indicator, mode, month, sort, year]);
+  const policeAreaRows = useMemo(() => sortRows(getRankings(indicator, mode === "rate" ? "count" : mode, "police_area", year, month), sort), [indicator, mode, month, sort, year]);
+  const firstYear = Math.min(coverage.municipality_start_year ?? latest.year, coverage.police_area_start_year ?? latest.year);
+  const years = Array.from({ length: latest.year - firstYear + 1 }, (_, index) => latest.year - index);
+  const maxMonth = year === latest.year ? latest.month : 12;
 
-  useEffect(() => {
-    function handleUfChange(event: Event) {
-      const detail = (event as CustomEvent<{ uf?: string }>).detail;
-      const nextUf = enabledUf(detail?.uf);
-      setUf(nextUf);
-      void reloadUf(nextUf);
-    }
-    window.addEventListener("ufchange", handleUfChange);
-    const params = new URLSearchParams(window.location.search);
-    const initialUf = enabledUf(params.get("uf") ?? window.localStorage.getItem("selected_uf"));
-    if (initialUf !== "BR") {
-      setUf(initialUf);
-      void reloadUf(initialUf);
-    }
-    return () => window.removeEventListener("ufchange", handleUfChange);
-  }, [indicator, mode]);
-
-  async function reloadUf(nextUf: UfCode) {
-    setLoading(true);
-    setError(null);
-    try {
-      const { getIndicators, getLatestPeriod, getRankings } = await import("@/lib/api");
-      const [latest, nextRawIndicators] = await Promise.all([getLatestPeriod(nextUf), getIndicators(nextUf)]);
-      const nextIndicators = [GENERAL_CRIME_INDICATOR, ...nextRawIndicators];
-      const nextIndicator = nextIndicators.some((item) => item.code === indicator) ? indicator : "crime_geral";
-      const [nextMunicipalityRows, nextPoliceAreaRows] = await Promise.all([
-        getRankings(nextIndicator, mode, "municipality", latest.year, latest.month, nextUf),
-        nextUf === "RJ" ? getRankings(nextIndicator, mode, "police_area", latest.year, latest.month, nextUf) : Promise.resolve([])
-      ]);
-      setIndicatorOptions(nextIndicators);
-      setIndicator(nextIndicator);
-      setYear(latest.year);
-      setMonth(latest.month);
-      setMunicipalityRows(sortKey ? sortRows(nextMunicipalityRows, sortKey, sortDirection) : nextMunicipalityRows);
-      setPoliceAreaRows(sortKey ? sortRows(nextPoliceAreaRows, sortKey, sortDirection) : nextPoliceAreaRows);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar UF.");
-    } finally {
-      setLoading(false);
-    }
+  function handleSort(key: SortKey) {
+    setSort((current) => ({ key, direction: current?.key === key && current.direction === "desc" ? "asc" : "desc" }));
   }
 
-  function handleSort(nextKey: SortKey) {
-    const nextDirection = sortKey === nextKey && sortDirection === "desc" ? "asc" : "desc";
-    setSortKey(nextKey);
-    setSortDirection(nextDirection);
-    setMunicipalityRows((currentRows) => sortRows(currentRows, nextKey, nextDirection));
-    setPoliceAreaRows((currentRows) => sortRows(currentRows, nextKey, nextDirection));
-  }
+  const periodLabel = formatPeriodRange(year, Math.min(month, maxMonth));
 
   return (
-    <div className="grid gap-6">
-      <section className="grid gap-4 border border-border bg-surface p-5 shadow-hard md:grid-cols-4">
-        <label className="grid gap-2 font-mono text-xs font-bold uppercase tracking-widest text-muted min-w-0">
-          Indicador
-          <select className="h-10 border border-border bg-surface px-3 text-sm text-foreground" value={indicator} onChange={(event) => setIndicator(event.target.value)}>
-            {indicatorOptions.map((item) => (
+    <div className="grid gap-12">
+      <section className="flex flex-wrap items-end gap-x-6 gap-y-4">
+        <Field label="Indicador">
+          <select value={indicator} onChange={(event) => setIndicator(event.target.value)} className="min-w-[260px]">
+            {indicators.map((item) => (
               <option key={item.code} value={item.code}>
-                {item.code === "crime_geral" ? "CRIME GERAL" : item.code === "letalidade_violenta" ? "LETALIDADE GERAL" : item.name.toUpperCase()}
+                {item.name}
               </option>
             ))}
           </select>
-        </label>
-        <label className="grid gap-2 font-mono text-xs font-bold uppercase tracking-widest text-muted min-w-0">
-          Métrica
-          <select
-            className="h-10 border border-border bg-surface px-3 text-sm text-foreground"
-            value={mode}
-            onChange={(event) => {
-              setMode(event.target.value as RankingMode);
-              setSortKey(null);
-            }}
-          >
-            <option value="count">VALOR ABSOLUTO</option>
-            <option value="rate">TAXA 100 MIL</option>
-            <option value="yoy">VARIAÇÃO</option>
-          </select>
-        </label>
-        <label className="grid gap-2 font-mono text-xs font-bold uppercase tracking-widest text-muted min-w-0">
-          Ano
-          <input className="h-10 border border-border bg-surface px-3 text-sm text-foreground" type="number" value={year} min={ANALYSIS_START_YEAR} max={2026} onChange={(event) => setYear(Number(event.target.value))} />
-        </label>
-        <label className="grid gap-2 font-mono text-xs font-bold uppercase tracking-widest text-muted min-w-0">
-          Mês
-          <input className="h-10 border border-border bg-surface px-3 text-sm text-foreground" type="number" value={month} min={1} max={12} onChange={(event) => setMonth(Number(event.target.value))} />
-        </label>
+        </Field>
+        <Segmented
+          label="Métrica"
+          value={mode}
+          onChange={(next) => {
+            setMode(next);
+            setSort(null);
+          }}
+          options={[
+            { value: "rate", label: "Por 100 mil" },
+            { value: "count", label: "Ocorrências" },
+            { value: "yoy", label: "Variação" }
+          ]}
+        />
+        <div className="flex gap-2">
+          <Field label="Ano">
+            <select
+              value={year}
+              onChange={(event) => {
+                const nextYear = Number(event.target.value);
+                setYear(nextYear);
+                setMonth(Math.min(month, nextYear === latest.year ? latest.month : 12));
+              }}
+            >
+              {years.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Até o mês">
+            <select value={Math.min(month, maxMonth)} onChange={(event) => setMonth(Number(event.target.value))}>
+              {Array.from({ length: maxMonth }, (_, index) => index + 1).map((item) => (
+                <option key={item} value={item}>
+                  {monthLong(item)}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
       </section>
 
-      <div className="flex min-h-6 items-center justify-between gap-4 font-mono text-xs uppercase tracking-widest text-muted">
-        <span>{loading ? "Carregando ranking oficial..." : null}</span>
-        {error ? <span className="text-accent-red">{error}</span> : null}
-      </div>
-
-      <div className="relative grid gap-6">
-        {loading ? <LoadingOverlay label="Atualizando rankings" /> : null}
-        <section className="grid gap-4">
-          <div className="border-b border-border pb-3">
-            <h3 className="m-0 text-3xl font-display uppercase leading-none text-foreground">{uf === "BR" ? "UFs" : "Municípios"}</h3>
-          </div>
-          <RankingTable rows={municipalityRows} sortKey={sortKey ?? undefined} sortDirection={sortDirection} onSort={handleSort} />
-        </section>
-
-        {uf === "RJ" ? (
-        <section className="grid gap-4">
-          <div className="border-b border-border pb-3">
-            <h3 className="m-0 text-3xl font-display uppercase leading-none text-foreground">CISPs / Áreas policiais</h3>
-          </div>
-          <RankingTable rows={policeAreaRows} sortKey={sortKey ?? undefined} sortDirection={sortDirection} onSort={handleSort} />
-        </section>
+      <section className="grid gap-5">
+        <SectionHeading
+          title="Municípios"
+          sub={`Acumulado de ${periodLabel}, comparado com os mesmos meses do ano anterior. Taxas usam a população do ano (IBGE). Série municipal desde ${coverage.municipality_start_year ?? "2014"}.`}
+        />
+        <RankingTable rows={municipalityRows} territoryType="municipality" sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} limit={showAll.municipality ? undefined : LIMIT} />
+        {municipalityRows.length > LIMIT ? (
+          <button type="button" className="btn btn--ghost justify-self-start" onClick={() => setShowAll((current) => ({ ...current, municipality: !current.municipality }))}>
+            {showAll.municipality ? `Mostrar só os ${LIMIT} primeiros` : `Ver todos os ${municipalityRows.length} municípios`}
+          </button>
         ) : null}
-      </div>
+      </section>
+
+      <section className="grid gap-5">
+        <SectionHeading
+          title="Áreas integradas de segurança pública (CISP)"
+          sub={`Acumulado de ${periodLabel}. Sem denominador populacional oficial por CISP, o ranking é por ocorrências${mode === "rate" ? " (a taxa não se aplica)" : ""}. Série desde ${coverage.police_area_start_year ?? "2003"}.`}
+        />
+        <RankingTable rows={policeAreaRows} territoryType="police_area" sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} limit={showAll.police_area ? undefined : LIMIT} />
+        {policeAreaRows.length > LIMIT ? (
+          <button type="button" className="btn btn--ghost justify-self-start" onClick={() => setShowAll((current) => ({ ...current, police_area: !current.police_area }))}>
+            {showAll.police_area ? `Mostrar só as ${LIMIT} primeiras` : `Ver todas as ${policeAreaRows.length} áreas`}
+          </button>
+        ) : null}
+      </section>
     </div>
   );
 }
 
-function sortRows(rows: RankingRow[], key: SortKey, direction: SortDirection) {
-  const multiplier = direction === "desc" ? -1 : 1;
+function sortRows(rows: RankingRow[], sort: { key: SortKey; direction: SortDirection } | null): RankingRow[] {
+  if (!sort) {
+    return rows;
+  }
+  const multiplier = sort.direction === "desc" ? -1 : 1;
   return [...rows]
     .sort((a, b) => {
-      if (key === "territory") {
+      if (sort.key === "territory") {
         return a.territory_name.localeCompare(b.territory_name, "pt-BR") * multiplier;
       }
-      if (key === "trend") {
-        return (a.trend_label ?? "Inconclusivo").localeCompare(b.trend_label ?? "Inconclusivo", "pt-BR") * multiplier;
+      if (sort.key === "trend") {
+        return (a.trend_label ?? "").localeCompare(b.trend_label ?? "", "pt-BR") * multiplier;
       }
-      const aValue = key === "value" ? a.value : a.yoy_percent_change ?? Number.NEGATIVE_INFINITY;
-      const bValue = key === "value" ? b.value : b.yoy_percent_change ?? Number.NEGATIVE_INFINITY;
-      return (aValue - bValue) * multiplier;
+      const pick = (row: RankingRow) =>
+        sort.key === "value" ? row.value : sort.key === "rate" ? row.rate_per_100k ?? Number.NEGATIVE_INFINITY : row.yoy_percent_change ?? Number.NEGATIVE_INFINITY;
+      return (pick(a) - pick(b)) * multiplier;
     })
     .map((row, index) => ({ ...row, rank: index + 1 }));
 }

@@ -142,3 +142,121 @@ def _numeric_population(value: object) -> float | None:
     except ValueError:
         return None
     return number if number > 0 else None
+
+
+# --- Series historicas de populacao (estado e municipios) ---------------------------------
+#
+# O IBGE publica estimativas anuais (tabela 6579) para quase todos os anos desde 2001, mas nao
+# para anos de Censo/Contagem (2000, 2007, 2010, 2022) nem para 2023. Os anos de Censo vem das
+# tabelas 200 (1991/2000/2010), 793 (Contagem 2007) e 4714 (Censo 2022). Anos sem nenhuma
+# publicacao (1992-1999, 2023) sao interpolados linearmente entre os pontos vizinhos e
+# marcados como `interpolated` no snapshot.
+
+IBGE_STATE_ESTIMATES_URL = "https://apisidra.ibge.gov.br/values/t/6579/n3/33/v/9324/p/all"
+IBGE_STATE_CENSUS_URL = "https://apisidra.ibge.gov.br/values/t/200/n3/33/v/93/p/1991,2000,2010"
+IBGE_STATE_COUNT_2007_URL = "https://apisidra.ibge.gov.br/values/t/793/n3/33/v/93/p/2007"
+IBGE_STATE_CENSUS_2022_URL = "https://apisidra.ibge.gov.br/values/t/4714/n3/33/v/93/p/2022"
+IBGE_MUNICIPALITY_ESTIMATES_URL = "https://apisidra.ibge.gov.br/values/t/6579/n6/in%20n3%2033/v/9324/p/all"
+IBGE_MUNICIPALITY_CENSUS_2022_URL = IBGE_CENSUS_POPULATION_URL
+IBGE_MUNICIPALITY_CENSUS_2010_URL = "https://apisidra.ibge.gov.br/values/t/200/n6/in%20n3%2033/v/93/p/2010"
+
+PopulationHistory = dict[int, dict[str, float | bool]]
+
+
+@lru_cache(maxsize=1)
+def state_population_history(start_year: int, end_year: int) -> PopulationHistory:
+    """Return the RJ state population per year, interpolating years without an IBGE figure."""
+
+    observed: dict[int, float] = {}
+    for url in (
+        IBGE_STATE_CENSUS_URL,
+        IBGE_STATE_COUNT_2007_URL,
+        IBGE_STATE_CENSUS_2022_URL,
+        IBGE_STATE_ESTIMATES_URL,
+    ):
+        for row in _load_or_download_rows(url, _history_cache_path("state", url)):
+            year = _row_year(row)
+            value = _numeric_population(row.get("V"))
+            if year and value is not None and year not in observed:
+                observed[year] = value
+    return _interpolate_years(observed, start_year, end_year)
+
+
+@lru_cache(maxsize=1)
+def municipality_population_history(start_year: int, end_year: int) -> dict[str, PopulationHistory]:
+    """Return population per year for every RJ municipality, keyed by municipality name."""
+
+    observed: dict[str, dict[int, float]] = {}
+    for url in (
+        IBGE_MUNICIPALITY_CENSUS_2010_URL,
+        IBGE_MUNICIPALITY_CENSUS_2022_URL,
+        IBGE_MUNICIPALITY_ESTIMATES_URL,
+    ):
+        for row in _load_or_download_rows(url, _history_cache_path("municipalities", url)):
+            name = _clean_municipality_name(row.get("D1N"))
+            year = _row_year(row)
+            value = _numeric_population(row.get("V"))
+            if not name or not year or value is None:
+                continue
+            observed.setdefault(name, {}).setdefault(year, value)
+    return {
+        name: _interpolate_years(years, start_year, end_year)
+        for name, years in sorted(observed.items())
+    }
+
+
+def _interpolate_years(observed: dict[int, float], start_year: int, end_year: int) -> PopulationHistory:
+    if not observed:
+        return {}
+    known_years = sorted(observed)
+    output: PopulationHistory = {}
+    for year in range(start_year, end_year + 1):
+        if year in observed:
+            output[year] = {"value": float(observed[year]), "interpolated": False}
+            continue
+        previous = max((known for known in known_years if known < year), default=None)
+        following = min((known for known in known_years if known > year), default=None)
+        if previous is None and following is None:
+            continue
+        if previous is None:
+            value = observed[following]  # type: ignore[index]
+        elif following is None:
+            value = observed[previous]
+        else:
+            span = following - previous
+            weight = (year - previous) / span
+            value = observed[previous] + (observed[following] - observed[previous]) * weight
+        output[year] = {"value": round(float(value)), "interpolated": True}
+    return output
+
+
+def _row_year(row: dict[str, Any]) -> int | None:
+    for key in ("D3C", "D2C"):
+        text = str(row.get(key, "")).strip()
+        if text.isdigit():
+            return int(text)
+    return None
+
+
+def _history_cache_path(scope: str, url: str) -> Path:
+    table = re.search(r"/t/(\d+)/", url)
+    period = re.search(r"/p/([^/]+)$", url)
+    suffix = f"t{table.group(1) if table else 'x'}_{(period.group(1) if period else 'all').replace(',', '_')}"
+    return (settings.data_dir / "raw" / "ibge" / f"population_{scope}_rj_{suffix}.json").resolve()
+
+
+def _load_or_download_rows(url: str, cache_path: Path) -> list[dict[str, Any]]:
+    if cache_path.exists() and cache_path.stat().st_size > 0:
+        try:
+            return json.loads(cache_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            logger.warning("Ignoring invalid IBGE cache at %s", cache_path)
+    try:
+        rows = _download_population_rows(url)
+    except httpx.HTTPError as exc:
+        logger.warning("IBGE download failed from %s: %s", url, exc)
+        return []
+    if rows:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
+    return rows

@@ -1,5 +1,5 @@
 {
-  "name": "rj-violencia-dados-frontend",
+  "name": "perdeu-playboy-frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,18 +11,14 @@
     "test:visual": "playwright test"
   },
   "dependencies": {
-    "@types/leaflet": "^1.9.14",
-    "clsx": "^2.1.1",
-    "leaflet": "^1.9.4",
-    "lucide-react": "^0.468.0",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-leaflet": "^5.0.0",
     "recharts": "^2.13.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
+    "@types/geojson": "^7946.0.16",
     "@types/node": "^22.9.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

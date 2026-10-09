@@ -1,56 +1,38 @@
-"use client";
+import Link from "next/link";
+import { EmptyState, SectionHeading } from "@/components/ui";
+import { formatNumber, formatPercent, formatSigned } from "@/lib/format";
+import type { ChangeRow, ChangeSection, TerritoryType } from "@/types/api";
 
-import { useEffect, useState } from "react";
-import { LoadingOverlay } from "@/components/LoadingState";
-import { SourceBadge } from "@/components/SourceBadge";
-import { enabledUf, sourceLabelForUf, type UfCode } from "@/lib/ufs";
-import type { ChangeRow, LatestChangesResponse } from "@/types/api";
-
-function formatNumber(value: number | null) {
-  if (value === null) {
-    return "-";
+function ChangeTable({ rows, territoryType }: { rows: ChangeRow[]; territoryType: TerritoryType }) {
+  if (rows.length === 0) {
+    return <EmptyState>SEM VARIAÇÃO NESTE SENTIDO</EmptyState>;
   }
-  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(value);
-}
-
-function ChangeTable({ rows, direction }: { rows: ChangeRow[]; direction: "increase" | "decrease" }) {
-  const emptyLabel = direction === "increase"
-    ? "Sem piora neste período."
-    : "Sem queda neste período.";
-
   return (
-    <div className="overflow-x-auto border border-border bg-surface shadow-hard">
-      <table className="w-full min-w-[760px] divide-y divide-border text-sm">
-        <thead className="bg-background text-left font-mono text-xs font-bold uppercase tracking-wide text-muted">
+    <div className="overflow-x-auto">
+      <table className="ruled min-w-[640px]">
+        <thead>
           <tr>
-            <th className="px-4 py-3">Rank</th>
-            <th className="px-4 py-3">Território</th>
-            <th className="px-4 py-3 text-right">Atual</th>
-            <th className="px-4 py-3 text-right">Ano anterior</th>
-            <th className="px-4 py-3 text-right">Mudança</th>
-            <th className="px-4 py-3 text-right">%</th>
+            <th className="w-12">#</th>
+            <th>Território</th>
+            <th className="right">Últimos 12 meses</th>
+            <th className="right">12 meses anteriores</th>
+            <th className="right">Diferença</th>
+            <th className="right">Variação</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
-          {rows.length === 0 ? (
-            <tr>
-              <td colSpan={6} className="px-4 py-8 text-center font-mono text-xs uppercase tracking-widest text-muted">
-                {emptyLabel}
-              </td>
-            </tr>
-          ) : null}
+        <tbody>
           {rows.map((row) => (
-            <tr key={`${row.territory_type}-${row.territory_name}`} className="hover:bg-background/50">
-              <td className="px-4 py-3 font-mono font-bold text-muted">{row.rank}</td>
-              <td className="px-4 py-3 text-xs font-semibold uppercase text-foreground">{row.territory_name}</td>
-              <td className="px-4 py-3 text-right font-mono tabular-nums">{formatNumber(row.current_value)}</td>
-              <td className="px-4 py-3 text-right font-mono tabular-nums">{formatNumber(row.previous_value)}</td>
-              <td className={row.absolute_change > 0 ? "px-4 py-3 text-right font-mono font-bold tabular-nums text-accent-red" : "px-4 py-3 text-right font-mono font-bold tabular-nums text-muted"}>
-                {formatNumber(row.absolute_change)}
+            <tr key={row.territory_name}>
+              <td className="num faint">{row.rank}</td>
+              <td>
+                <Link href={`/trends?indicator=crime_geral&type=${territoryType}&name=${encodeURIComponent(row.territory_name)}&view=rolling`} className="text-ink hover:underline hover:underline-offset-4">
+                  {row.territory_name}
+                </Link>
               </td>
-              <td className={row.percent_change && row.percent_change > 0 ? "px-4 py-3 text-right font-mono font-bold tabular-nums text-accent-red" : "px-4 py-3 text-right font-mono font-bold tabular-nums text-muted"}>
-                {formatNumber(row.percent_change)}%
-              </td>
+              <td className="num right">{formatNumber(row.current_value)}</td>
+              <td className="num right faint">{formatNumber(row.previous_value)}</td>
+              <td className="num right">{formatSigned(row.absolute_change)}</td>
+              <td className="num right">{formatPercent(row.percent_change)}</td>
             </tr>
           ))}
         </tbody>
@@ -59,70 +41,15 @@ function ChangeTable({ rows, direction }: { rows: ChangeRow[]; direction: "incre
   );
 }
 
-export function ChangesExplorer({ initialChanges }: { initialChanges: LatestChangesResponse }) {
-  const [changes, setChanges] = useState(initialChanges);
-  const [uf, setUf] = useState<UfCode>("BR");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    function handleUfChange(event: Event) {
-      const detail = (event as CustomEvent<{ uf?: string }>).detail;
-      const nextUf = enabledUf(detail?.uf);
-      void reload(nextUf);
-    }
-    window.addEventListener("ufchange", handleUfChange);
-    const params = new URLSearchParams(window.location.search);
-    const initialUf = enabledUf(params.get("uf") ?? window.localStorage.getItem("selected_uf"));
-    if (initialUf !== "BR") {
-      void reload(initialUf);
-    }
-    return () => window.removeEventListener("ufchange", handleUfChange);
-  }, []);
-
-  async function reload(nextUf: UfCode) {
-    setUf(nextUf);
-    setLoading(true);
-    setError(null);
-    try {
-      const { getLatestChanges } = await import("@/lib/api");
-      setChanges(await getLatestChanges(nextUf));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar mudanças.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
+export function ChangesExplorer({ sections }: { sections: ChangeSection[] }) {
   return (
-    <div className="grid gap-8">
-      <section className="flex flex-col gap-4 border-b border-border pb-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">Mudanças</p>
-          <h2 className="m-0 mt-1 text-4xl font-display uppercase leading-none text-foreground">O que mudou no último período</h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <SourceBadge label={sourceLabelForUf(uf)} />
-          <SourceBadge label={`${changes.latest_period.month}/${changes.latest_period.year}`} />
-        </div>
-      </section>
-
-      <div className="min-h-5 font-mono text-xs uppercase tracking-widest text-muted">
-        {loading ? "Carregando mudanças..." : null}
-        {error ? <span className="text-accent-red">{error}</span> : null}
-      </div>
-
-      <div className="relative grid gap-8">
-        {loading ? <LoadingOverlay label="Atualizando mudanças" /> : null}
-        {changes.sections.map((section) => (
-          <section key={section.title} className="grid gap-4">
-            <div className="border-b border-border pb-3">
-              <h3 className="m-0 text-3xl font-display uppercase leading-none text-foreground">{section.title}</h3>
-            </div>
-            <ChangeTable rows={section.rows} direction={section.direction} />
-          </section>
-        ))}
-      </div>
+    <div className="grid gap-12">
+      {sections.map((section) => (
+        <section key={section.title} className="grid gap-5">
+          <SectionHeading title={section.title} sub={section.direction === "increase" ? "Maiores aumentos absolutos em crime geral." : "Maiores quedas absolutas em crime geral."} />
+          <ChangeTable rows={section.rows} territoryType={section.territory_type} />
+        </section>
+      ))}
     </div>
   );
 }

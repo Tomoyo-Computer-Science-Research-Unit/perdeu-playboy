@@ -176,14 +176,17 @@ def methodology() -> dict:
         "title": "Metodologia",
         "source_summary": (
             "O painel usa CSVs oficiais do Instituto de Seguranca Publica do Estado do Rio de Janeiro "
-            "baixados do portal ISPDados. Taxas municipais por 100 mil habitantes usam populacao oficial "
-            "do IBGE/SIDRA."
+            "baixados do portal ISPDados. A serie estadual comeca em janeiro de 1991; municipios desde 2014 "
+            "e areas integradas de seguranca publica (CISP) desde 2003. Taxas por 100 mil habitantes usam a "
+            "populacao anual do IBGE/SIDRA (estimativas, censos e contagem)."
         ),
         "update_frequency": "As series oficiais do ISP sao publicadas mensalmente; o app baixa e cacheia os CSVs oficiais localmente.",
         "limitations": [
             "Os dados do ISP sao baseados em registros policiais e podem nao representar todos os eventos reais.",
             "Mudancas de classificacao, fluxo administrativo ou atraso de consolidacao podem afetar comparacoes historicas.",
-            "Taxas por 100 mil estao disponiveis para municipios quando ha codigo IBGE no dado do ISP; areas policiais ainda nao possuem denominador populacional carregado.",
+            "Meses em que o ISP ainda nao apurava um indicador (por exemplo, estupro antes de 2003 e feminicidio antes de outubro de 2024) aparecem como 'sem dado', nunca como zero.",
+            "Taxas por 100 mil usam a populacao do ano correspondente. Anos sem estimativa publicada pelo IBGE (1992-1999 e 2023) sao interpolados linearmente entre censos, contagens e estimativas vizinhas, e ficam marcados como tal.",
+            "Taxas por 100 mil estao disponiveis para estado e municipios; areas policiais nao possuem denominador populacional oficial carregado.",
             "Filtros por bairro usam a relacao oficial bairro/distrito-CISP do ISP; os indicadores sao agregados da CISP correspondente, nao ocorrencias geocodificadas no limite exato do bairro.",
             "Mapas reais exigem geometrias oficiais de municipios/CISP; shapes artificiais nao sao usados.",
             "Dados do Fogo Cruzado, se habilitados no futuro, descrevem eventos de disparo de arma de fogo e nao devem ser somados automaticamente aos registros policiais.",

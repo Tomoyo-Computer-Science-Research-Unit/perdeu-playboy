@@ -1,484 +1,116 @@
 # Perdeu, Playboy
 
-Dashboard publico de dados sobre violencia e seguranca publica no Brasil, cobrindo todas as 27 unidades federativas (26 estados e o Distrito Federal).
+Painel público de dados sobre violência e segurança pública no **Estado do Rio de Janeiro**, da Tomoyo.
 
-O projeto agrega bases oficiais, normaliza series historicas e publica um site estatico com indicadores, mapas, rankings, tendencias e comparacoes por governo. O tom editorial e de dados civicos: sem identificacao de vitimas, sem enderecos privados e sem linguagem sensacionalista.
+O projeto baixa as bases oficiais do ISP, normaliza as séries históricas e publica um site estático com indicadores,
+séries desde 1991, mapas, rankings, mudanças recentes e comparações por mandato. O tom é de dados cívicos: sem
+identificação de vítimas, sem endereços privados e sem linguagem sensacionalista. O visual segue a identidade de
+[tomoyo.systems](https://tomoyo.systems): tinta sobre papel, Shippori Mincho e Archivo, tema claro e escuro.
 
-Site em producao: https://perdeu-playboy.online
+Site em produção: https://perdeu-playboy.online
 
-## Status
+## Escopo
 
-Este repositorio contem um produto funcional, nao apenas um scaffold.
-
-- Frontend estatico em Next.js, publicado na Vercel.
-- Snapshot de dados versionado em `frontend/lib/static-data.generated.json`.
-- Backend FastAPI e ETL em Python para gerar o snapshot e servir API local.
-- Integracao real com bases oficiais de RJ, SP, MG, ES, PR, SC e RS.
-- Testes, lint, mypy e workflow agendado para atualizar dados.
+Somente Rio de Janeiro. O suporte a outras UFs (SSP-SP e Sinesp VDE) foi removido em outubro de 2026 para
+concentrar o trabalho na qualidade da série fluminense; o código anterior continua no histórico do git
+(último commit com suporte multi-UF: `43b2bcf`).
 
 ## Dados
 
-### Rio de Janeiro
-
-Fonte principal: Instituto de Seguranca Publica do Rio de Janeiro, ISP Dados Abertos.
-
-- Portal: https://www.ispdados.rj.gov.br/
-- Estatisticas: https://www.ispdados.rj.gov.br/estatistica.html
-- Dados abertos RJ: https://dadosabertos.rj.gov.br/dataset/isp-estatisticas-de-seguranca-publica
-
-Arquivos usados:
-
-- `DOMensalEstadoDesde1991.csv`: serie estadual mensal.
-- `BaseDPEvolucaoMensalCisp.csv`: serie mensal por CISP.
-- `BaseMunicipioMensal.csv`: serie mensal por municipio.
-- `ArmasApreendidasEvolucaoCisp.csv`: apreensoes de armas por CISP.
-- `Relacao_RISPxAISPxCISP.csv`: relacao entre RISP, AISP, CISP, unidades territoriais e municipios.
-
-Cobertura usada no produto:
-
-- Estado: desde 2000 no produto.
-- CISP / area policial: desde 2003 quando disponivel.
-- Municipio: desde 2014 quando disponivel.
-- Armas apreendidas: base propria do ISP por CISP, agregada para municipio quando necessario.
-
-### Sao Paulo
-
-Fonte principal: Secretaria da Seguranca Publica de Sao Paulo, via Números Sem Misterio / SSP-SP, com complemento Sinesp quando necessario.
-
-Uso atual:
-
-- Estado e municipios.
-- Serie desde 2015.
-- Sem divisao por bairro ou area policial nesta versao.
-
-### Parana
-
-Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
-
-- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
-- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
-
-Uso atual:
-
-- Estado e municipios.
-- Serie desde 2015, ate o periodo mais recente publicado no VDE.
-- Indicadores municipais quando o VDE informa municipio; indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
-- Sem divisao por bairro ou area policial nesta versao.
-
-### Santa Catarina
-
-Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
-
-- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
-- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
-
-Uso atual:
-
-- Estado e municipios.
-- Serie desde 2015, ate o periodo mais recente publicado no VDE.
-- Indicadores municipais quando o VDE informa municipio; indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
-- Sem divisao por bairro ou area policial nesta versao.
-
-### Rio Grande do Sul
-
-Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
-
-- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
-- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
-
-Uso atual:
-
-- Estado e municipios.
-- Serie desde 2015, ate o periodo mais recente publicado no VDE.
-- Indicadores municipais quando o VDE informa municipio; indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
-- Sem divisao por bairro ou area policial nesta versao.
-
-### Minas Gerais
-
-Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
-
-- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
-- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
-
-Uso atual:
-
-- Estado e municipios.
-- Serie desde 2015, ate o periodo mais recente publicado no VDE.
-- Indicadores municipais quando o VDE informa municipio; indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
-- Sem divisao por bairro ou area policial nesta versao.
-
-### Espirito Santo
-
-Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
-
-- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
-- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
-
-Uso atual:
-
-- Estado e municipios.
-- Serie desde 2015, ate o periodo mais recente publicado no VDE.
-- Indicadores municipais quando o VDE informa municipio; indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
-- Sem divisao por bairro ou area policial nesta versao.
-
-### Goias
-
-Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
-
-- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
-- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
-
-Uso atual:
-
-- Estado e municipios.
-- Serie desde 2015, ate o periodo mais recente publicado no VDE.
-- Indicadores municipais quando o VDE informa municipio; indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
-- Sem divisao por bairro ou area policial nesta versao.
-
-### Mato Grosso
-
-Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
-
-- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
-- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
-
-Uso atual:
-
-- Estado e municipios.
-- Serie desde 2015, ate o periodo mais recente publicado no VDE.
-- Indicadores municipais quando o VDE informa municipio; indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
-- Sem divisao por bairro ou area policial nesta versao.
-
-### Mato Grosso do Sul
-
-Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
-
-- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
-- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
-
-Uso atual:
-
-- Estado e municipios.
-- Serie desde 2015, ate o periodo mais recente publicado no VDE.
-- Indicadores municipais quando o VDE informa municipio; indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
-- Sem divisao por bairro ou area policial nesta versao.
-
-### Distrito Federal
-
-Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
-
-- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
-- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
-
-Uso atual:
-
-- Unidade federativa de municipio unico; o nivel estadual e o municipal coincidem em Brasilia.
-- Serie desde 2015, ate o periodo mais recente publicado no VDE.
-- Indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
-- Sem divisao por bairro ou area policial nesta versao.
-
-### Nordeste (MA, PI, CE, RN, PB, PE, AL, SE, BA)
-
-Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
-
-- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
-- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
-
-Estados: Maranhao, Piaui, Ceara, Rio Grande do Norte, Paraiba, Pernambuco, Alagoas, Sergipe e Bahia.
-
-Uso atual:
-
-- Estado e municipios.
-- Serie desde 2015, ate o periodo mais recente publicado no VDE.
-- Indicadores municipais quando o VDE informa municipio; indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
-- Sem divisao por bairro ou area policial nesta versao.
-
-### Norte (RO, AC, AM, RR, PA, AP, TO)
-
-Fonte principal: Sistema Nacional de Informacoes de Seguranca Publica, Sinesp VDE/MJSP.
-
-- Portal: https://dados.mj.gov.br/dataset/sistema-nacional-de-estatisticas-de-seguranca-publica
-- Base usada: `basededadosvde.zip`, com arquivos anuais `BancoVDE YYYY.csv`.
-
-Estados: Rondonia, Acre, Amazonas, Roraima, Para, Amapa e Tocantins.
-
-Uso atual:
-
-- Estado e municipios.
-- Serie desde 2015, ate o periodo mais recente publicado no VDE.
-- Indicadores municipais quando o VDE informa municipio; indicadores publicados apenas como `NÃO INFORMADO` entram somente no nivel estadual.
-- Sem divisao por bairro ou area policial nesta versao.
-
-### Geografia e populacao
-
-- Malhas municipais: IBGE.
-- Populacao municipal: IBGE/SIDRA, tabela 6579 quando disponivel.
-- Bairros da cidade do Rio: Data.Rio / Prefeitura do Rio.
-- Populacao de bairros do Rio: base publica Data.Rio usada para aproximar taxas no drilldown da capital.
-
-## Indicadores
-
-Indicadores publicados atualmente:
-
-- `homicidio_doloso`
-- `lesao_corp_morte`
-- `latrocinio`
-- `letalidade_violenta`
-- `morte_interv_policial`
-- `feminicidio`
-- `roubo_rua`
-- `roubo_veiculo`
-- `roubo_carga`
-- `estupro`
-- `apreensao_armas`
-
-`crime_geral` e um indicador derivado usado no mapa. Ele soma um conjunto de indicadores violentos/patrimoniais para produzir uma taxa comparavel por 100 mil habitantes. Nao e uma categoria oficial unica do ISP ou da SSP-SP.
+Fonte principal: Instituto de Segurança Pública do Rio de Janeiro, [ISP Dados Abertos](https://www.ispdados.rj.gov.br/).
+
+| Arquivo | Nível | Cobertura no site |
+| --- | --- | --- |
+| `DOMensalEstadoDesde1991.csv` | Estado | desde 1991-01 |
+| `BaseDPEvolucaoMensalCisp.csv` | Área integrada (CISP) | desde 2003-01 |
+| `BaseMunicipioMensal.csv` | Município | desde 2014-01 |
+| `ArmasApreendidasEvolucaoCisp.csv` | CISP (agregado para município e estado) | desde 2007-01 |
+| `Relacao_RISPxAISPxCISP.csv` | Divisão territorial | – |
+
+Alguns indicadores começam depois: lesão corporal seguida de morte (1999), morte por intervenção de agente do
+Estado (1998), estupro (2003), feminicídio (2024-10). Esses meses ficam **sem dado** no snapshot, nunca zero.
+
+População, para taxas por 100 mil habitantes, vem do IBGE/SIDRA por ano: censos de 1991, 2000, 2010 e 2022,
+contagem de 2007 e estimativas anuais (tabela 6579). Anos sem publicação (1992–1999 e 2023) são interpolados
+linearmente e marcados como tal. Geometrias: malhas do IBGE (municípios) e Data.Rio (bairros, com população do
+Censo 2022 por bairro).
+
+Indicadores publicados: `homicidio_doloso`, `lesao_corp_morte`, `latrocinio`, `letalidade_violenta`,
+`morte_interv_policial`, `feminicidio`, `roubo_rua`, `roubo_veiculo`, `roubo_carga`, `estupro`,
+`apreensao_armas`. `crime_geral` é derivado (letalidade violenta + roubo de rua + roubo de veículo + roubo de
+carga + estupro) e só existe num mês quando todos os componentes têm dado.
 
 ## Produto
 
-Paginas principais:
-
-- `/dashboard`: indicadores acumulados do ano, comparacao com ano anterior e minima historica.
-- `/trends`: series temporais por indicador, territorio e periodo.
-- `/map`: mapa por taxa, valor absoluto ou variacao anual.
-- `/rankings`: tabelas por municipio e CISP quando disponivel.
-- `/changes`: maiores pioras e melhoras recentes.
-- `/governors`: comparacao descritiva por mandato.
-- `/glossary`: definicoes curtas dos indicadores.
-- `/sources`: fontes e status do snapshot.
-- `/methodology`: metodologia resumida.
+- `/` Panorama: acumulado do ano por indicador contra os mesmos meses do ano anterior, mínimo e máximo históricos
+  no mesmo período, sparkline anual, gráfico anual com faixas de mandato e pequenos múltiplos de todos os
+  indicadores. Recorte por estado, município ou área integrada.
+- `/trends` Séries: anual, mensal ou soma móvel de 12 meses; ocorrências ou por 100 mil; intervalo de anos;
+  tabela ano a ano; CSV. Permalinks em `?indicator=&type=&name=&view=&metric=&from=&to=`.
+- `/map` Mapa: coropleto de municípios e, ao clicar no Rio, de bairros agregados por CISP. Escala por posição.
+- `/rankings`, `/changes`, `/governors`, `/methodology`, `/glossary`, `/sources`.
 
 ## Arquitetura
 
 ```text
-rj-violencia-dados/
-  backend/
-    app/
-      api/          FastAPI routes
-      services/     consultas e regras de agregacao
-      etl/          extracao, transformacao e export do snapshot
-      tests/        pytest
-    alembic/        migracoes PostgreSQL/PostGIS
-  frontend/
-    app/            Next.js App Router
-    components/     UI e visualizacoes
-    lib/            API estatica e snapshot
-    types/          contratos TypeScript
-  data/
-    raw/            caches locais de fontes oficiais
-    processed/      bases intermediarias
+backend/app/
+  etl/export_static_frontend.py   gera os dois snapshots do frontend
+  services/isp_repository.py      lê e normaliza os CSVs do ISP (sem dado ≠ zero, nomes reparados)
+  services/population_repository.py  população anual do IBGE, com interpolação marcada
+  services/governor_performance.py   mandatos e comparação descritiva
+frontend/
+  lib/static-data.generated.json  séries esparsas, população, mandatos, fontes (~2,6 MB)
+  lib/static-geo.generated.json   geometrias, carregadas só no mapa (~2,3 MB)
+  lib/static-api.ts               toda a leitura e os cálculos (acumulados, anuais, rankings, mapa)
+  app/, components/               Next.js App Router, Tailwind com tokens em CSS, Recharts
+data/raw/                         caches dos arquivos oficiais
 ```
 
-O site em producao nao depende de um backend ativo. A etapa de ETL gera `frontend/lib/static-data.generated.json`, e o frontend consome esse snapshot localmente.
+O site em produção não depende de backend ativo. As séries do snapshot são esparsas, no formato
+`{"from": "AAAA-MM", "values": [...]}`, com `null` para meses não apurados.
 
-O backend continua util para desenvolvimento, validacao de API, testes e futura operacao com banco.
+## Setup
 
-## Stack
-
-- Python 3.10+
-- FastAPI
-- Pandas
-- Pydantic
-- PostgreSQL + PostGIS
-- Alembic
-- Next.js App Router
-- TypeScript
-- Tailwind CSS
-- Recharts
-- Docker Compose
-- Pytest, flake8 e mypy
-
-## Setup rapido
-
-Requisitos:
-
-- Python 3.10 ou superior
-- Node.js 22 ou superior
-- Docker, se for usar PostGIS local
-
-Crie o `.env`:
+Requisitos: Python 3.10+ (CI usa 3.12), Node 22+.
 
 ```bash
 cp .env.example .env
+cd backend && uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -e ".[dev]"
+cd ../frontend && npm ci
 ```
 
-Instale dependencias Python:
+Regerar o snapshot (baixa os CSVs do ISP e as tabelas do IBGE na primeira vez; ~2 min):
 
 ```bash
-make install
+cd backend && .venv/bin/python -m app.etl.export_static_frontend
 ```
 
-Instale dependencias do frontend:
+Rodar o site:
 
 ```bash
-cd frontend
-npm install
+cd frontend && npm run dev
 ```
-
-Rode o frontend:
-
-```bash
-cd frontend
-npm run dev -- --hostname 127.0.0.1 --port 3000
-```
-
-Rode o backend:
-
-```bash
-cd backend
-uvicorn app.main:app --reload
-```
-
-URLs locais:
-
-- Frontend: http://localhost:3000
-- Backend: http://localhost:8000
-- OpenAPI: http://localhost:8000/docs
-- Health: http://localhost:8000/health
-
-## Docker
-
-```bash
-docker compose up --build
-```
-
-Servicos:
-
-- `postgres`: PostGIS 16.
-- `backend`: FastAPI com `uvicorn --reload`.
-- `frontend`: Next.js em modo dev.
-- `redis`: opcional, no profile `cache`.
-
-O Compose monta os diretorios locais para desenvolvimento com hot reload.
-
-## ETL e snapshot
-
-Executar pipeline principal:
-
-```bash
-make run
-```
-
-Regerar o snapshot usado pelo site:
-
-```bash
-cd backend
-python -m app.etl.export_static_frontend
-```
-
-Arquivos brutos ficam em:
-
-```text
-data/raw/
-```
-
-Arquivos processados ficam em:
-
-```text
-data/processed/
-```
-
-Os downloads oficiais sao idempotentes: se um arquivo bruto valido ja existe, o processo reaproveita o cache local.
 
 ## Qualidade
 
-Rodar lint e type-check:
-
 ```bash
-make lint
+make lint            # flake8 + mypy
+make test            # pytest
+cd frontend && npx tsc --noEmit && npm run build && npm run test:visual
 ```
 
-Rodar testes:
-
-```bash
-make test
-```
-
-Build do frontend:
-
-```bash
-cd frontend
-npm run build
-```
-
-Regras de qualidade adotadas:
-
-- Python tipado onde pratico.
-- Pydantic para validacao de modelos.
-- `flake8 .`
-- `mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs`
-- Testes de regressao para transformacoes e endpoints basicos.
-
-## Variaveis de ambiente
-
-```text
-DATABASE_URL=
-REDIS_URL=
-ISP_DATA_BASE_URL=
-FOGOCRUZADO_API_TOKEN=
-ENABLE_FOGOCRUZADO=false
-NEXT_PUBLIC_API_BASE_URL=
-NEXT_PUBLIC_GITHUB_URL=
-CORS_ORIGINS=
-```
-
-Notas:
-
-- `ISP_DATA_BASE_URL` aponta para o diretorio dos CSVs do ISP.
-- `FOGOCRUZADO_API_TOKEN` permanece opcional; a integracao nao roda sem credencial.
-- Em producao, o frontend usa snapshot estatico e nao precisa de backend publico.
-
-## Metodologia
-
-O projeto trabalha com registros policiais e administrativos. Esses dados podem sofrer atraso, revisao e mudanca de classificacao. O painel deve ser lido como uma ferramenta de acompanhamento de series oficiais, nao como contagem exaustiva de todos os eventos reais.
-
-Taxas por 100 mil usam populacao IBGE quando ha denominador confiavel para o territorio. Para a cidade do Rio, o mapa por bairro e uma visualizacao derivada: os valores de seguranca publica vem de CISPs, e uma CISP pode agrupar bairros ou partes de bairros.
-
-Fogo Cruzado e uma fonte diferente, baseada em eventos de disparo de arma de fogo. Se for integrada no futuro, deve aparecer separada das estatisticas policiais oficiais.
+O CI (`.github/workflows/ci.yml`) roda os testes do backend e os testes visuais do frontend com Playwright.
+O workflow `update-data.yml` regenera os dois snapshots toda segunda-feira e faz deploy na Vercel quando há
+mudança.
 
 ## Deploy
 
-O deploy atual e feito na Vercel a partir do frontend estatico.
-
-Deploy manual:
-
-```bash
-cd frontend
-npm exec --yes vercel@latest -- deploy --prod --yes
-```
-
-Dominio atual:
-
-```text
-perdeu-playboy.online
-www.perdeu-playboy.online
-```
-
-## Manutencao
-
-Antes de publicar mudancas:
-
-```bash
-make lint
-make test
-cd frontend && npm run build
-```
-
-Quando os dados mudarem:
-
-```bash
-cd backend
-python -m app.etl.export_static_frontend
-```
-
-Depois commitar `frontend/lib/static-data.generated.json` junto com qualquer mudanca de ETL que altere o formato do snapshot.
+Vercel, export estático (`frontend/out`). Veja `docs/deployment.md`.
 
 ## Roadmap
 
-- Melhorar a documentacao de formulas por grafico/tabela.
-- Adicionar testes de contrato para cada CSV oficial usado.
-- Separar melhor metadados de fonte por UF.
-- Criar pagina de status de ultima atualizacao com logs resumidos do workflow.
-- Integrar novas UFs mantendo o mesmo contrato de snapshot.
-- Avaliar geometrias oficiais para areas policiais quando disponiveis.
-- Integrar Fogo Cruzado somente como fonte separada e com credenciais autorizadas.
+- Página de status da última atualização com o log resumido do workflow.
+- Testes de contrato para cada CSV oficial.
+- Geometrias oficiais das CISPs, quando o ISP publicar.
+- Fogo Cruzado como fonte separada, com credenciais autorizadas.
+- Dividir o snapshot por indicador para reduzir o JavaScript inicial.

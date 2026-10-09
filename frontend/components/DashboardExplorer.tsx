@@ -1,250 +1,165 @@
 "use client";
 
-import { CalendarDays } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { LoadingOverlay } from "@/components/LoadingState";
+import Link from "next/link";
+import { useMemo, useRef, useState } from "react";
+import { AnnualTable } from "@/components/AnnualTable";
+import { HistoryChart, type ChartPoint } from "@/components/HistoryChart";
 import { MetricCard } from "@/components/MetricCard";
-import { SourceBadge } from "@/components/SourceBadge";
-import { TrendChart } from "@/components/TrendChart";
-import { ANALYSIS_START_YEAR } from "@/lib/constants";
-import { enabledUf, preferredMunicipalityForUf, sourceLabelForUf, stateNameForUf, type UfCode } from "@/lib/ufs";
-import type { SummaryResponse, TerritorialUnit, Territory, TimeSeriesPoint } from "@/types/api";
+import { SmallMultiples } from "@/components/SmallMultiples";
+import { TerritoryPicker, type TerritorySelection } from "@/components/TerritoryPicker";
+import { SectionHeading, Segmented } from "@/components/ui";
+import {
+  RIO_MUNICIPALITY,
+  getAnnualSeries,
+  getGovernorTerms,
+  getIndicator,
+  getIndicatorsFor,
+  getLatestPeriod,
+  getSummary,
+  getTerritorialUnits,
+  getTerritories,
+  resolveTerritoryName
+} from "@/lib/api";
+import { formatPeriodRange, monthLong } from "@/lib/format";
+import type { AnnualPoint } from "@/types/api";
 
-type DashboardTerritoryMode = "state" | "municipality";
+type Metric = "count" | "rate";
 
-export function DashboardExplorer({
-  latestYear,
-  initialSummary,
-  initialTimeseries,
-  municipalities,
-  initialTerritorialUnits
-}: {
-  latestYear: number;
-  initialSummary: SummaryResponse;
-  initialTimeseries: TimeSeriesPoint[];
-  municipalities: Territory[];
-  initialTerritorialUnits: TerritorialUnit[];
-}) {
-  const [territoryMode, setTerritoryMode] = useState<DashboardTerritoryMode>("state");
-  const [uf, setUf] = useState<UfCode>("BR");
-  const [activeLatestYear, setActiveLatestYear] = useState(latestYear);
-  const [selectedMunicipality, setSelectedMunicipality] = useState(preferredMunicipality("BR", municipalities));
-  const [selectedTerritorialUnit, setSelectedTerritorialUnit] = useState("");
-  const [municipalityOptions, setMunicipalityOptions] = useState(municipalities);
-  const [summary, setSummary] = useState(initialSummary);
-  const [timeseries, setTimeseries] = useState(initialTimeseries);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const firstDashboardLoad = useRef(true);
+export function DashboardExplorer() {
+  const latest = getLatestPeriod();
+  const [selection, setSelection] = useState<TerritorySelection>({ type: "state", name: "" });
+  const [indicator, setIndicator] = useState("letalidade_violenta");
+  const [metric, setMetric] = useState<Metric>("count");
+  const chartRef = useRef<HTMLElement>(null);
 
-  const chartStartYear = Math.max(ANALYSIS_START_YEAR, activeLatestYear - 2);
-  const canUseTerritorialUnit = uf === "RJ" && territoryMode === "municipality" && selectedMunicipality === "Rio de Janeiro";
-  const selectedUnit = initialTerritorialUnits.find((unit) => unit.police_area_name === selectedTerritorialUnit);
+  const municipalities = useMemo(() => getTerritories("municipality"), []);
+  const policeAreas = useMemo(() => getTerritories("police_area"), []);
+  const rioUnits = useMemo(() => getTerritorialUnits(RIO_MUNICIPALITY), []);
+  const terms = useMemo(() => getGovernorTerms(), []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const territoryName = resolveTerritoryName(selection.type, selection.name || undefined);
+  const summary = useMemo(() => getSummary(selection.type, territoryName), [selection.type, territoryName]);
+  const indicators = useMemo(() => getIndicatorsFor(selection.type, territoryName), [selection.type, territoryName]);
+  const activeIndicator = indicators.some((item) => item.code === indicator) ? indicator : indicators[0]?.code ?? "letalidade_violenta";
+  const annual = useMemo(() => getAnnualSeries(activeIndicator, selection.type, territoryName), [activeIndicator, selection.type, territoryName]);
+  const multiples = useMemo(
+    () => indicators.map((item) => ({ indicator: item, points: getAnnualSeries(item.code, selection.type, territoryName) })),
+    [indicators, selection.type, territoryName]
+  );
+  const hasRate = annual.some((point) => point.rate_per_100k !== null);
+  const effectiveMetric: Metric = hasRate ? metric : "count";
+  const chartPoints = useMemo(() => toChartPoints(annual, effectiveMetric, latest.month), [annual, effectiveMetric, latest.month]);
+  const indicatorMeta = getIndicator(activeIndicator);
+  const firstYear = annual[0]?.year ?? latest.year;
+  const multiplesStart = Math.min(...multiples.map((item) => item.points[0]?.year ?? latest.year));
 
-    async function loadDashboard() {
-      if (firstDashboardLoad.current) {
-        firstDashboardLoad.current = false;
-        return;
-      }
-      setLoading(true);
-      setError(null);
-
-      const territoryType =
-        territoryMode === "state" ? "state" : canUseTerritorialUnit && selectedUnit ? "police_area" : "municipality";
-      const territoryName =
-        territoryMode === "state"
-          ? stateNameForUf(uf)
-          : canUseTerritorialUnit && selectedUnit
-            ? selectedUnit.police_area_name
-            : selectedMunicipality;
-      if (!territoryName) {
-        setSummary({ ...initialSummary, cards: [] });
-        setTimeseries([]);
-        return;
-      }
-
-      const { getSummary, getTimeseries } = await import("@/lib/api");
-      const [nextSummary, nextTimeseries] = await Promise.all([
-        getSummary(activeLatestYear, territoryType, territoryName, uf),
-        getTimeseries("letalidade_violenta", territoryType, territoryName, chartStartYear, activeLatestYear, uf)
-      ]);
-
-      if (!cancelled) {
-        setSummary(nextSummary);
-        setTimeseries(nextTimeseries);
-      }
-    }
-
-    loadDashboard()
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Erro ao carregar dashboard."))
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [canUseTerritorialUnit, chartStartYear, initialSummary, activeLatestYear, selectedMunicipality, selectedUnit, territoryMode, uf]);
-
-  useEffect(() => {
-    function handleUfChange(event: Event) {
-      const detail = (event as CustomEvent<{ uf?: string }>).detail;
-      const nextUf = enabledUf(detail?.uf);
-      setUf(nextUf);
-      setTerritoryMode("state");
-      setSelectedTerritorialUnit("");
-      void reloadUf(nextUf);
-    }
-    window.addEventListener("ufchange", handleUfChange);
-    const params = new URLSearchParams(window.location.search);
-    const initialUf = enabledUf(params.get("uf") ?? window.localStorage.getItem("selected_uf"));
-    if (initialUf !== "BR") {
-      setUf(initialUf);
-      void reloadUf(initialUf);
-    }
-    return () => window.removeEventListener("ufchange", handleUfChange);
-  }, []);
-
-  async function reloadUf(nextUf: UfCode) {
-    setLoading(true);
-    setError(null);
-    try {
-      const { getLatestPeriod, getSummary, getTerritories, getTimeseries } = await import("@/lib/api");
-      const [nextLatest, nextMunicipalities] = await Promise.all([
-        getLatestPeriod(nextUf),
-        getTerritories("municipality", nextUf)
-      ]);
-      const stateName = stateNameForUf(nextUf);
-      const [nextSummary, nextTimeseries] = await Promise.all([
-        getSummary(nextLatest.year, "state", stateName, nextUf),
-        getTimeseries("letalidade_violenta", "state", stateName, Math.max(ANALYSIS_START_YEAR, nextLatest.year - 2), nextLatest.year, nextUf)
-      ]);
-      setActiveLatestYear(nextLatest.year);
-      const cleanMunicipalities = nextMunicipalities.filter((item) => item.name.toLowerCase() !== "não informado");
-      setMunicipalityOptions(cleanMunicipalities);
-      setSelectedMunicipality(preferredMunicipality(nextUf, cleanMunicipalities));
-      setSummary(nextSummary);
-      setTimeseries(nextTimeseries);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar UF.");
-    } finally {
-      setLoading(false);
-    }
+  function openIndicator(code: string) {
+    setIndicator(code);
+    chartRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  const sortedCards = [...summary.cards].sort((a, b) => {
-    const aValue = a.yoy_percent_change ?? Number.NEGATIVE_INFINITY;
-    const bValue = b.yoy_percent_change ?? Number.NEGATIVE_INFINITY;
-    return bValue - aValue;
-  });
-  const territoryTitle = {
-    state: `Indicadores acumulados em ${uf === "BR" ? "Brasil" : uf}`,
-    municipality: canUseTerritorialUnit && selectedUnit
-      ? `Indicadores acumulados em ${selectedUnit.name}`
-      : `Indicadores acumulados em ${selectedMunicipality}`
-  }[territoryMode];
+  const territoryLabel = selection.type === "state" ? "Estado do Rio de Janeiro" : territoryName;
 
   return (
-    <div className="grid gap-8">
-      <section className="flex flex-col gap-4 border-b border-border pb-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h2 className="m-0 mt-1 text-4xl font-display uppercase leading-none text-foreground">{territoryTitle}</h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <SourceBadge label={sourceLabelForUf(uf)} />
-          <span className="inline-flex items-center gap-2 border border-border bg-surface px-3 py-1.5 font-mono text-xs uppercase tracking-wide text-muted">
-            <CalendarDays size={14} aria-hidden="true" className="text-muted" />
-            Último mês: {summary.latest_month}/{summary.year}
-          </span>
-        </div>
+    <div className="grid gap-14">
+      <section className="grid gap-6">
+        <TerritoryPicker
+          value={selection}
+          onChange={setSelection}
+          municipalities={municipalities}
+          policeAreas={policeAreas}
+          rioUnits={rioUnits}
+          defaultMunicipality={RIO_MUNICIPALITY}
+        />
       </section>
 
-      <section className="grid gap-4 border border-border bg-surface p-5 shadow-hard md:grid-cols-3">
-        <label className="grid min-w-0 gap-2 font-mono text-xs font-bold uppercase tracking-widest text-muted">
-          Território
-          <select
-            className="h-10 w-full min-w-0 border border-border bg-surface px-3 text-sm text-foreground transition-colors focus:border-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
-            value={territoryMode}
-            onChange={(event) => {
-              setTerritoryMode(event.target.value as DashboardTerritoryMode);
-              setSelectedTerritorialUnit("");
-            }}
-          >
-            <option value="state">{uf === "BR" ? "BRASIL" : "ESTADO"}</option>
-            <option value="municipality">{uf === "BR" ? "UF" : "MUNICÍPIO"}</option>
-          </select>
-        </label>
-
-        <label className="grid min-w-0 gap-2 font-mono text-xs font-bold uppercase tracking-widest text-muted">
-          {uf === "BR" ? "UF" : "Município"}
-          <select
-            className="h-10 w-full min-w-0 border border-border bg-surface px-3 text-sm text-foreground transition-colors disabled:opacity-40 focus:border-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
-            value={selectedMunicipality}
-            disabled={territoryMode === "state" || municipalityOptions.length === 0}
-            onChange={(event) => {
-              setSelectedMunicipality(event.target.value);
-              setSelectedTerritorialUnit("");
-            }}
-          >
-            {municipalityOptions.map((item) => (
-              <option key={item.name} value={item.name}>
-                {item.name.toUpperCase()}
-              </option>
+      <section className="grid gap-6">
+        <SectionHeading
+          title={territoryLabel}
+          sub={`Acumulado de ${formatPeriodRange(summary.year, summary.latest_month)} comparado com os mesmos meses do ano anterior. Mínimos e máximos consideram todos os anos com dado no mesmo período.`}
+        />
+        {summary.cards.length === 0 ? (
+          <p className="text-[12px] tracking-[0.14em] text-ash">Sem dados publicados para este recorte.</p>
+        ) : (
+          <div className="grid gap-x-8 gap-y-9 sm:grid-cols-2 xl:grid-cols-3">
+            {summary.cards.map((card) => (
+              <MetricCard key={card.indicator} card={card} onOpen={openIndicator} />
             ))}
-          </select>
-        </label>
-
-        {uf === "RJ" ? (
-        <label className="grid min-w-0 gap-2 font-mono text-xs font-bold uppercase tracking-widest text-muted">
-          Unidade territorial
-          <select
-            className="h-10 w-full min-w-0 border border-border bg-surface px-3 text-sm text-foreground transition-colors disabled:opacity-40 focus:border-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
-            value={selectedTerritorialUnit}
-            disabled={!canUseTerritorialUnit}
-            onChange={(event) => setSelectedTerritorialUnit(event.target.value)}
-          >
-            <option value="">RIO DE JANEIRO - MUNICÍPIO INTEIRO</option>
-            {initialTerritorialUnits.map((unit) => (
-              <option key={`${unit.police_area_name}-${unit.territorial_unit}`} value={unit.police_area_name}>
-                {unit.name.toUpperCase()}
-              </option>
-            ))}
-          </select>
-        </label>
-        ) : null}
-
-      </section>
-
-      <div className="min-h-5 font-mono text-xs uppercase tracking-widest text-muted">
-        {loading ? "Carregando dados oficiais..." : null}
-        {error ? <span className="text-accent-red">{error}</span> : null}
-      </div>
-
-      <div className="relative grid gap-8">
-        {loading ? <LoadingOverlay label="Atualizando dashboard" /> : null}
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {sortedCards.map((card) => (
-            <MetricCard key={card.indicator} card={card} year={summary.year} />
-          ))}
-        </section>
-
-        <section className="mt-8 grid gap-4">
-          <div className="border-b border-border pb-3">
-            <h2 className="text-3xl font-display uppercase leading-none text-foreground">Letalidade violenta no tempo</h2>
           </div>
-          <TrendChart data={timeseries} />
-        </section>
-      </div>
+        )}
+      </section>
+
+      <section ref={chartRef} className="grid gap-6 scroll-mt-6">
+        <SectionHeading
+          title={`${indicatorMeta?.name ?? activeIndicator}, ${firstYear}–${latest.year}`}
+          sub={`Totais anuais em ${territoryLabel}. ${latest.year} vai até ${monthLong(latest.month)} e aparece tracejado. Faixas marcam os mandatos de governador.`}
+          aside={
+            <>
+              <Segmented
+                label="Indicador"
+                value={activeIndicator}
+                onChange={setIndicator}
+                options={indicators.slice(0, 4).map((item) => ({ value: item.code, label: shortLabel(item.name) }))}
+              />
+              <Segmented
+                label="Métrica"
+                value={effectiveMetric}
+                onChange={setMetric}
+                options={[
+                  { value: "count", label: "Ocorrências" },
+                  { value: "rate", label: "Por 100 mil", disabled: !hasRate }
+                ]}
+              />
+            </>
+          }
+        />
+        <HistoryChart
+          points={chartPoints}
+          kind="annual"
+          valueLabel={effectiveMetric === "rate" ? "Por 100 mil hab." : indicatorMeta?.unit === "armas" ? "Armas" : "Ocorrências"}
+          digits={effectiveMetric === "rate" ? 1 : 0}
+          terms={terms}
+          height={380}
+        />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[11.5px] leading-6 tracking-[0.04em] text-ash">
+            Meses que o ISP ainda não apurava um indicador ficam de fora, nunca entram como zero.
+          </p>
+          <Link href={`/trends?indicator=${activeIndicator}&type=${selection.type}&name=${encodeURIComponent(territoryName)}`} className="btn btn--ghost">
+            Explorar a série mensal
+          </Link>
+        </div>
+        <details className="group">
+          <summary className="cursor-pointer list-none text-[11px] tracking-[0.22em] text-ash hover:text-ink">
+            TABELA ANO A ANO <span className="ml-1 inline-block transition-transform group-open:rotate-90">→</span>
+          </summary>
+          <div className="mt-4">
+            <AnnualTable points={annual} latestMonth={latest.month} unitLabel={indicatorMeta?.unit === "armas" ? "armas" : "ocorrências"} />
+          </div>
+        </details>
+      </section>
+
+      <section className="grid gap-6">
+        <SectionHeading
+          title="Todos os indicadores, ano a ano"
+          sub={`Totais anuais de ${multiplesStart} a ${latest.year} em ${territoryLabel}. Cada gráfico tem a própria escala; o ano corrente aparece mais claro.`}
+        />
+        <SmallMultiples items={multiples} startYear={multiplesStart} endYear={latest.year} onOpen={openIndicator} />
+      </section>
     </div>
   );
 }
 
-function preferredMunicipality(uf: UfCode, municipalities: Territory[]) {
-  const preferred = preferredMunicipalityForUf(uf);
-  return municipalities.find((item) => item.name === preferred)?.name ?? municipalities[0]?.name ?? "";
+function toChartPoints(points: AnnualPoint[], metric: Metric, latestMonth: number): ChartPoint[] {
+  return points.map((point) => ({
+    key: String(point.year),
+    label: point.complete ? String(point.year) : formatPeriodRange(point.year, point.year === points[points.length - 1]?.year ? latestMonth : point.months_with_data),
+    value: metric === "rate" ? point.rate_per_100k : point.value,
+    partial: !point.complete,
+    note: !point.complete ? `${point.months_with_data} meses com dado` : point.population_interpolated && metric === "rate" ? "população interpolada" : undefined
+  }));
+}
+
+function shortLabel(name: string): string {
+  return name.replace("Morte por intervencao de agente do Estado", "Interv. do Estado").replace("Lesao corporal seguida de morte", "Lesão c/ morte").replace("Homicidio doloso", "Homicídio").replace("Letalidade violenta", "Letalidade").replace("Latrocinio", "Latrocínio");
 }

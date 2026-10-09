@@ -1,835 +1,416 @@
+/**
+ * Camada de dados do site. Tudo é calculado a partir do snapshot estático gerado pelo ETL
+ * (`static-data.generated.json`), somente Rio de Janeiro.
+ *
+ * As séries do snapshot são esparsas: `{ from: "AAAA-MM", values: [...] }`. Meses sem dado
+ * são `null` e nunca entram em somas, mínimos ou variações — "sem dado" não é zero.
+ */
+
 import snapshot from "@/lib/static-data.generated.json";
-import { enabledUf, type UfCode } from "@/lib/ufs";
 import type {
-  GovernorPerformanceResponse,
-  Indicator,
+  AnnualPoint,
+  ChangeRow,
+  ChangeSection,
+  Coverage,
   DataSource,
+  GeoFeatureCollection,
+  GovernorPerformanceResponse,
+  GovernorTerm,
+  Indicator,
   LatestChangesResponse,
+  LatestPeriod,
   Methodology,
+  MonthlyPoint,
+  PopulationYear,
   RankingMode,
   RankingRow,
   SnapshotMeta,
-  GeoFeatureCollection,
   SummaryCardData,
   SummaryResponse,
   TerritorialUnit,
   Territory,
-  TerritoryType,
-  TimeSeriesPoint
+  TerritoryType
 } from "@/types/api";
 
-type SeriesStore = Record<string, Record<TerritoryType, Record<string, number[]>>>;
-type StaticSnapshot = {
+type SparseSeries = { from: string; values: Array<number | null> };
+type Snapshot = {
   generated_at: string;
   analysis_start_year: number;
-  latest_period: { year: number; month: number; period_date: string; source_name: string };
+  uf: string;
+  name: string;
+  latest_period: LatestPeriod;
   month_keys: string[];
   indicators: Indicator[];
   territories: Record<TerritoryType, Territory[]>;
   territorial_units: TerritorialUnit[];
   population_by_municipality: Record<string, number>;
-  municipality_geometries: GeoFeatureCollection;
-  rio_neighborhood_geometries: GeoFeatureCollection;
+  population_history: {
+    state: Record<string, PopulationYear>;
+    municipality: Record<string, Record<string, PopulationYear>>;
+  };
+  governor_terms: GovernorTerm[];
+  governor_performance: GovernorPerformanceResponse;
   sources: DataSource[];
   methodology: Methodology;
-  governor_performance: GovernorPerformanceResponse;
-  series: SeriesStore;
-  states?: Record<string, StateSnapshot>;
-  brazil_state_geometries?: GeoFeatureCollection;
-};
-type StateSnapshot = Omit<StaticSnapshot, "generated_at" | "analysis_start_year" | "month_keys" | "governor_performance" | "states"> & {
-  uf?: string;
-  name?: string;
-  coverage?: Record<string, unknown>;
+  series: Record<string, Partial<Record<TerritoryType, Record<string, SparseSeries>>>>;
+  coverage: Coverage;
 };
 
-const DATA = snapshot as StaticSnapshot;
-const CRIME_RATE_INDICATORS = ["letalidade_violenta", "roubo_rua", "roubo_veiculo", "roubo_carga", "estupro"];
-const NATIONAL_COMPARABLE_CRIME_INDICATORS = CRIME_RATE_INDICATORS.filter((indicator) => indicator !== "roubo_rua");
-const GOVERNOR_INDICATORS = ["letalidade_violenta", "homicidio_doloso", "latrocinio", "roubo_veiculo", "roubo_carga"];
+const DATA = snapshot as unknown as Snapshot;
+const MONTHS = DATA.month_keys;
+const MONTH_INDEX = new Map(MONTHS.map((key, index) => [key, index]));
+const LATEST = DATA.latest_period;
+const LATEST_INDEX = monthIndex(LATEST.year, LATEST.month);
+
+export const STATE_NAME = DATA.territories.state[0]?.name ?? "Estado do Rio de Janeiro";
+export const RIO_MUNICIPALITY = "Rio de Janeiro";
+/** Indicadores somados no agregado "crime geral" (rankings, mudanças e mapa). */
+export const CRIME_RATE_INDICATORS = ["letalidade_violenta", "roubo_rua", "roubo_veiculo", "roubo_carga", "estupro"];
+export const CRIME_GENERAL_CODE = "crime_geral";
+
+const denseCache = new Map<string, Array<number | null>>();
 const rankingCache = new Map<string, RankingRow[]>();
 const mapCache = new Map<string, GeoFeatureCollection>();
 
-const PRESIDENT_TERMS = [
-  { governor: "Dilma Rousseff", party_or_condition: "PT", term_start: "2015-01-01", term_end: "2016-08-31" },
-  { governor: "Michel Temer", party_or_condition: "PMDB / MDB", term_start: "2016-08-31", term_end: "2018-12-31" },
-  { governor: "Jair Bolsonaro", party_or_condition: "PSL / PL", term_start: "2019-01-01", term_end: "2022-12-31" },
-  { governor: "Luiz Inácio Lula da Silva", party_or_condition: "PT", term_start: "2023-01-01", term_end: null }
-];
+// --- Metadados ------------------------------------------------------------------------------
 
-const SP_GOVERNOR_TERMS = [
-  { governor: "Geraldo Alckmin", party_or_condition: "PSDB", term_start: "2015-01-01", term_end: "2018-04-06" },
-  { governor: "Márcio França", party_or_condition: "PSB", term_start: "2018-04-06", term_end: "2018-12-31" },
-  { governor: "João Doria", party_or_condition: "PSDB", term_start: "2019-01-01", term_end: "2022-03-31" },
-  { governor: "Rodrigo Garcia", party_or_condition: "PSDB", term_start: "2022-03-31", term_end: "2022-12-31" },
-  { governor: "Tarcísio de Freitas", party_or_condition: "Republicanos", term_start: "2023-01-01", term_end: null }
-];
-
-const PR_GOVERNOR_TERMS = [
-  { governor: "Beto Richa", party_or_condition: "PSDB", term_start: "2011-01-01", term_end: "2018-04-06" },
-  { governor: "Cida Borghetti", party_or_condition: "PP", term_start: "2018-04-06", term_end: "2018-12-31" },
-  { governor: "Ratinho Junior", party_or_condition: "PSD", term_start: "2019-01-01", term_end: null }
-];
-
-const SC_GOVERNOR_TERMS = [
-  { governor: "Raimundo Colombo", party_or_condition: "PSD", term_start: "2011-01-01", term_end: "2018-04-06" },
-  { governor: "Eduardo Pinho Moreira", party_or_condition: "MDB", term_start: "2018-04-06", term_end: "2018-12-31" },
-  { governor: "Carlos Moisés", party_or_condition: "PSL / Republicanos", term_start: "2019-01-01", term_end: "2022-12-31" },
-  { governor: "Jorginho Mello", party_or_condition: "PL", term_start: "2023-01-01", term_end: null }
-];
-
-const RS_GOVERNOR_TERMS = [
-  { governor: "Tarso Genro", party_or_condition: "PT", term_start: "2011-01-01", term_end: "2014-12-31" },
-  { governor: "José Ivo Sartori", party_or_condition: "PMDB", term_start: "2015-01-01", term_end: "2018-12-31" },
-  { governor: "Eduardo Leite", party_or_condition: "PSDB", term_start: "2019-01-01", term_end: "2022-03-31" },
-  { governor: "Ranolfo Vieira Júnior", party_or_condition: "PSDB", term_start: "2022-03-31", term_end: "2022-12-31" },
-  { governor: "Eduardo Leite", party_or_condition: "PSDB / PSD", term_start: "2023-01-01", term_end: null }
-];
-
-const MG_GOVERNOR_TERMS = [
-  { governor: "Fernando Pimentel", party_or_condition: "PT", term_start: "2015-01-01", term_end: "2018-12-31" },
-  { governor: "Romeu Zema", party_or_condition: "Novo", term_start: "2019-01-01", term_end: null }
-];
-
-const ES_GOVERNOR_TERMS = [
-  { governor: "Paulo Hartung", party_or_condition: "PMDB / MDB", term_start: "2015-01-01", term_end: "2018-12-31" },
-  { governor: "Renato Casagrande", party_or_condition: "PSB", term_start: "2019-01-01", term_end: null }
-];
-
-const GO_GOVERNOR_TERMS = [
-  { governor: "Marconi Perillo", party_or_condition: "PSDB", term_start: "2015-01-01", term_end: "2018-04-06" },
-  { governor: "José Eliton", party_or_condition: "PSDB", term_start: "2018-04-06", term_end: "2018-12-31" },
-  { governor: "Ronaldo Caiado", party_or_condition: "DEM / União Brasil", term_start: "2019-01-01", term_end: null }
-];
-
-const MT_GOVERNOR_TERMS = [
-  { governor: "Pedro Taques", party_or_condition: "PDT", term_start: "2015-01-01", term_end: "2018-12-31" },
-  { governor: "Mauro Mendes", party_or_condition: "DEM / União Brasil", term_start: "2019-01-01", term_end: null }
-];
-
-const MS_GOVERNOR_TERMS = [
-  { governor: "Reinaldo Azambuja", party_or_condition: "PSDB", term_start: "2015-01-01", term_end: "2022-12-31" },
-  { governor: "Eduardo Riedel", party_or_condition: "PSDB", term_start: "2023-01-01", term_end: null }
-];
-
-const DF_GOVERNOR_TERMS = [
-  { governor: "Rodrigo Rollemberg", party_or_condition: "PSB", term_start: "2015-01-01", term_end: "2018-12-31" },
-  { governor: "Ibaneis Rocha", party_or_condition: "MDB", term_start: "2019-01-01", term_end: null }
-];
-
-const MA_GOVERNOR_TERMS = [
-  { governor: "Flávio Dino", party_or_condition: "PCdoB", term_start: "2015-01-01", term_end: "2022-04-02" },
-  { governor: "Carlos Brandão", party_or_condition: "PSB", term_start: "2022-04-02", term_end: null }
-];
-
-const PI_GOVERNOR_TERMS = [
-  { governor: "Wellington Dias", party_or_condition: "PT", term_start: "2015-01-01", term_end: "2022-03-31" },
-  { governor: "Regina Sousa", party_or_condition: "PT", term_start: "2022-04-01", term_end: "2022-12-31" },
-  { governor: "Rafael Fonteles", party_or_condition: "PT", term_start: "2023-01-01", term_end: null }
-];
-
-const CE_GOVERNOR_TERMS = [
-  { governor: "Camilo Santana", party_or_condition: "PT", term_start: "2015-01-01", term_end: "2022-04-02" },
-  { governor: "Izolda Cela", party_or_condition: "PDT", term_start: "2022-04-02", term_end: "2022-12-31" },
-  { governor: "Elmano de Freitas", party_or_condition: "PT", term_start: "2023-01-01", term_end: null }
-];
-
-const RN_GOVERNOR_TERMS = [
-  { governor: "Robinson Faria", party_or_condition: "PSD", term_start: "2015-01-01", term_end: "2018-12-31" },
-  { governor: "Fátima Bezerra", party_or_condition: "PT", term_start: "2019-01-01", term_end: null }
-];
-
-const PB_GOVERNOR_TERMS = [
-  { governor: "Ricardo Coutinho", party_or_condition: "PSB", term_start: "2015-01-01", term_end: "2018-12-31" },
-  { governor: "João Azevêdo", party_or_condition: "PSB / Cidadania", term_start: "2019-01-01", term_end: null }
-];
-
-const PE_GOVERNOR_TERMS = [
-  { governor: "Paulo Câmara", party_or_condition: "PSB", term_start: "2015-01-01", term_end: "2022-12-31" },
-  { governor: "Raquel Lyra", party_or_condition: "PSDB", term_start: "2023-01-01", term_end: null }
-];
-
-const AL_GOVERNOR_TERMS = [
-  { governor: "Renan Filho", party_or_condition: "MDB", term_start: "2015-01-01", term_end: "2022-04-01" },
-  { governor: "Paulo Dantas", party_or_condition: "MDB", term_start: "2022-05-15", term_end: null }
-];
-
-const SE_GOVERNOR_TERMS = [
-  { governor: "Jackson Barreto", party_or_condition: "MDB", term_start: "2015-01-01", term_end: "2018-12-31" },
-  { governor: "Belivaldo Chagas", party_or_condition: "PSD", term_start: "2019-01-01", term_end: "2022-12-31" },
-  { governor: "Fábio Mitidieri", party_or_condition: "PSD", term_start: "2023-01-01", term_end: null }
-];
-
-const BA_GOVERNOR_TERMS = [
-  { governor: "Rui Costa", party_or_condition: "PT", term_start: "2015-01-01", term_end: "2022-12-31" },
-  { governor: "Jerônimo Rodrigues", party_or_condition: "PT", term_start: "2023-01-01", term_end: null }
-];
-
-const RO_GOVERNOR_TERMS = [
-  { governor: "Confúcio Moura", party_or_condition: "MDB", term_start: "2015-01-01", term_end: "2018-12-31" },
-  { governor: "Marcos Rocha", party_or_condition: "PSL / União Brasil", term_start: "2019-01-01", term_end: null }
-];
-
-const AC_GOVERNOR_TERMS = [
-  { governor: "Tião Viana", party_or_condition: "PT", term_start: "2015-01-01", term_end: "2018-12-31" },
-  { governor: "Gladson Cameli", party_or_condition: "PP", term_start: "2019-01-01", term_end: null }
-];
-
-const AM_GOVERNOR_TERMS = [
-  { governor: "José Melo", party_or_condition: "PROS", term_start: "2015-01-01", term_end: "2017-05-31" },
-  { governor: "Amazonino Mendes", party_or_condition: "PDT", term_start: "2017-06-01", term_end: "2018-12-31" },
-  { governor: "Wilson Lima", party_or_condition: "PSC / União Brasil", term_start: "2019-01-01", term_end: null }
-];
-
-const RR_GOVERNOR_TERMS = [
-  { governor: "Suely Campos", party_or_condition: "PP", term_start: "2015-01-01", term_end: "2018-12-31" },
-  { governor: "Antônio Denarium", party_or_condition: "PSL / PP", term_start: "2019-01-01", term_end: null }
-];
-
-const PA_GOVERNOR_TERMS = [
-  { governor: "Simão Jatene", party_or_condition: "PSDB", term_start: "2015-01-01", term_end: "2018-12-31" },
-  { governor: "Helder Barbalho", party_or_condition: "MDB", term_start: "2019-01-01", term_end: null }
-];
-
-const AP_GOVERNOR_TERMS = [
-  { governor: "Waldez Góes", party_or_condition: "PDT", term_start: "2015-01-01", term_end: "2022-12-31" },
-  { governor: "Clécio Luís", party_or_condition: "Solidariedade", term_start: "2023-01-01", term_end: null }
-];
-
-const TO_GOVERNOR_TERMS = [
-  { governor: "Marcelo Miranda", party_or_condition: "MDB", term_start: "2015-01-01", term_end: "2018-04-04" },
-  { governor: "Mauro Carlesse", party_or_condition: "PSL", term_start: "2018-04-04", term_end: "2022-09-25" },
-  { governor: "Wanderlei Barbosa", party_or_condition: "Republicanos", term_start: "2022-09-25", term_end: null }
-];
-
-let brazilAggregate: StateSnapshot | null = null;
-
-// Builds a synthetic "Brasil" snapshot that aggregates every state. Each state is
-// mapped into the "municipality" slot so the existing municipality-level map,
-// rankings and changes logic renders the 27 states as the unit, while the
-// "state" slot holds the national rollup ("Brasil").
-function getBrazilAggregate(): StateSnapshot {
-  if (brazilAggregate) {
-    return brazilAggregate;
-  }
-  const states = DATA.states ?? {};
-  const codes = Object.keys(states).filter((code) => code !== "BR");
-  const latestIndex = Math.min(
-    ...codes.map((code) => monthIndex(states[code].latest_period.year, states[code].latest_period.month))
-  );
-  const latestKey = DATA.month_keys[Math.max(0, latestIndex)] ?? DATA.month_keys[DATA.month_keys.length - 1];
-  const latestParts = splitMonthKey(latestKey);
-  const monthCount = DATA.month_keys.length;
-  const nameByCode: Record<string, string> = {};
-  for (const code of codes) {
-    nameByCode[code] = states[code].name ?? code;
-  }
-
-  const indicatorCodes = new Set<string>();
-  for (const code of codes) {
-    for (const indicator of Object.keys(states[code].series ?? {})) {
-      indicatorCodes.add(indicator);
-    }
-  }
-
-  const series: SeriesStore = {};
-  for (const indicator of indicatorCodes) {
-    const national = new Array<number>(monthCount).fill(0);
-    const byState: Record<string, number[]> = {};
-    for (const code of codes) {
-      const stateBucket = states[code].series[indicator]?.state ?? {};
-      const stateSeries = new Array<number>(monthCount).fill(0);
-      for (const key of Object.keys(stateBucket)) {
-        const values = stateBucket[key] ?? [];
-        for (let index = 0; index < monthCount; index += 1) {
-          stateSeries[index] += values[index] ?? 0;
-        }
-      }
-      byState[nameByCode[code]] = stateSeries;
-      for (let index = 0; index < monthCount; index += 1) {
-        national[index] += stateSeries[index];
-      }
-    }
-    series[indicator] = { state: { Brasil: national }, municipality: byState, police_area: {} };
-  }
-
-  const population: Record<string, number> = {};
-  for (const code of codes) {
-    const pops = states[code].population_by_municipality ?? {};
-    population[nameByCode[code]] = Object.values(pops).reduce((sum, value) => sum + (value || 0), 0);
-  }
-
-  brazilAggregate = {
-    uf: "BR",
-    name: "Brasil",
-    latest_period: {
-      year: latestParts.year,
-      month: latestParts.month,
-      period_date: periodDate(latestParts.year, latestParts.month),
-      source_name: "ISP / SSP-SP / Sinesp"
-    },
-    indicators: DATA.indicators,
-    territories: {
-      state: [{ territory_type: "state", name: "Brasil" }],
-      municipality: codes.map((code) => ({ territory_type: "municipality", name: nameByCode[code] })),
-      police_area: []
-    },
-    territorial_units: [],
-    population_by_municipality: population,
-    municipality_geometries: DATA.brazil_state_geometries ?? { type: "FeatureCollection", features: [] },
-    rio_neighborhood_geometries: { type: "FeatureCollection", features: [] },
-    sources: uniqueSources(codes.flatMap((code) => states[code].sources ?? [])),
-    methodology: DATA.methodology,
-    series,
-    coverage: { state_start_year: 2015, municipality_start_year: 2015, police_area_start_year: null, map_drilldown: null }
-  } as StateSnapshot;
-  return brazilAggregate;
-}
-
-function stateData(uf?: string): StateSnapshot {
-  const code = enabledUf(uf);
-  if (code === "BR") {
-    return getBrazilAggregate();
-  }
-  return DATA.states?.[code] ?? DATA;
-}
-
-function uniqueSources(sources: DataSource[]): DataSource[] {
-  const output = new Map<string, DataSource>();
-  for (const source of sources) {
-    output.set(`${source.name}:${source.url}:${source.file_name}`, source);
-  }
-  return [...output.values()];
-}
-
-export async function getIndicators(uf?: string): Promise<Indicator[]> {
-  const data = stateData(uf);
-  return indicatorsWithData(data);
-}
-
-export async function getMapIndicators(uf?: string, view: "state" | "rio_city" = "state"): Promise<Indicator[]> {
-  const data = stateData(uf);
-  const territoryType: TerritoryType = view === "rio_city" && enabledUf(uf) === "RJ" ? "police_area" : "municipality";
-  return data.indicators.filter((indicator) => indicatorHasTerritoryData(indicator.code, territoryType, data));
-}
-
-export async function getLatestPeriod(uf?: string): Promise<StaticSnapshot["latest_period"]> {
-  return stateData(uf).latest_period;
-}
-
-export async function getSnapshotMeta(): Promise<SnapshotMeta> {
+export function getSnapshotMeta(): SnapshotMeta {
   return {
     generated_at: DATA.generated_at,
     analysis_start_year: DATA.analysis_start_year,
-    latest_period: DATA.latest_period
+    latest_period: LATEST,
+    coverage: DATA.coverage
   };
 }
 
-export async function getDataSources(uf?: string): Promise<DataSource[]> {
-  return stateData(uf).sources ?? [];
+export function getLatestPeriod(): LatestPeriod {
+  return LATEST;
 }
 
-export async function getTerritories(territoryType: TerritoryType, uf?: string): Promise<Territory[]> {
-  return (stateData(uf).territories[territoryType] ?? []).filter((territory) => !isIgnoredTerritory(territory.name));
+export function getIndicators(): Indicator[] {
+  return DATA.indicators;
 }
 
-export async function getTerritorialUnits(municipality = "Rio de Janeiro", uf?: string): Promise<TerritorialUnit[]> {
-  const data = stateData(uf);
-  return data.territorial_units.filter((unit) => unit.municipality === municipality);
+export function getIndicator(code: string): Indicator | undefined {
+  if (code === CRIME_GENERAL_CODE) {
+    return { code, name: "Crime geral", category: "Indicador agregado", unit: "ocorrencias", source_name: "snapshot" };
+  }
+  return DATA.indicators.find((indicator) => indicator.code === code);
 }
 
-export async function getSummary(
-  year = DATA.latest_period.year,
-  territoryType: TerritoryType = "state",
-  territoryName?: string,
-  uf?: string
-): Promise<SummaryResponse> {
-  const data = stateData(uf);
-  const latest = data.latest_period;
-  const latestMonth = year === latest.year ? latest.month : 12;
-  const resolvedName = resolveTerritoryName(territoryType, territoryName, data);
-  const cards = indicatorsWithData(data).flatMap((indicator): SummaryCardData[] => {
-    const values = valuesFor(indicator.code, territoryType, resolvedName, data);
+/** Indicadores que têm pelo menos um mês de dado para o território. */
+export function getIndicatorsFor(territoryType: TerritoryType, territoryName?: string): Indicator[] {
+  const name = resolveTerritoryName(territoryType, territoryName);
+  return DATA.indicators.filter((indicator) => Boolean(sparseFor(indicator.code, territoryType, name)));
+}
+
+export function getTerritories(territoryType: TerritoryType): Territory[] {
+  return (DATA.territories[territoryType] ?? []).filter((territory) => !isIgnoredTerritory(territory.name));
+}
+
+export function getTerritorialUnits(municipality = RIO_MUNICIPALITY): TerritorialUnit[] {
+  return DATA.territorial_units.filter((unit) => unit.municipality === municipality);
+}
+
+export function getGovernorTerms(): GovernorTerm[] {
+  return DATA.governor_terms;
+}
+
+export function getGovernorPerformance(): GovernorPerformanceResponse {
+  return DATA.governor_performance;
+}
+
+export function getDataSources(): DataSource[] {
+  return DATA.sources;
+}
+
+export function getMethodology(): Methodology {
+  return DATA.methodology;
+}
+
+/** Primeiro mês com dado de um indicador num tipo de território ("AAAA-MM"). */
+export function getFirstMonth(indicator: string, territoryType: TerritoryType): string | null {
+  return DATA.coverage.first_month_by_indicator[indicator]?.[territoryType] ?? null;
+}
+
+export function getPopulation(territoryType: TerritoryType, territoryName: string, year: number): PopulationYear | null {
+  if (territoryType === "state") {
+    return DATA.population_history.state[String(year)] ?? null;
+  }
+  if (territoryType === "municipality") {
+    return DATA.population_history.municipality[territoryName]?.[String(year)] ?? null;
+  }
+  return null;
+}
+
+// --- Resumo (cartões) --------------------------------------------------------------------
+
+export function getSummary(territoryType: TerritoryType = "state", territoryName?: string): SummaryResponse {
+  const name = resolveTerritoryName(territoryType, territoryName);
+  const year = LATEST.year;
+  const latestMonth = LATEST.month;
+  const cards = DATA.indicators.flatMap((indicator): SummaryCardData[] => {
+    const values = denseValues(indicator.code, territoryType, name);
     const current = ytd(values, year, latestMonth);
-    const previous = ytd(values, year - 1, latestMonth);
-    const historicalMin = historicalMinYtd(values, latestMonth, data);
-    if (previous <= 0 || !historicalMin) {
+    if (current === null) {
       return [];
     }
-    const diff = round1(current - previous);
-    const minValue = historicalMin.value;
-    return [{
-      indicator: indicator.code,
-      name: indicator.name,
-      current_year_value: current,
-      previous_year_same_period: previous,
-      historical_min_same_period: minValue,
-      historical_min_year: historicalMin.year,
-      historical_min_times_lower: minValue > 0 && current > 0 ? round1(current / minValue) : null,
-      yoy_absolute_change: diff,
-      yoy_percent_change: round1((diff / previous) * 100),
-      latest_month: latestMonth,
-      sparkline: yearValues(values, year, data)
-    }];
+    const previous = ytd(values, year - 1, latestMonth);
+    const diff = previous === null ? null : round1(current - previous);
+    const extremes = ytdExtremes(values, latestMonth, year);
+    const population = getPopulation(territoryType, name, year);
+    return [
+      {
+        indicator: indicator.code,
+        name: indicator.name,
+        category: indicator.category,
+        unit: indicator.unit,
+        year,
+        latest_month: latestMonth,
+        current_year_value: current,
+        previous_year_same_period: previous,
+        yoy_absolute_change: diff,
+        yoy_percent_change: diff !== null && previous ? round1((diff / previous) * 100) : null,
+        historical_min: extremes.min,
+        historical_max: extremes.max,
+        rate_per_100k: population ? ratePer100k(current, population.value) : null,
+        first_year: firstYearWithData(values) ?? year,
+        annual_history: annualSeries(values, territoryType, name)
+          .filter((point) => point.complete && point.value !== null)
+          .map((point) => ({ year: point.year, value: point.value as number }))
+      }
+    ];
   });
 
-  return {
-    year,
-    territory_type: territoryType,
-    territory_name: resolvedName,
-    latest_month: latestMonth,
-    cards
-  };
+  return { year, latest_month: latestMonth, territory_type: territoryType, territory_name: name, cards };
 }
 
-export async function getTimeseries(
-  indicator = "letalidade_violenta",
+// --- Séries ---------------------------------------------------------------------------------
+
+export function getAnnualSeries(indicator: string, territoryType: TerritoryType = "state", territoryName?: string): AnnualPoint[] {
+  const name = resolveTerritoryName(territoryType, territoryName);
+  const values = indicator === CRIME_GENERAL_CODE ? crimeGeneralValues(territoryType, name) : denseValues(indicator, territoryType, name);
+  return annualSeries(values, territoryType, name);
+}
+
+export function getMonthlySeries(
+  indicator: string,
   territoryType: TerritoryType = "state",
   territoryName?: string,
   startYear = DATA.analysis_start_year,
-  endYear = DATA.latest_period.year,
-  uf?: string
-): Promise<TimeSeriesPoint[]> {
-  const data = stateData(uf);
-  const resolvedName = resolveTerritoryName(territoryType, territoryName, data);
-  const values = valuesFor(indicator, territoryType, resolvedName, data);
-  const points: TimeSeriesPoint[] = [];
-
-  for (let index = 0; index < DATA.month_keys.length; index += 1) {
-    const { year, month } = splitMonthKey(DATA.month_keys[index]);
+  endYear = LATEST.year
+): MonthlyPoint[] {
+  const name = resolveTerritoryName(territoryType, territoryName);
+  const values = indicator === CRIME_GENERAL_CODE ? crimeGeneralValues(territoryType, name) : denseValues(indicator, territoryType, name);
+  const points: MonthlyPoint[] = [];
+  for (let index = 0; index <= LATEST_INDEX; index += 1) {
+    const { year, month } = splitMonthKey(MONTHS[index]);
     if (year < startYear || year > endYear) {
       continue;
     }
-    if (isAfterLatestPeriod(data, year, month)) {
-      continue;
-    }
-    const value = values[index] ?? 0;
-    const previousYearIndex = index - 12;
-    const previousValue = previousYearIndex >= 0 ? values[previousYearIndex] ?? 0 : null;
+    const value = values[index] ?? null;
+    const previousValue = index >= 12 ? values[index - 12] ?? null : null;
     points.push({
       period_date: periodDate(year, month),
       year,
       month,
-      indicator,
-      territory_type: territoryType,
-      territory_name: resolvedName,
       value,
-      moving_average: movingAverage(values, index),
+      rolling_12: rollingSum(values, index, 12),
       previous_year_value: previousValue,
-      yoy_percent_change: previousValue ? round1(((value - previousValue) / previousValue) * 100) : null,
-      rate_per_100k: null
+      yoy_percent_change: value !== null && previousValue ? round1(((value - previousValue) / previousValue) * 100) : null
     });
   }
-
   return points;
 }
 
-export async function getRankings(
+function annualSeries(values: Array<number | null>, territoryType: TerritoryType, name: string): AnnualPoint[] {
+  const firstYear = firstYearWithData(values);
+  if (firstYear === null) {
+    return [];
+  }
+  const points: AnnualPoint[] = [];
+  for (let year = firstYear; year <= LATEST.year; year += 1) {
+    const lastMonth = year === LATEST.year ? LATEST.month : 12;
+    let total = 0;
+    let months = 0;
+    for (let month = 1; month <= lastMonth; month += 1) {
+      const value = values[monthIndex(year, month)];
+      if (value !== null && value !== undefined) {
+        total += value;
+        months += 1;
+      }
+    }
+    const value = months > 0 ? round1(total) : null;
+    const complete = months === 12;
+    const previousSamePeriod = ytd(values, year - 1, lastMonth);
+    const previousPoint = points[points.length - 1];
+    const previousComplete = previousPoint && previousPoint.complete ? previousPoint.value : null;
+    const comparison = complete ? previousComplete : previousSamePeriod;
+    const population = getPopulation(territoryType, name, year);
+    points.push({
+      year,
+      value,
+      months_with_data: months,
+      complete,
+      previous_same_period: previousSamePeriod,
+      yoy_percent_change: value !== null && comparison ? round1(((value - comparison) / comparison) * 100) : null,
+      population: population?.value ?? null,
+      population_interpolated: population?.interpolated ?? false,
+      rate_per_100k: complete && value !== null && population ? ratePer100k(value, population.value) : null
+    });
+  }
+  return points;
+}
+
+// --- Rankings e mudanças -------------------------------------------------------------------
+
+export function getRankings(
   indicator = "letalidade_violenta",
   mode: RankingMode = "count",
   territoryType: Exclude<TerritoryType, "state"> = "municipality",
-  year = DATA.latest_period.year,
-  month = DATA.latest_period.month,
-  uf?: string
-): Promise<RankingRow[]> {
-  const data = stateData(uf);
-  const period = clampPeriod(data, year, month);
-  const cacheKey = `${enabledUf(uf)}:${indicator}:${mode}:${territoryType}:${period.year}:${period.month}`;
+  year = LATEST.year,
+  month = LATEST.month
+): RankingRow[] {
+  const period = clampPeriod(year, month);
+  const cacheKey = `${indicator}:${mode}:${territoryType}:${period.year}:${period.month}`;
   const cached = rankingCache.get(cacheKey);
   if (cached) {
     return cached;
   }
-  const names = Object.keys((indicator === "crime_geral" ? data.series.letalidade_violenta : data.series[indicator])?.[territoryType] ?? {}).filter((name) => !isIgnoredTerritory(name));
-  const rows = names.map((name): RankingRow => {
-    const values = indicator === "crime_geral" ? [] : valuesFor(indicator, territoryType, name, data);
-    const value = indicator === "crime_geral" ? crimeGeneralYtd(territoryType, name, period.year, period.month, data) : ytd(values, period.year, period.month);
-    const previous = indicator === "crime_geral" ? crimeGeneralYtd(territoryType, name, period.year - 1, period.month, data) : ytd(values, period.year - 1, period.month);
-    const diff = round1(value - previous);
-    return {
-      rank: 0,
-      territory_name: name,
-      territory_type: territoryType,
-      value,
-      rate_per_100k: territoryType === "municipality" ? ratePer100k(value, data.population_by_municipality[name]) : null,
-      yoy_absolute_change: diff,
-      yoy_percent_change: previous ? round1((diff / previous) * 100) : null,
-      ...trendFor(previous, value, diff)
-    };
+  const rows = getTerritories(territoryType).flatMap((territory): RankingRow[] => {
+    const name = territory.name;
+    const values = indicator === CRIME_GENERAL_CODE ? crimeGeneralValues(territoryType, name) : denseValues(indicator, territoryType, name);
+    const value = ytd(values, period.year, period.month);
+    if (value === null) {
+      return [];
+    }
+    const previous = ytd(values, period.year - 1, period.month);
+    const diff = previous === null ? null : round1(value - previous);
+    const population = getPopulation(territoryType, name, period.year);
+    return [
+      {
+        rank: 0,
+        territory_name: name,
+        territory_type: territoryType,
+        value,
+        rate_per_100k: population ? ratePer100k(value, population.value) : null,
+        yoy_absolute_change: diff,
+        yoy_percent_change: diff !== null && previous ? round1((diff / previous) * 100) : null,
+        ...trendFor(previous, value, diff)
+      }
+    ];
   });
 
-  const visibleRows = rows.filter((row) => row.value > 0 || (row.rate_per_100k ?? 0) > 0 || row.yoy_absolute_change !== 0);
+  const visibleRows = rows.filter((row) => row.value > 0 || (row.rate_per_100k ?? 0) > 0 || (row.yoy_absolute_change ?? 0) !== 0);
   visibleRows.sort((a, b) => rankingValue(b, mode) - rankingValue(a, mode));
   const rankedRows = visibleRows.map((row, index) => ({ ...row, rank: index + 1 }));
   rankingCache.set(cacheKey, rankedRows);
   return rankedRows;
 }
 
-export async function getGovernorPerformance(uf?: string): Promise<GovernorPerformanceResponse> {
-  const code = enabledUf(uf);
-  if (code === "BR") {
-    return governorPerformanceForState(
-      stateData("BR"),
-      PRESIDENT_TERMS,
-      "Comparação descritiva por mandato presidencial com dados oficiais disponíveis para o Brasil."
-    );
-  }
-  if (code === "SP") {
-    return governorPerformanceForState(stateData("SP"), SP_GOVERNOR_TERMS);
-  }
-  if (code === "PR") {
-    return governorPerformanceForState(stateData("PR"), PR_GOVERNOR_TERMS);
-  }
-  if (code === "SC") {
-    return governorPerformanceForState(stateData("SC"), SC_GOVERNOR_TERMS);
-  }
-  if (code === "RS") {
-    return governorPerformanceForState(stateData("RS"), RS_GOVERNOR_TERMS);
-  }
-  if (code === "MG") {
-    return governorPerformanceForState(stateData("MG"), MG_GOVERNOR_TERMS);
-  }
-  if (code === "ES") {
-    return governorPerformanceForState(stateData("ES"), ES_GOVERNOR_TERMS);
-  }
-  if (code === "GO") {
-    return governorPerformanceForState(stateData("GO"), GO_GOVERNOR_TERMS);
-  }
-  if (code === "MT") {
-    return governorPerformanceForState(stateData("MT"), MT_GOVERNOR_TERMS);
-  }
-  if (code === "MS") {
-    return governorPerformanceForState(stateData("MS"), MS_GOVERNOR_TERMS);
-  }
-  if (code === "DF") {
-    return governorPerformanceForState(stateData("DF"), DF_GOVERNOR_TERMS);
-  }
-  if (code === "MA") {
-    return governorPerformanceForState(stateData("MA"), MA_GOVERNOR_TERMS);
-  }
-  if (code === "PI") {
-    return governorPerformanceForState(stateData("PI"), PI_GOVERNOR_TERMS);
-  }
-  if (code === "CE") {
-    return governorPerformanceForState(stateData("CE"), CE_GOVERNOR_TERMS);
-  }
-  if (code === "RN") {
-    return governorPerformanceForState(stateData("RN"), RN_GOVERNOR_TERMS);
-  }
-  if (code === "PB") {
-    return governorPerformanceForState(stateData("PB"), PB_GOVERNOR_TERMS);
-  }
-  if (code === "PE") {
-    return governorPerformanceForState(stateData("PE"), PE_GOVERNOR_TERMS);
-  }
-  if (code === "AL") {
-    return governorPerformanceForState(stateData("AL"), AL_GOVERNOR_TERMS);
-  }
-  if (code === "SE") {
-    return governorPerformanceForState(stateData("SE"), SE_GOVERNOR_TERMS);
-  }
-  if (code === "BA") {
-    return governorPerformanceForState(stateData("BA"), BA_GOVERNOR_TERMS);
-  }
-  if (code === "RO") {
-    return governorPerformanceForState(stateData("RO"), RO_GOVERNOR_TERMS);
-  }
-  if (code === "AC") {
-    return governorPerformanceForState(stateData("AC"), AC_GOVERNOR_TERMS);
-  }
-  if (code === "AM") {
-    return governorPerformanceForState(stateData("AM"), AM_GOVERNOR_TERMS);
-  }
-  if (code === "RR") {
-    return governorPerformanceForState(stateData("RR"), RR_GOVERNOR_TERMS);
-  }
-  if (code === "PA") {
-    return governorPerformanceForState(stateData("PA"), PA_GOVERNOR_TERMS);
-  }
-  if (code === "AP") {
-    return governorPerformanceForState(stateData("AP"), AP_GOVERNOR_TERMS);
-  }
-  if (code === "TO") {
-    return governorPerformanceForState(stateData("TO"), TO_GOVERNOR_TERMS);
-  }
-  return DATA.governor_performance;
-}
-
-export async function getMethodology(): Promise<Methodology> {
-  return DATA.methodology;
-}
-
-export async function getMapData(
-  indicator = "letalidade_violenta",
-  mode: RankingMode = "rate",
-  year = DATA.latest_period.year,
-  month = DATA.latest_period.month,
-  uf?: string
-): Promise<GeoFeatureCollection> {
-  const data = stateData(uf);
-  const period = clampPeriod(data, year, month);
-  const cacheKey = `map:${enabledUf(uf)}:${indicator}:${mode}:${period.year}:${period.month}`;
-  const cached = mapCache.get(cacheKey);
-  if (cached) {
-    return cached;
-  }
-  const municipalityRankings = await getRankings(indicator, mode, "municipality", period.year, period.month, enabledUf(uf));
-  const byMunicipality = new Map(municipalityRankings.map((row) => [row.territory_name, row]));
-  const unitLabel = enabledUf(uf) === "BR" ? "UF" : "Município";
-  const features = data.municipality_geometries.features.map((feature) => {
-    const territoryName = String(feature.properties?.territory_name ?? "");
-    const row = byMunicipality.get(territoryName);
-    return featureWithStats(feature, row, mode, unitLabel);
-  });
-
-  const ranked = [...features].sort((a, b) => Number(b.properties.metric_value ?? 0) - Number(a.properties.metric_value ?? 0));
-  ranked.forEach((feature, index) => {
-    feature.properties.rank = Number(feature.properties.metric_value ?? 0) > 0 ? index + 1 : null;
-  });
-
-  const collection = {
-    type: "FeatureCollection",
-    features
-  } satisfies GeoFeatureCollection;
-  mapCache.set(cacheKey, collection);
-  return collection;
-}
-
-export async function getCrimeRateMapData(
-  year = DATA.latest_period.year,
-  month = DATA.latest_period.month,
-  uf?: string
-): Promise<GeoFeatureCollection> {
-  const data = stateData(uf);
-  const period = clampPeriod(data, year, month);
-  const cacheKey = `map:crime_geral:${enabledUf(uf)}:state:${period.year}:${period.month}`;
-  const cached = mapCache.get(cacheKey);
-  if (cached) {
-    return cached;
-  }
-  const periodIndex = monthIndex(period.year, period.month);
-  const unitLabel = enabledUf(uf) === "BR" ? "UF" : "Município";
-  const features = data.municipality_geometries.features.map((feature) => {
-    const territoryName = String(feature.properties?.territory_name ?? "");
-    const population = data.population_by_municipality[territoryName] ?? null;
-    const value = rollingCrimeValue("municipality", territoryName, periodIndex, data);
-    return featureWithCrimeRate(feature, value, population, unitLabel);
-  });
-  rankFeatures(features);
-  const collection = { type: "FeatureCollection", features } satisfies GeoFeatureCollection;
-  mapCache.set(cacheKey, collection);
-  return collection;
-}
-
-export async function getRioCityMapData(
-  indicator = "letalidade_violenta",
-  mode: RankingMode = "rate",
-  year = DATA.latest_period.year,
-  month = DATA.latest_period.month,
-  uf?: string
-): Promise<GeoFeatureCollection> {
-  const data = stateData(uf);
-  if (enabledUf(uf) !== "RJ") {
-    return { type: "FeatureCollection", features: [] };
-  }
-  const period = clampPeriod(data, year, month);
-  const cacheKey = `map:rio:${indicator}:${mode}:${period.year}:${period.month}`;
-  const cached = mapCache.get(cacheKey);
-  if (cached) {
-    return cached;
-  }
-  const policeAreaRankings = await getRankings(indicator, mode, "police_area", period.year, period.month, "RJ");
-  const byPoliceArea = new Map(policeAreaRankings.map((row) => [row.territory_name, row]));
-  const features = data.rio_neighborhood_geometries.features.map((feature) => {
-    const sourceTerritoryName = String(feature.properties?.source_territory_name ?? "");
-    const row = sourceTerritoryName ? byPoliceArea.get(sourceTerritoryName) : undefined;
-    return featureWithStats(feature, row, mode, "Bairro/CISP");
-  });
-
-  const ranked = [...features].sort((a, b) => Number(b.properties.metric_value ?? 0) - Number(a.properties.metric_value ?? 0));
-  ranked.forEach((feature, index) => {
-    feature.properties.rank = Number(feature.properties.metric_value ?? 0) > 0 ? index + 1 : null;
-  });
-
-  const collection = {
-    type: "FeatureCollection",
-    features
-  } satisfies GeoFeatureCollection;
-  mapCache.set(cacheKey, collection);
-  return collection;
-}
-
-export async function getRioCityCrimeRateMapData(
-  year = DATA.latest_period.year,
-  month = DATA.latest_period.month,
-  uf?: string
-): Promise<GeoFeatureCollection> {
-  const data = stateData(uf);
-  if (enabledUf(uf) !== "RJ") {
-    return { type: "FeatureCollection", features: [] };
-  }
-  const period = clampPeriod(data, year, month);
-  const cacheKey = `map:crime_geral:rio:${period.year}:${period.month}`;
-  const cached = mapCache.get(cacheKey);
-  if (cached) {
-    return cached;
-  }
-  const periodIndex = monthIndex(period.year, period.month);
-  const populationByPoliceArea = rioPopulationByPoliceArea(data);
-  const features = data.rio_neighborhood_geometries.features.map((feature) => {
-    const sourceTerritoryName = String(feature.properties?.source_territory_name ?? "");
-    const population = sourceTerritoryName ? populationByPoliceArea[sourceTerritoryName] ?? null : null;
-    const value = sourceTerritoryName ? rollingCrimeValue("police_area", sourceTerritoryName, periodIndex, data) : 0;
-    return featureWithCrimeRate(feature, value, population, "Bairro/CISP");
-  });
-  rankFeatures(features);
-  const collection = { type: "FeatureCollection", features } satisfies GeoFeatureCollection;
-  mapCache.set(cacheKey, collection);
-  return collection;
-}
-
-export async function getLatestChanges(uf?: string): Promise<LatestChangesResponse> {
-  const data = stateData(uf);
-  const code = enabledUf(uf);
-  const latest = data.latest_period;
-  const sections =
-    code === "RJ"
-      ? [
-          changeSection("Municípios com maior piora", "municipality", "increase", latest.year, latest.month, data),
-          changeSection("Municípios com maior queda", "municipality", "decrease", latest.year, latest.month, data),
-          changeSection("CISPs com maior piora", "police_area", "increase", latest.year, latest.month, data),
-          changeSection("CISPs com maior queda", "police_area", "decrease", latest.year, latest.month, data)
-        ]
-      : code === "BR"
-        ? [
-            changeSection("UFs com maior piora", "municipality", "increase", latest.year, latest.month, data),
-            changeSection("UFs com maior queda", "municipality", "decrease", latest.year, latest.month, data)
-          ]
-      : [
-          changeSection("Municípios com maior piora", "municipality", "increase", latest.year, latest.month, data),
-          changeSection("Municípios com maior queda", "municipality", "decrease", latest.year, latest.month, data)
-        ];
+export function getLatestChanges(): LatestChangesResponse {
   return {
-    latest_period: latest,
-    sections
+    latest_period: LATEST,
+    sections: [
+      changeSection("Municípios com maior alta", "municipality", "increase"),
+      changeSection("Municípios com maior queda", "municipality", "decrease"),
+      changeSection("Áreas integradas (CISP) com maior alta", "police_area", "increase"),
+      changeSection("Áreas integradas (CISP) com maior queda", "police_area", "decrease")
+    ]
   };
 }
 
-function changeSection(
-  title: string,
-  territoryType: Exclude<TerritoryType, "state">,
-  direction: "increase" | "decrease",
-  year: number,
-  month: number,
-  data: StateSnapshot = DATA
-) {
-  const periodIndex = monthIndex(year, month);
-  const previousIndex = monthIndex(year - 1, month);
-  const indicators = data.uf === "BR" ? NATIONAL_COMPARABLE_CRIME_INDICATORS : CRIME_RATE_INDICATORS;
-  const names = Object.keys(data.series.letalidade_violenta?.[territoryType] ?? {}).filter((name) => !isIgnoredTerritory(name));
-  const rows = names
-    .map((name) => {
-      const currentValue = rollingCrimeValue(territoryType, name, periodIndex, data, indicators);
-      const previousValue = rollingCrimeValue(territoryType, name, previousIndex, data, indicators);
+function changeSection(title: string, territoryType: Exclude<TerritoryType, "state">, direction: "increase" | "decrease"): ChangeSection {
+  const rows = getTerritories(territoryType)
+    .flatMap((territory): ChangeRow[] => {
+      const values = crimeGeneralValues(territoryType, territory.name);
+      const currentValue = rollingSum(values, LATEST_INDEX, 12);
+      const previousValue = rollingSum(values, LATEST_INDEX - 12, 12);
+      if (currentValue === null || previousValue === null) {
+        return [];
+      }
       const absoluteChange = round1(currentValue - previousValue);
-      return {
-        rank: 0,
-        territory_name: name,
-        territory_type: territoryType,
-        current_value: currentValue,
-        previous_value: previousValue,
-        absolute_change: absoluteChange,
-        percent_change: previousValue > 0 ? round1((absoluteChange / previousValue) * 100) : null
-      };
+      return [
+        {
+          rank: 0,
+          territory_name: territory.name,
+          territory_type: territoryType,
+          current_value: currentValue,
+          previous_value: previousValue,
+          absolute_change: absoluteChange,
+          percent_change: previousValue > 0 ? round1((absoluteChange / previousValue) * 100) : null
+        }
+      ];
     })
-    .filter((row) => row.previous_value > 0 || row.current_value > 0)
-    .filter((row) => direction === "increase" ? row.absolute_change > 0 : row.absolute_change < 0)
-    .sort((a, b) => direction === "increase" ? b.absolute_change - a.absolute_change : a.absolute_change - b.absolute_change)
+    .filter((row) => (direction === "increase" ? row.absolute_change > 0 : row.absolute_change < 0))
+    .sort((a, b) => (direction === "increase" ? b.absolute_change - a.absolute_change : a.absolute_change - b.absolute_change))
     .slice(0, 12)
     .map((row, index) => ({ ...row, rank: index + 1 }));
-
   return { title, territory_type: territoryType, direction, rows };
 }
 
-function featureWithCrimeRate(
-  feature: GeoFeatureCollection["features"][number],
-  value: number,
-  population: number | null,
-  mapUnitType: string
-): GeoFeatureCollection["features"][number] {
-  const rate = population && population > 0 ? round1((value / population) * 100000) : null;
-  return {
-    ...feature,
-    properties: {
-      ...feature.properties,
-      map_unit_type: mapUnitType,
-      rank: null,
-      value,
-      population,
-      rate_per_100k: rate,
-      metric_value: rate ?? 0
-    }
-  };
+// --- Mapa -----------------------------------------------------------------------------------
+
+async function loadGeo(): Promise<{ municipality_geometries: GeoFeatureCollection; rio_neighborhood_geometries: GeoFeatureCollection }> {
+  const geo = await import("@/lib/static-geo.generated.json");
+  return geo.default as unknown as { municipality_geometries: GeoFeatureCollection; rio_neighborhood_geometries: GeoFeatureCollection };
 }
 
-function featureWithStats(
-  feature: GeoFeatureCollection["features"][number],
-  row: RankingRow | undefined,
-  mode: RankingMode,
-  mapUnitType: string
-): GeoFeatureCollection["features"][number] {
-  return {
-    ...feature,
-    properties: {
-      ...feature.properties,
-      map_unit_type: mapUnitType,
-      rank: null,
-      value: row?.value ?? 0,
-      rate_per_100k: row?.rate_per_100k ?? null,
-      yoy_absolute_change: row?.yoy_absolute_change ?? null,
-      yoy_percent_change: row?.yoy_percent_change ?? null,
-      metric_value: row ? rankingValue(row, mode) : 0
-    }
-  };
-}
-
-function rollingCrimeValue(
-  territoryType: TerritoryType,
-  territoryName: string,
-  periodIndex: number,
-  data: StateSnapshot = DATA,
-  indicators = CRIME_RATE_INDICATORS
-): number {
-  if (periodIndex < 0) {
-    return 0;
+export async function getMapData(
+  indicator = CRIME_GENERAL_CODE,
+  mode: RankingMode = "rate",
+  view: "state" | "rio_city" = "state",
+  year = LATEST.year,
+  month = LATEST.month
+): Promise<GeoFeatureCollection> {
+  const period = clampPeriod(year, month);
+  const cacheKey = `${view}:${indicator}:${mode}:${period.year}:${period.month}`;
+  const cached = mapCache.get(cacheKey);
+  if (cached) {
+    return cached;
   }
-  const start = Math.max(0, periodIndex - 11);
-  let total = 0;
-  for (const indicator of indicators) {
-    const values = data.series[indicator]?.[territoryType]?.[territoryName] ?? [];
-    for (let index = start; index <= periodIndex; index += 1) {
-      total += values[index] ?? 0;
-    }
-  }
-  return round1(total);
+  const geo = await loadGeo();
+  const territoryType: Exclude<TerritoryType, "state"> = view === "rio_city" ? "police_area" : "municipality";
+  const rankings = getRankings(indicator, mode, territoryType, period.year, period.month);
+  const byName = new Map(rankings.map((row) => [row.territory_name, row]));
+  const base = view === "rio_city" ? geo.rio_neighborhood_geometries : geo.municipality_geometries;
+  const populationByPoliceArea = view === "rio_city" ? rioPopulationByPoliceArea(geo.rio_neighborhood_geometries) : {};
+
+  const features = base.features.map((feature) => {
+    const key = String(view === "rio_city" ? feature.properties?.source_territory_name ?? "" : feature.properties?.territory_name ?? "");
+    const row = key ? byName.get(key) : undefined;
+    // Bairros do Rio não têm população oficial por CISP no IBGE; usa-se a soma dos bairros (Censo 2022).
+    const rate = row && view === "rio_city" && populationByPoliceArea[key] ? ratePer100k(row.value, populationByPoliceArea[key]) : row?.rate_per_100k ?? null;
+    const metric = row ? (mode === "rate" ? rate ?? 0 : mode === "yoy" ? row.yoy_percent_change ?? Number.NEGATIVE_INFINITY : row.value) : 0;
+    return {
+      ...feature,
+      properties: {
+        ...feature.properties,
+        map_unit_type: view === "rio_city" ? "Bairro/CISP" : "Município",
+        rank: null as number | null,
+        value: row?.value ?? null,
+        rate_per_100k: rate,
+        yoy_absolute_change: row?.yoy_absolute_change ?? null,
+        yoy_percent_change: row?.yoy_percent_change ?? null,
+        has_data: Boolean(row),
+        metric_value: Number.isFinite(metric) ? metric : 0
+      }
+    };
+  });
+  const ranked = [...features]
+    .filter((feature) => feature.properties.has_data)
+    .sort((a, b) => Number(b.properties.metric_value) - Number(a.properties.metric_value));
+  ranked.forEach((feature, index) => {
+    feature.properties.rank = index + 1;
+  });
+  const collection: GeoFeatureCollection = { type: "FeatureCollection", features };
+  mapCache.set(cacheKey, collection);
+  return collection;
 }
 
-function crimeGeneralYtd(
-  territoryType: TerritoryType,
-  territoryName: string,
-  year: number,
-  month: number,
-  data: StateSnapshot = DATA
-): number {
-  let total = 0;
-  for (const indicator of CRIME_RATE_INDICATORS) {
-    total += ytd(data.series[indicator]?.[territoryType]?.[territoryName] ?? [], year, month);
-  }
-  return round1(total);
-}
-
-function rioPopulationByPoliceArea(data: StateSnapshot = DATA): Record<string, number> {
+function rioPopulationByPoliceArea(collection: GeoFeatureCollection): Record<string, number> {
   const output: Record<string, number> = {};
-  for (const feature of data.rio_neighborhood_geometries.features) {
+  for (const feature of collection.features) {
     const sourceTerritoryName = String(feature.properties?.source_territory_name ?? "");
     const population = Number(feature.properties?.population ?? 0);
     if (sourceTerritoryName && population > 0) {
@@ -839,195 +420,130 @@ function rioPopulationByPoliceArea(data: StateSnapshot = DATA): Record<string, n
   return output;
 }
 
-function rankFeatures(features: GeoFeatureCollection["features"]) {
-  const ranked = [...features].sort((a, b) => Number(b.properties.metric_value ?? 0) - Number(a.properties.metric_value ?? 0));
-  ranked.forEach((feature, index) => {
-    feature.properties.rank = Number(feature.properties.metric_value ?? 0) > 0 ? index + 1 : null;
-  });
+// --- Utilidades -----------------------------------------------------------------------------
+
+export function monthIndex(year: number, month: number): number {
+  return MONTH_INDEX.get(`${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`) ?? -1;
 }
 
-function indicatorsWithData(data: StateSnapshot): Indicator[] {
-  return data.indicators.filter((indicator) => indicatorHasData(indicator.code, data));
+export function monthKeyAt(index: number): string | undefined {
+  return MONTHS[index];
 }
 
-function governorPerformanceForState(
-  data: StateSnapshot,
-  terms: Array<{ governor: string; party_or_condition: string; term_start: string; term_end: string | null }>,
-  methodology = "Comparação descritiva por mandato com dados oficiais disponíveis para a UF selecionada."
-): GovernorPerformanceResponse {
-  const stateName = resolveTerritoryName("state", undefined, data);
-  const coverageStart = stateCoverageStartIndex(data);
-  const rows = terms.map((term) => {
-    const startIndex = monthIndexFromDate(term.term_start);
-    const endIndex = term.term_end ? monthIndexFromDate(term.term_end) : monthIndex(data.latest_period.year, data.latest_period.month);
-    const boundedStart = Math.max(coverageStart, startIndex);
-    const boundedEnd = Math.min(endIndex, monthIndex(data.latest_period.year, data.latest_period.month));
-    const currentValues = GOVERNOR_INDICATORS.map((indicator) => {
-      const values = data.series[indicator]?.state?.[stateName] ?? [];
-      return annualizedSlice(values, boundedStart, boundedEnd);
-    });
-    const hasFullBaseline = boundedStart - 12 >= coverageStart;
-    const baselineStart = boundedStart - 12;
-    const baselineEnd = boundedStart - 1;
-    const baselineValues = GOVERNOR_INDICATORS.map((indicator) => {
-      if (!hasFullBaseline) {
-        return null;
-      }
-      const values = data.series[indicator]?.state?.[stateName] ?? [];
-      return annualizedSlice(values, baselineStart, baselineEnd);
-    });
-    const reductions = currentValues
-      .map((currentValue, index) => {
-        const baselineValue = baselineValues[index];
-        if (baselineValue === null || currentValue === null || baselineValue <= 0) {
-          return null;
-        }
-        return round1(((baselineValue - currentValue) / baselineValue) * 100);
-      })
-      .filter((value): value is number => value !== null);
-    const indicatorResults = GOVERNOR_INDICATORS.map((indicator, index) => ({
-      indicator,
-      reduction: baselineValues[index] && currentValues[index] !== null && baselineValues[index]! > 0
-        ? round1(((baselineValues[index]! - currentValues[index]!) / baselineValues[index]!) * 100)
-        : null
-    })).filter((item): item is { indicator: string; reduction: number } => item.reduction !== null);
-    const rankedIndicators = [...indicatorResults].sort((a, b) => b.reduction - a.reduction);
-    const monthsCount = boundedEnd >= boundedStart ? boundedEnd - boundedStart + 1 : 0;
-    const baselineMonthsCount = hasFullBaseline && baselineEnd >= baselineStart ? baselineEnd - baselineStart + 1 : 0;
-    return {
-      rank: null,
-      governor: term.governor,
-      party_or_condition: term.party_or_condition,
-      term_start: term.term_start,
-      term_end: term.term_end,
-      months_count: monthsCount,
-      baseline_months_count: baselineMonthsCount,
-      average_reduction_percent: reductions.length ? round1(reductions.reduce((sum, value) => sum + value, 0) / reductions.length) : null,
-      annualized_current_value: sumNullable(currentValues),
-      annualized_baseline_value: sumNullable(baselineValues),
-      best_indicator: rankedIndicators[0]?.indicator ?? null,
-      worst_indicator: rankedIndicators[rankedIndicators.length - 1]?.indicator ?? null,
-      note: reductions.length ? null : "sem base anterior"
-    };
-  });
-  const ranked = [...rows]
-    .sort((a, b) => (b.average_reduction_percent ?? Number.NEGATIVE_INFINITY) - (a.average_reduction_percent ?? Number.NEGATIVE_INFINITY))
-    .map((row, index) => ({ ...row, rank: row.average_reduction_percent === null ? null : index + 1 }));
-  return {
-    methodology,
-    indicators: GOVERNOR_INDICATORS,
-    rows: ranked
-  };
-}
-
-function stateCoverageStartIndex(data: StateSnapshot): number {
-  const startYear = Number(data.coverage?.state_start_year ?? DATA.analysis_start_year);
-  return Number.isFinite(startYear) ? monthIndex(startYear, 1) : 0;
-}
-
-function annualizedSlice(values: number[], startIndex: number, endIndex: number): number | null {
-  if (startIndex < 0 || endIndex < startIndex) {
-    return null;
-  }
-  const slice = values.slice(startIndex, endIndex + 1).filter((value) => Number.isFinite(value));
-  if (slice.length === 0) {
-    return null;
-  }
-  const total = slice.reduce((sum, value) => sum + value, 0);
-  return round1((total / slice.length) * 12);
-}
-
-function sumNullable(values: Array<number | null>): number | null {
-  const available = values.filter((value): value is number => value !== null);
-  return available.length ? round1(available.reduce((sum, value) => sum + value, 0)) : null;
-}
-
-function monthIndexFromDate(value: string): number {
-  const [year, month] = value.slice(0, 7).split("-").map(Number);
-  return monthIndex(year, month);
-}
-
-function indicatorHasData(indicator: string, data: StateSnapshot): boolean {
-  const byTerritoryType = data.series[indicator] ?? {};
-  return Object.values(byTerritoryType).some((byName) =>
-    Object.entries(byName).some(([name, values]) => !isIgnoredTerritory(name) && values.some((value) => Number(value) > 0))
-  );
-}
-
-function indicatorHasTerritoryData(indicator: string, territoryType: TerritoryType, data: StateSnapshot): boolean {
-  const byName = data.series[indicator]?.[territoryType] ?? {};
-  return Object.entries(byName).some(([name, values]) =>
-    !isIgnoredTerritory(name) && values.some((value) => Number(value) > 0)
-  );
-}
-
-function isIgnoredTerritory(name: string) {
-  return name.trim().localeCompare("Não Informado", "pt-BR", { sensitivity: "base" }) === 0;
-}
-
-function valuesFor(indicator: string, territoryType: TerritoryType, territoryName?: string, data: StateSnapshot = DATA): number[] {
-  const resolvedName = resolveTerritoryName(territoryType, territoryName, data);
-  return data.series[indicator]?.[territoryType]?.[resolvedName] ?? [];
-}
-
-function resolveTerritoryName(territoryType: TerritoryType, territoryName?: string, data: StateSnapshot = DATA): string {
+export function resolveTerritoryName(territoryType: TerritoryType, territoryName?: string): string {
   if (territoryType === "state") {
-    return data.territories.state?.[0]?.name ?? "Estado do Rio de Janeiro";
+    return STATE_NAME;
   }
   if (!territoryName) {
-    return data.territories[territoryType]?.[0]?.name ?? "";
+    return territoryType === "municipality" ? RIO_MUNICIPALITY : DATA.territories[territoryType]?.[0]?.name ?? "";
   }
   if (territoryType === "police_area" && /^CISP\s+\d+/i.test(territoryName)) {
-    return data.territorial_units.find((unit) => unit.police_area_name === territoryName)?.territorial_unit ?? territoryName;
+    return DATA.territorial_units.find((unit) => unit.police_area_name === territoryName)?.territorial_unit ?? territoryName;
   }
   return territoryName;
 }
 
-function ytd(values: number[], year: number, month: number): number {
-  let total = 0;
-  for (let currentMonth = 1; currentMonth <= month; currentMonth += 1) {
-    const index = monthIndex(year, currentMonth);
-    if (index >= 0) {
-      total += values[index] ?? 0;
+function sparseFor(indicator: string, territoryType: TerritoryType, name: string): SparseSeries | undefined {
+  return DATA.series[indicator]?.[territoryType]?.[name];
+}
+
+/** Série alinhada a `month_keys`; meses fora da cobertura ficam `null`. */
+function denseValues(indicator: string, territoryType: TerritoryType, name: string): Array<number | null> {
+  const cacheKey = `${indicator}:${territoryType}:${name}`;
+  const cached = denseCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+  const dense: Array<number | null> = new Array(MONTHS.length).fill(null);
+  const sparse = sparseFor(indicator, territoryType, name);
+  if (sparse) {
+    const start = MONTH_INDEX.get(sparse.from) ?? -1;
+    if (start >= 0) {
+      sparse.values.forEach((value, offset) => {
+        if (start + offset < dense.length) {
+          dense[start + offset] = value;
+        }
+      });
     }
+  }
+  denseCache.set(cacheKey, dense);
+  return dense;
+}
+
+/** Soma dos indicadores de "crime geral"; um mês só existe quando todos têm dado. */
+function crimeGeneralValues(territoryType: TerritoryType, name: string): Array<number | null> {
+  const cacheKey = `${CRIME_GENERAL_CODE}:${territoryType}:${name}`;
+  const cached = denseCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+  const parts = CRIME_RATE_INDICATORS.map((indicator) => denseValues(indicator, territoryType, name));
+  const dense: Array<number | null> = MONTHS.map((_, index) => {
+    let total = 0;
+    for (const part of parts) {
+      const value = part[index];
+      if (value === null || value === undefined) {
+        return null;
+      }
+      total += value;
+    }
+    return round1(total);
+  });
+  denseCache.set(cacheKey, dense);
+  return dense;
+}
+
+/** Soma de janeiro até `month` de `year`; null quando nenhum mês tem dado. */
+function ytd(values: Array<number | null>, year: number, month: number): number | null {
+  let total = 0;
+  let months = 0;
+  for (let currentMonth = 1; currentMonth <= month; currentMonth += 1) {
+    const value = values[monthIndex(year, currentMonth)];
+    if (value !== null && value !== undefined) {
+      total += value;
+      months += 1;
+    }
+  }
+  return months > 0 ? round1(total) : null;
+}
+
+function ytdExtremes(values: Array<number | null>, month: number, untilYear: number) {
+  let min: { year: number; value: number } | null = null;
+  let max: { year: number; value: number } | null = null;
+  for (let year = DATA.analysis_start_year; year <= untilYear; year += 1) {
+    const value = ytd(values, year, month);
+    if (value === null) {
+      continue;
+    }
+    if (!min || value < min.value) {
+      min = { year, value };
+    }
+    if (!max || value > max.value) {
+      max = { year, value };
+    }
+  }
+  return { min, max };
+}
+
+function rollingSum(values: Array<number | null>, endIndex: number, window: number): number | null {
+  const start = endIndex - window + 1;
+  if (start < 0 || endIndex >= values.length) {
+    return null;
+  }
+  let total = 0;
+  for (let index = start; index <= endIndex; index += 1) {
+    const value = values[index];
+    if (value === null || value === undefined) {
+      return null;
+    }
+    total += value;
   }
   return round1(total);
 }
 
-function historicalMinYtd(values: number[], month: number, data: StateSnapshot = DATA): { year: number; value: number } | null {
-  let best: { year: number; value: number } | null = null;
-  for (let year = DATA.analysis_start_year; year <= data.latest_period.year; year += 1) {
-    const value = ytd(values, year, month);
-    if (value <= 0) {
-      continue;
-    }
-    if (!best || value < best.value) {
-      best = { year, value };
-    }
-  }
-  return best;
-}
-
-function yearValues(values: number[], year: number, data: StateSnapshot = DATA): number[] {
-  const maxMonth = year === data.latest_period.year ? data.latest_period.month : 12;
-  const output: number[] = [];
-  for (let month = 1; month <= maxMonth; month += 1) {
-    output.push(values[monthIndex(year, month)] ?? 0);
-  }
-  return output;
-}
-
-function movingAverage(values: number[], index: number): number | null {
-  const start = Math.max(0, index - 2);
-  const slice = values.slice(start, index + 1);
-  if (slice.length === 0) {
-    return null;
-  }
-  return round1(slice.reduce((sum, value) => sum + value, 0) / slice.length);
-}
-
-function monthIndex(year: number, month: number): number {
-  return DATA.month_keys.indexOf(`${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`);
+function firstYearWithData(values: Array<number | null>): number | null {
+  const index = values.findIndex((value) => value !== null && value !== undefined);
+  return index >= 0 ? splitMonthKey(MONTHS[index]).year : null;
 }
 
 function splitMonthKey(key: string): { year: number; month: number } {
@@ -1035,25 +551,18 @@ function splitMonthKey(key: string): { year: number; month: number } {
   return { year, month };
 }
 
-function clampPeriod(data: StateSnapshot, year: number, month: number): { year: number; month: number } {
-  if (isAfterLatestPeriod(data, year, month)) {
-    return {
-      year: data.latest_period.year,
-      month: data.latest_period.month
-    };
+function clampPeriod(year: number, month: number): { year: number; month: number } {
+  if (year > LATEST.year || (year === LATEST.year && month > LATEST.month)) {
+    return { year: LATEST.year, month: LATEST.month };
   }
   return { year, month };
-}
-
-function isAfterLatestPeriod(data: StateSnapshot, year: number, month: number): boolean {
-  return year > data.latest_period.year || (year === data.latest_period.year && month > data.latest_period.month);
 }
 
 function periodDate(year: number, month: number): string {
   return new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
 }
 
-function ratePer100k(value: number, population?: number): number | null {
+function ratePer100k(value: number, population: number): number | null {
   if (!population || population <= 0) {
     return null;
   }
@@ -1062,7 +571,7 @@ function ratePer100k(value: number, population?: number): number | null {
 
 function rankingValue(row: RankingRow, mode: RankingMode): number {
   if (mode === "rate") {
-    return row.rate_per_100k ?? row.value;
+    return row.rate_per_100k ?? Number.NEGATIVE_INFINITY;
   }
   if (mode === "yoy") {
     return row.yoy_percent_change ?? Number.NEGATIVE_INFINITY;
@@ -1070,21 +579,22 @@ function rankingValue(row: RankingRow, mode: RankingMode): number {
   return row.value;
 }
 
-function trendFor(previous: number, current: number, diff: number): Pick<RankingRow, "trend_status" | "trend_label"> {
-  if (previous < 10 && current < 10) {
-    return { trend_status: "inconclusive", trend_label: "Inconclusivo" };
-  }
-  if (previous <= 0) {
+function trendFor(previous: number | null, current: number, diff: number | null): Pick<RankingRow, "trend_status" | "trend_label"> {
+  if (previous === null || diff === null || previous <= 0 || (previous < 10 && current < 10)) {
     return { trend_status: "inconclusive", trend_label: "Inconclusivo" };
   }
   const percent = (diff / previous) * 100;
   if (percent >= 10 && diff >= 3) {
-    return { trend_status: "worse", trend_label: "Piorando" };
+    return { trend_status: "worse", trend_label: "Em alta" };
   }
   if (percent <= -10 && diff <= -3) {
-    return { trend_status: "better", trend_label: "Melhorando" };
+    return { trend_status: "better", trend_label: "Em queda" };
   }
   return { trend_status: "stable", trend_label: "Estável" };
+}
+
+function isIgnoredTerritory(name: string) {
+  return name.trim().localeCompare("Não Informado", "pt-BR", { sensitivity: "base" }) === 0;
 }
 
 function round1(value: number): number {

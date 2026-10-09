@@ -1,177 +1,73 @@
-import { ExternalLink } from "lucide-react";
+import type { Metadata } from "next";
+import { PageHeader, Tag } from "@/components/ui";
 import { getDataSources, getSnapshotMeta } from "@/lib/api";
+import { formatBytes, formatDateTime, formatMonthYear } from "@/lib/format";
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "America/Sao_Paulo"
-  }).format(new Date(value));
-}
+export const metadata: Metadata = { title: "Fontes" };
 
-function formatBytes(value: number | null) {
-  if (value === null) {
-    return "-";
-  }
-  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(value / 1024 / 1024) + " MB";
-}
+const WORKFLOW_URL = "https://github.com/Tomoyo-Computer-Science-Research-Unit/perdeu-playboy/actions/workflows/update-data.yml";
 
-export default async function SourcesPage() {
-  const [
-    rjSources,
-    spSources,
-    prSources,
-    scSources,
-    rsSources,
-    mgSources,
-    esSources,
-    goSources,
-    mtSources,
-    msSources,
-    dfSources,
-    maSources,
-    piSources,
-    ceSources,
-    rnSources,
-    pbSources,
-    peSources,
-    alSources,
-    seSources,
-    baSources,
-    roSources,
-    acSources,
-    amSources,
-    rrSources,
-    paSources,
-    apSources,
-    toSources,
-    snapshot
-  ] = await Promise.all([
-    getDataSources("RJ"),
-    getDataSources("SP"),
-    getDataSources("PR"),
-    getDataSources("SC"),
-    getDataSources("RS"),
-    getDataSources("MG"),
-    getDataSources("ES"),
-    getDataSources("GO"),
-    getDataSources("MT"),
-    getDataSources("MS"),
-    getDataSources("DF"),
-    getDataSources("MA"),
-    getDataSources("PI"),
-    getDataSources("CE"),
-    getDataSources("RN"),
-    getDataSources("PB"),
-    getDataSources("PE"),
-    getDataSources("AL"),
-    getDataSources("SE"),
-    getDataSources("BA"),
-    getDataSources("RO"),
-    getDataSources("AC"),
-    getDataSources("AM"),
-    getDataSources("RR"),
-    getDataSources("PA"),
-    getDataSources("AP"),
-    getDataSources("TO"),
-    getSnapshotMeta()
-  ]);
-  const sources = [
-    ...rjSources.map((source) => ({ ...source, name: `RJ · ${source.name}` })),
-    ...spSources.map((source) => ({ ...source, name: `SP · ${source.name}` })),
-    ...prSources.map((source) => ({ ...source, name: `PR · ${source.name}` })),
-    ...scSources.map((source) => ({ ...source, name: `SC · ${source.name}` })),
-    ...rsSources.map((source) => ({ ...source, name: `RS · ${source.name}` })),
-    ...mgSources.map((source) => ({ ...source, name: `MG · ${source.name}` })),
-    ...esSources.map((source) => ({ ...source, name: `ES · ${source.name}` })),
-    ...goSources.map((source) => ({ ...source, name: `GO · ${source.name}` })),
-    ...mtSources.map((source) => ({ ...source, name: `MT · ${source.name}` })),
-    ...msSources.map((source) => ({ ...source, name: `MS · ${source.name}` })),
-    ...dfSources.map((source) => ({ ...source, name: `DF · ${source.name}` })),
-    ...maSources.map((source) => ({ ...source, name: `MA · ${source.name}` })),
-    ...piSources.map((source) => ({ ...source, name: `PI · ${source.name}` })),
-    ...ceSources.map((source) => ({ ...source, name: `CE · ${source.name}` })),
-    ...rnSources.map((source) => ({ ...source, name: `RN · ${source.name}` })),
-    ...pbSources.map((source) => ({ ...source, name: `PB · ${source.name}` })),
-    ...peSources.map((source) => ({ ...source, name: `PE · ${source.name}` })),
-    ...alSources.map((source) => ({ ...source, name: `AL · ${source.name}` })),
-    ...seSources.map((source) => ({ ...source, name: `SE · ${source.name}` })),
-    ...baSources.map((source) => ({ ...source, name: `BA · ${source.name}` })),
-    ...roSources.map((source) => ({ ...source, name: `RO · ${source.name}` })),
-    ...acSources.map((source) => ({ ...source, name: `AC · ${source.name}` })),
-    ...amSources.map((source) => ({ ...source, name: `AM · ${source.name}` })),
-    ...rrSources.map((source) => ({ ...source, name: `RR · ${source.name}` })),
-    ...paSources.map((source) => ({ ...source, name: `PA · ${source.name}` })),
-    ...apSources.map((source) => ({ ...source, name: `AP · ${source.name}` })),
-    ...toSources.map((source) => ({ ...source, name: `TO · ${source.name}` }))
-  ];
+export default function SourcesPage() {
+  const sources = getDataSources();
+  const meta = getSnapshotMeta();
 
   return (
-    <div className="grid gap-8">
-      <section className="border-b border-border pb-4">
-        <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">Fontes</p>
-        <h2 className="m-0 mt-1 text-4xl font-display uppercase leading-none text-foreground">Dados e checksums</h2>
-      </section>
+    <div className="grid gap-12">
+      <PageHeader
+        eyebrow="Fontes"
+        title="Arquivos oficiais e checksums"
+        lede="Cada arquivo baixado para gerar o snapshot, com tamanho e SHA-256, para que qualquer pessoa reproduza os números."
+        aside={<Tag ghost>{formatMonthYear(meta.latest_period.month, meta.latest_period.year)}</Tag>}
+      />
 
-      <section className="grid gap-4 border border-border bg-surface p-5 shadow-hard md:grid-cols-3">
-        <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-muted">Última atualização</p>
-          <p className="mt-2 font-mono text-sm font-bold text-foreground">{formatDate(snapshot.generated_at)}</p>
+      <dl>
+        <div className="table-line">
+          <dt>Snapshot</dt>
+          <dd className="num">{formatDateTime(meta.generated_at)}</dd>
         </div>
-        <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-muted">Período mais recente</p>
-          <p className="mt-2 font-mono text-sm font-bold text-foreground">
-            {String(snapshot.latest_period.month).padStart(2, "0")}/{snapshot.latest_period.year}
-          </p>
+        <div className="table-line">
+          <dt>Último mês</dt>
+          <dd className="num">{formatMonthYear(meta.latest_period.year, meta.latest_period.month)}</dd>
         </div>
-        <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-muted">Workflow</p>
-          <a
-            href="https://github.com/Tomoyo-Computer-Science-Research-Unit/perdeu-playboy/actions/workflows/update-data.yml"
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 inline-flex items-center gap-2 font-mono text-sm font-bold text-foreground underline decoration-border underline-offset-4 hover:text-accent-red"
-          >
-            GitHub Actions <ExternalLink size={13} aria-hidden="true" />
-          </a>
+        <div className="table-line">
+          <dt>Atualização</dt>
+          <dd>
+            <a href={WORKFLOW_URL} target="_blank" rel="noreferrer" className="underline decoration-fog underline-offset-4 hover:decoration-ink">
+              Fluxo semanal no GitHub Actions
+            </a>
+          </dd>
         </div>
-      </section>
+      </dl>
 
-      <section className="overflow-x-auto border border-border bg-surface shadow-hard">
-        <table className="min-w-[920px] divide-y divide-border text-sm">
-          <thead className="bg-background text-left font-mono text-xs font-bold uppercase tracking-wide text-muted">
+      <div className="overflow-x-auto">
+        <table className="ruled min-w-[880px]">
+          <thead>
             <tr>
-              <th className="px-4 py-3">Fonte</th>
-              <th className="px-4 py-3">Categoria</th>
-              <th className="px-4 py-3">Arquivo</th>
-              <th className="px-4 py-3 text-right">Tamanho</th>
-              <th className="px-4 py-3">SHA-256</th>
+              <th>Fonte</th>
+              <th>Categoria</th>
+              <th>Arquivo</th>
+              <th className="right">Tamanho</th>
+              <th>SHA-256</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody>
             {sources.map((source) => (
-              <tr key={`${source.name}-${source.file_name}`} className="align-top hover:bg-background/50">
-                <td className="px-4 py-3">
-                  <a
-                    href={source.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-widest text-foreground hover:text-muted"
-                  >
+              <tr key={`${source.name}-${source.file_name}`}>
+                <td>
+                  <a href={source.url} target="_blank" rel="noreferrer" className="text-ink underline decoration-fog underline-offset-4 hover:decoration-ink">
                     {source.name}
-                    <ExternalLink size={13} aria-hidden="true" />
                   </a>
-                  {!source.available ? <p className="mt-1 font-mono text-[10px] uppercase tracking-wider text-accent-red">não carregado no snapshot</p> : null}
+                  {!source.available ? <p className="text-[10px] tracking-[0.14em] text-ash">NÃO CARREGADO</p> : null}
                 </td>
-                <td className="px-4 py-3 font-mono text-xs uppercase tracking-wide text-muted">{source.category}</td>
-                <td className="px-4 py-3 font-mono text-xs text-foreground">{source.file_name}</td>
-                <td className="px-4 py-3 text-right font-mono text-xs tabular-nums text-muted">{formatBytes(source.size_bytes)}</td>
-                <td className="max-w-[320px] break-all px-4 py-3 font-mono text-[11px] leading-5 text-muted">{source.checksum_sha256 ?? "-"}</td>
+                <td className="faint">{source.category}</td>
+                <td className="font-mono text-[12px]">{source.file_name}</td>
+                <td className="num right faint">{formatBytes(source.size_bytes)}</td>
+                <td className="max-w-[300px] break-all font-mono text-[11px] leading-5 text-ash">{source.checksum_sha256 ?? "–"}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </section>
+      </div>
     </div>
   );
 }

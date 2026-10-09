@@ -1,100 +1,86 @@
-import { ArrowDown, ArrowUp } from "lucide-react";
-import type { RankingRow } from "@/types/api";
+import Link from "next/link";
+import { formatNumber, formatPercent, formatRate } from "@/lib/format";
+import type { RankingRow, TerritoryType } from "@/types/api";
 
-function formatNumber(value: number | null | undefined) {
-  if (value === null || value === undefined) {
-    return "-";
-  }
-  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(value);
-}
-
-type SortKey = "territory" | "value" | "trend" | "variation";
-type SortDirection = "asc" | "desc";
-
-function SortIcon({ active, direction }: { active: boolean; direction: SortDirection }) {
-  if (!active) {
-    return <ArrowDown size={13} className="opacity-30" aria-hidden="true" />;
-  }
-  return direction === "desc" ? <ArrowDown size={13} aria-hidden="true" /> : <ArrowUp size={13} aria-hidden="true" />;
-}
+export type SortKey = "territory" | "value" | "rate" | "trend" | "variation";
+export type SortDirection = "asc" | "desc";
 
 export function RankingTable({
   rows,
+  territoryType,
   sortKey,
   sortDirection,
-  onSort
+  onSort,
+  limit
 }: {
   rows: RankingRow[];
+  territoryType: TerritoryType;
   sortKey?: SortKey;
   sortDirection?: SortDirection;
   onSort?: (key: SortKey) => void;
+  limit?: number;
 }) {
-  const sortable = Boolean(onSort);
+  const visible = limit ? rows.slice(0, limit) : rows;
+  const hasRate = rows.some((row) => row.rate_per_100k !== null);
+
+  function header(label: string, key: SortKey, align: "left" | "right" = "left") {
+    const active = sortKey === key;
+    return (
+      <th className={align === "right" ? "right" : undefined}>
+        {onSort ? (
+          <button type="button" onClick={() => onSort(key)} className={`inline-flex items-center gap-1 uppercase tracking-[0.24em] hover:text-ink ${active ? "text-ink" : ""}`}>
+            {label}
+            <span aria-hidden="true" className="text-[9px]">
+              {active ? (sortDirection === "desc" ? "▼" : "▲") : "·"}
+            </span>
+          </button>
+        ) : (
+          label
+        )}
+      </th>
+    );
+  }
+
   return (
-    <div className="w-full overflow-x-auto border border-border bg-surface shadow-hard">
-      <table className="w-full min-w-[920px] divide-y divide-border text-sm">
-        <thead className="bg-background text-left font-mono text-xs font-bold uppercase tracking-wide text-muted">
+    <div className="overflow-x-auto">
+      <table className="ruled min-w-[720px]">
+        <thead>
           <tr>
-            <th className="px-4 py-3">Rank</th>
-            <th className="px-4 py-3">
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 uppercase hover:text-foreground disabled:hover:text-muted"
-                disabled={!sortable}
-                onClick={() => onSort?.("territory")}
-              >
-                Território
-                <SortIcon active={sortKey === "territory"} direction={sortDirection ?? "desc"} />
-              </button>
-            </th>
-            <th className="px-4 py-3 text-right">
-              <button
-                type="button"
-                className="ml-auto inline-flex items-center gap-1 uppercase hover:text-foreground disabled:hover:text-muted"
-                disabled={!sortable}
-                onClick={() => onSort?.("value")}
-              >
-                Valor
-                <SortIcon active={sortKey === "value"} direction={sortDirection ?? "desc"} />
-              </button>
-            </th>
-            <th className="px-4 py-3 text-right">Taxa 100 mil</th>
-            <th className="px-4 py-3 text-right">
-              <button
-                type="button"
-                className="ml-auto inline-flex items-center gap-1 uppercase hover:text-foreground disabled:hover:text-muted"
-                disabled={!sortable}
-                onClick={() => onSort?.("trend")}
-              >
-                Semáforo
-                <SortIcon active={sortKey === "trend"} direction={sortDirection ?? "desc"} />
-              </button>
-            </th>
-            <th className="px-4 py-3 text-right">
-              <button
-                type="button"
-                className="ml-auto inline-flex items-center gap-1 uppercase hover:text-foreground disabled:hover:text-muted"
-                disabled={!sortable}
-                onClick={() => onSort?.("variation")}
-              >
-                Variação
-                <SortIcon active={sortKey === "variation"} direction={sortDirection ?? "desc"} />
-              </button>
-            </th>
+            <th className="w-12">#</th>
+            {header("Território", "territory")}
+            {header("Ocorrências", "value", "right")}
+            {hasRate ? header("Por 100 mil", "rate", "right") : null}
+            {header("Variação", "variation", "right")}
+            {header("Tendência", "trend", "right")}
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
-          {rows.map((row) => (
-            <tr key={`${row.rank}-${row.territory_name}`} className="transition-colors hover:bg-background/50">
-              <td className="px-4 py-3 font-mono font-bold text-muted">{row.rank}</td>
-              <td className="px-4 py-3 text-foreground uppercase text-xs font-semibold">{row.territory_name}</td>
-              <td className="px-4 py-3 text-right font-mono tabular-nums text-foreground">{formatNumber(row.value)}</td>
-              <td className="px-4 py-3 text-right font-mono tabular-nums text-foreground">{formatNumber(row.rate_per_100k)}</td>
-              <td className="px-4 py-3 text-right font-mono text-xs font-bold uppercase tracking-wide">
-                <span className={trendClass(row.trend_status)}>{row.trend_label ?? "Inconclusivo"}</span>
+        <tbody>
+          {visible.length === 0 ? (
+            <tr>
+              <td colSpan={6} className="py-8 text-center text-[11px] tracking-[0.18em] text-ash">
+                SEM DADOS PARA ESTE RECORTE
               </td>
-              <td className={`px-4 py-3 text-right font-mono tabular-nums font-bold ${row.yoy_percent_change && row.yoy_percent_change > 0 ? "text-accent-red" : row.yoy_percent_change && row.yoy_percent_change < 0 ? "text-muted" : "text-foreground"}`}>
-                {formatNumber(row.yoy_percent_change)}%
+            </tr>
+          ) : null}
+          {visible.map((row) => (
+            <tr key={`${row.rank}-${row.territory_name}`}>
+              <td className="num faint">{row.rank}</td>
+              <td>
+                <Link
+                  href={`/trends?type=${territoryType}&name=${encodeURIComponent(row.territory_name)}`}
+                  className="text-ink hover:underline hover:underline-offset-4"
+                  title={row.territory_name}
+                >
+                  {row.territory_name}
+                </Link>
+              </td>
+              <td className="num right">{formatNumber(row.value)}</td>
+              {hasRate ? <td className="num right">{formatRate(row.rate_per_100k)}</td> : null}
+              <td className="num right">{formatPercent(row.yoy_percent_change)}</td>
+              <td className="right">
+                <span className={`text-[10px] tracking-[0.18em] ${row.trend_status === "worse" ? "text-ink" : "text-ash"}`}>
+                  {(row.trend_label ?? "Inconclusivo").toUpperCase()}
+                </span>
               </td>
             </tr>
           ))}
@@ -102,17 +88,4 @@ export function RankingTable({
       </table>
     </div>
   );
-}
-
-function trendClass(status: RankingRow["trend_status"]) {
-  if (status === "worse") {
-    return "text-accent-red";
-  }
-  if (status === "better") {
-    return "text-foreground";
-  }
-  if (status === "stable") {
-    return "text-muted";
-  }
-  return "text-muted";
 }
