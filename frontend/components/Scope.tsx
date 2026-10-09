@@ -54,6 +54,23 @@ export function Scope() {
         requestAnimationFrame(settle);
       }
     }
+    // Arrastáveis: sliders e a região da barra de rolagem de um painel. Sobre eles a mira some e
+    // entra a mão aberta; ao segurar, a mão fechada (os mesmos cursores do tomoyo.systems).
+    function grabbable(event: PointerEvent): boolean {
+      const element = event.target as Element | null;
+      if (!element) {
+        return false;
+      }
+      if (element.closest("input[type='range'], .grabbable")) {
+        return true;
+      }
+      const box = element.getBoundingClientRect();
+      const insideScrollbar =
+        (element.scrollHeight > element.clientHeight && event.clientX - box.left > element.clientWidth) ||
+        (element.scrollWidth > element.clientWidth && event.clientY - box.top > element.clientHeight);
+      return Boolean(element.clientWidth) && insideScrollbar;
+    }
+    let grabbing = false;
     function onMove(event: PointerEvent) {
       x = event.clientX;
       y = event.clientY;
@@ -64,7 +81,23 @@ export function Scope() {
         locked = target;
         scope!.classList.toggle("is-lock", Boolean(target));
       }
+      if (!grabbing) {
+        root.classList.toggle("is-grab", grabbable(event));
+      }
       nudge();
+    }
+    function onGrabStart(event: PointerEvent) {
+      if (event.button === 0 && grabbable(event)) {
+        grabbing = true;
+        root.classList.remove("is-grab");
+        root.classList.add("is-grabbing");
+      }
+    }
+    function onGrabEnd() {
+      if (grabbing) {
+        grabbing = false;
+        root.classList.remove("is-grabbing");
+      }
     }
     function onLeave() {
       scope!.classList.remove("is-live");
@@ -89,14 +122,20 @@ export function Scope() {
     addEventListener("pointermove", onMove, { passive: true });
     document.addEventListener("pointerleave", onLeave);
     addEventListener("pointerdown", onDown);
+    addEventListener("pointerdown", onGrabStart, true);
+    addEventListener("pointerup", onGrabEnd, true);
+    addEventListener("pointercancel", onGrabEnd, true);
     addEventListener("scroll", nudge, { passive: true });
     document.addEventListener("focusin", onFocusIn);
     document.addEventListener("focusout", onFocusOut);
     return () => {
-      root.classList.remove("has-scope", "scope-off");
+      root.classList.remove("has-scope", "scope-off", "is-grab", "is-grabbing");
       removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerleave", onLeave);
       removeEventListener("pointerdown", onDown);
+      removeEventListener("pointerdown", onGrabStart, true);
+      removeEventListener("pointerup", onGrabEnd, true);
+      removeEventListener("pointercancel", onGrabEnd, true);
       removeEventListener("scroll", nudge);
       document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("focusout", onFocusOut);

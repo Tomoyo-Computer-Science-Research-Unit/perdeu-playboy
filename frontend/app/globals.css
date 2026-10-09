@@ -762,6 +762,22 @@ html.scope-off .scope {
   opacity: 0 !important;
 }
 
+/* Mãos do tomoyo.systems: ao passar sobre algo arrastável (slider, barra de rolagem) e ao segurar. */
+html.has-scope.is-grab,
+html.has-scope.is-grab * {
+  cursor: var(--cursor-grab) 16 16, grab !important;
+}
+
+html.has-scope.is-grabbing,
+html.has-scope.is-grabbing * {
+  cursor: var(--cursor-grabbing) 16 16, grabbing !important;
+}
+
+html.is-grab .scope,
+html.is-grabbing .scope {
+  opacity: 0 !important;
+}
+
 .scope {
   position: fixed;
   top: 0;

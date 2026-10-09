@@ -56,7 +56,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   const latest = getSnapshotMeta().latest_period;
 
   return (
-    <html lang="pt-BR" className={`${mincho.variable} ${archivo.variable}`} suppressHydrationWarning>
+    <html
+      lang="pt-BR"
+      className={`${mincho.variable} ${archivo.variable}`}
+      style={{ "--cursor-grab": `url(${BASE_PATH}/cursor-grab.png)`, "--cursor-grabbing": `url(${BASE_PATH}/cursor-grabbing.png)` } as React.CSSProperties}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
