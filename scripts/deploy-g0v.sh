@@ -28,6 +28,7 @@ ssh "root@$IP" "mkdir -p '$REMOTE_DIR/site$BASE_PATH'"
 rsync -az --delete "$ROOT/frontend/out/" "root@$IP:$REMOTE_DIR/site$BASE_PATH/"
 # A Cloudflare guarda css/js por 7 dias: o HTML referencia os assets com o hash do commit.
 STAGE="$(mktemp -d)"
+chmod 755 "$STAGE"  # mktemp cria 0700 e o rsync copiaria o modo: o nginx não leria a pasta
 cp -r "$ROOT/deploy/g0v/site/." "$STAGE/"
 sed -i "s/VERSION/$(git -C "$ROOT" rev-parse --short HEAD)/g" "$STAGE/index.html"
 rsync -az "$STAGE/" "root@$IP:$REMOTE_DIR/site/"
