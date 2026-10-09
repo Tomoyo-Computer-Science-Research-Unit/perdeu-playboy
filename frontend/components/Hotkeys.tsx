@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { NAV_ITEMS } from "@/components/SiteNav";
 
-/** Teclas globais: 1–7 trocam de tela, T troca o tema. Ignora campos de formulário. */
+/** Teclas globais: 1–7 trocam de tela, T inverte o tema nesta visita. Ignora campos de formulário. */
 export function Hotkeys() {
   const router = useRouter();
 
@@ -22,11 +22,6 @@ export function Hotkeys() {
       if (event.key === "t" || event.key === "T") {
         const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
         document.documentElement.dataset.theme = next;
-        try {
-          window.localStorage.setItem("pp-theme", next);
-        } catch {
-          // sem armazenamento: vale só para esta visita
-        }
         window.dispatchEvent(new CustomEvent("pp-theme", { detail: next }));
       }
     }

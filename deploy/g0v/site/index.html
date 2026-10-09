@@ -12,10 +12,12 @@
 <link rel="stylesheet" href="/g0v.css?v=VERSION">
 <script>
 (() => {
-  let theme = null, fx = null;
-  try { theme = localStorage.getItem('pp-theme'); fx = localStorage.getItem('pp-fx'); } catch (e) {}
-  const dark = theme ? theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  const media = matchMedia('(prefers-color-scheme: dark)');
+  const apply = (dark) => { document.documentElement.dataset.theme = dark ? 'dark' : 'light'; };
+  apply(media.matches);
+  media.addEventListener('change', (e) => apply(e.matches));
+  let fx = null;
+  try { fx = localStorage.getItem('pp-fx'); } catch (e) {}
   if (fx !== 'off') document.documentElement.classList.add('fx');
 })();
 </script>

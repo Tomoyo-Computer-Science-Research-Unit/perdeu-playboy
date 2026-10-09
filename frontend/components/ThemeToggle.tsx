@@ -17,11 +17,6 @@ export function ThemeToggle() {
   function toggle() {
     const next: Theme = theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
-    try {
-      window.localStorage.setItem("pp-theme", next);
-    } catch {
-      // armazenamento indisponível: o tema vale só para esta visita
-    }
     setTheme(next);
   }
 

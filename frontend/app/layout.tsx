@@ -44,12 +44,13 @@ export const metadata: Metadata = {
   icons: { icon: `${BASE_PATH}/favicon.png`, shortcut: `${BASE_PATH}/favicon.png`, apple: `${BASE_PATH}/favicon.png` }
 };
 
-// Aplica o tema antes da primeira pintura para não piscar (mesma técnica do tomoyo.systems).
+// O tema segue o sistema e muda junto com ele; T inverte só nesta visita. Aplicado antes da
+// primeira pintura para não piscar.
 const THEME_SCRIPT = `(() => {
-  let saved = null;
-  try { saved = localStorage.getItem('pp-theme'); } catch (e) {}
-  const dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  const media = matchMedia('(prefers-color-scheme: dark)');
+  const apply = (dark) => { document.documentElement.dataset.theme = dark ? 'dark' : 'light'; };
+  apply(media.matches);
+  media.addEventListener('change', (e) => apply(e.matches));
 })();`;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

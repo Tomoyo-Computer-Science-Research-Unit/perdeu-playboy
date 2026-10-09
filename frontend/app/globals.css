@@ -501,7 +501,6 @@ input[type="range"]::-moz-range-thumb {
   cursor: pointer;
 }
 
-
 /* --- Casca de uma tela só: cabeçalho, palco, barra de status ------------------------ */
 
 .app {
@@ -881,23 +880,6 @@ html.is-grabbing .scope {
   position: fixed;
 }
 
-.shard {
-  position: absolute;
-  pointer-events: none;
-  will-change: transform;
-}
-
-.shard__edge {
-  position: absolute;
-  top: 0;
-  left: 0;
-  overflow: visible;
-  fill: none;
-  stroke: #fff;
-  stroke-width: 1.6px;
-  mix-blend-mode: difference;
-}
-
 .ricochet-spark {
   position: absolute;
   width: 12px;
@@ -907,11 +889,3 @@ html.is-grabbing .scope {
   pointer-events: none;
 }
 
-.shatter-flash {
-  position: absolute;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--ink);
-  pointer-events: none;
-}
