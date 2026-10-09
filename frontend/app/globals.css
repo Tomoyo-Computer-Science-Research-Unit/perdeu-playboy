@@ -679,7 +679,7 @@ body {
   min-height: 720px;
 }
 
-/* --- Efeitos: print-fx, grão e varredura (scan-fx) --------------------------------- */
+/* --- Efeito de impressão (print-fx) --------------------------------------------------- */
 
 /* Textura de impressão (filtro SVG definido no layout): só em texto e bordas, nunca em
    gráficos ou no mapa, para o filtro não ser recalculado a cada frame. */
@@ -711,59 +711,6 @@ html.fx[data-theme="dark"] .btn,
 html.fx[data-theme="dark"] .field,
 html.fx[data-theme="dark"] .detail {
   filter: url(#print-fx-dark);
-}
-
-/* Grão de papel sobre a página inteira */
-html.fx body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  pointer-events: none;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-html.fx[data-theme="dark"] body::before {
-  opacity: 0.05;
-  filter: invert(1);
-}
-
-/* scan-fx: linhas finas de varredura e uma faixa que percorre a tela devagar, como um scanner */
-html.fx body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 91;
-  pointer-events: none;
-  background-image:
-    repeating-linear-gradient(0deg, rgba(14, 14, 14, 0.045) 0 1px, transparent 1px 3px),
-    linear-gradient(180deg, transparent 0%, rgba(14, 14, 14, 0.05) 48%, rgba(14, 14, 14, 0.08) 50%, rgba(14, 14, 14, 0.05) 52%, transparent 100%);
-  background-size: 100% 3px, 100% 38vh;
-  background-repeat: repeat, no-repeat;
-  background-position: 0 0, 0 -40vh;
-  animation: scan-fx 14s linear infinite;
-}
-
-html.fx[data-theme="dark"] body::after {
-  background-image:
-    repeating-linear-gradient(0deg, rgba(244, 244, 243, 0.04) 0 1px, transparent 1px 3px),
-    linear-gradient(180deg, transparent 0%, rgba(244, 244, 243, 0.05) 48%, rgba(244, 244, 243, 0.08) 50%, rgba(244, 244, 243, 0.05) 52%, transparent 100%);
-}
-
-@keyframes scan-fx {
-  from {
-    background-position: 0 0, 0 -40vh;
-  }
-  to {
-    background-position: 0 0, 0 140vh;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html.fx body::after {
-    animation: none;
-  }
 }
 
 /* --- Mira (scope) e coisas quebráveis, como no tomoyo.systems ------------------------- */

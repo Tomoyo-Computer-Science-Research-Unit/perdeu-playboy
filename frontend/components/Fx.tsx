@@ -8,8 +8,8 @@ const STORAGE_KEY = "pp-fx";
 /**
  * Efeitos de impressão do tomoyo.systems (print-fx, após o print-fx do remilia.org): a folha é
  * deformada por um campo de turbulência; a tinta sozinha é tirada como segunda chapa, deformada
- * por outro campo e impressa de volta, com leve desregistro, como riso ou fotocópia. O grão e a
- * varredura (scan-fx) ficam no CSS. A tecla F liga e desliga tudo.
+ * por outro campo e impressa de volta, com leve desregistro, como riso ou fotocópia. A tecla F
+ * liga e desliga.
  */
 export function Fx() {
   useEffect(() => {

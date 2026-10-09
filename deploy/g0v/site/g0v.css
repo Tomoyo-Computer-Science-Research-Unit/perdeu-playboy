@@ -104,11 +104,6 @@ kbd {
   height: 72px;
 }
 
-.banner__text {
-  display: flex;
-  flex-direction: column;
-}
-
 .banner__title {
   font-family: "Archivo", var(--sans);
   font-stretch: 125%;
@@ -117,14 +112,7 @@ kbd {
   line-height: 1;
   letter-spacing: -0.01em;
   color: var(--ink);
-}
-
-.banner__sub {
-  margin-top: 6px;
-  font-family: "Shippori Mincho B1", serif;
-  font-size: 12px;
-  letter-spacing: 0.3em;
-  color: var(--slate);
+  text-decoration: none;
 }
 
 .box {
@@ -228,65 +216,14 @@ li {
 
 html.fx .box,
 html.fx .links,
-html.fx .banner__text {
+html.fx .banner__title {
   filter: url(#print-fx-light);
 }
 
 html.fx[data-theme="dark"] .box,
 html.fx[data-theme="dark"] .links,
-html.fx[data-theme="dark"] .banner__text {
+html.fx[data-theme="dark"] .banner__title {
   filter: url(#print-fx-dark);
-}
-
-html.fx body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  pointer-events: none;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-html.fx[data-theme="dark"] body::before {
-  opacity: 0.05;
-  filter: invert(1);
-}
-
-html.fx body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 91;
-  pointer-events: none;
-  background-image:
-    repeating-linear-gradient(0deg, rgba(14, 14, 14, 0.045) 0 1px, transparent 1px 3px),
-    linear-gradient(180deg, transparent 0%, rgba(14, 14, 14, 0.05) 48%, rgba(14, 14, 14, 0.08) 50%, rgba(14, 14, 14, 0.05) 52%, transparent 100%);
-  background-size: 100% 3px, 100% 38vh;
-  background-repeat: repeat, no-repeat;
-  background-position: 0 0, 0 -40vh;
-  animation: scan-fx 14s linear infinite;
-}
-
-html.fx[data-theme="dark"] body::after {
-  background-image:
-    repeating-linear-gradient(0deg, rgba(244, 244, 243, 0.04) 0 1px, transparent 1px 3px),
-    linear-gradient(180deg, transparent 0%, rgba(244, 244, 243, 0.05) 48%, rgba(244, 244, 243, 0.08) 50%, rgba(244, 244, 243, 0.05) 52%, transparent 100%);
-}
-
-@keyframes scan-fx {
-  from {
-    background-position: 0 0, 0 -40vh;
-  }
-  to {
-    background-position: 0 0, 0 140vh;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html.fx body::after {
-    animation: none;
-  }
 }
 
 html.has-scope,
