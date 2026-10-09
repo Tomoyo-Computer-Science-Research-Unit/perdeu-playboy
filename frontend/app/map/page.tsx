@@ -1,27 +1,33 @@
+import type { Metadata } from "next";
+import { Suspense } from "react";
 import { MunicipalityChoroplethPanel } from "@/components/MunicipalityChoroplethPanel";
-import { SourceBadge } from "@/components/SourceBadge";
-import { getCrimeRateMapData, getLatestPeriod, getMapIndicators } from "@/lib/api";
+import { PageHeader, Tag } from "@/components/ui";
+import { getLatestPeriod, getSnapshotMeta } from "@/lib/api";
+import { monthLong } from "@/lib/format";
 
-export default async function MapPage() {
-  const [indicators, latest] = await Promise.all([getMapIndicators(), getLatestPeriod()]);
-  const mapData = await getCrimeRateMapData(latest.year, latest.month);
+export const metadata: Metadata = { title: "Mapa" };
 
+export default function MapPage() {
+  const latest = getLatestPeriod();
+  const coverage = getSnapshotMeta().coverage;
   return (
-    <div className="grid gap-8">
-      <section className="flex flex-col gap-4 border-b border-border pb-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">Mapa</p>
-          <h2 className="mt-1 text-4xl font-display text-foreground m-0 leading-none uppercase">Municípios do estado</h2>
-        </div>
-        <SourceBadge label="ISP / SSP-SP / Sinesp + IBGE" />
-      </section>
-
-      <MunicipalityChoroplethPanel
-        indicators={indicators}
-        initialData={mapData}
-        latestYear={latest.year}
-        latestMonth={latest.month}
+    <div className="grid gap-12">
+      <PageHeader
+        eyebrow="Mapa"
+        title="Municípios do estado e bairros do Rio"
+        lede={`Coropleto em tons de tinta: quanto mais escuro, maior o valor. Municípios desde ${coverage.municipality_start_year ?? 2014}; clique no Rio de Janeiro para abrir os bairros, agregados pela área integrada (CISP) desde ${coverage.police_area_start_year ?? 2003}.`}
+        aside={
+          <>
+            <Tag>ISP + IBGE + Data.Rio</Tag>
+            <Tag ghost>
+              até {monthLong(latest.month)} {latest.year}
+            </Tag>
+          </>
+        }
       />
+      <Suspense>
+        <MunicipalityChoroplethPanel />
+      </Suspense>
     </div>
   );
 }

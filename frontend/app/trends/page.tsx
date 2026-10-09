@@ -1,24 +1,32 @@
+import { Suspense } from "react";
+import type { Metadata } from "next";
 import { TrendsExplorer } from "@/components/TrendsExplorer";
-import { ANALYSIS_START_YEAR } from "@/lib/constants";
-import { getIndicators, getTerritories, getTimeseries } from "@/lib/api";
+import { PageHeader, Tag } from "@/components/ui";
+import { getLatestPeriod } from "@/lib/api";
+import { monthLong } from "@/lib/format";
 
-export default async function TrendsPage() {
-  const [indicators, territories, timeseries] = await Promise.all([
-    getIndicators("BR"),
-    getTerritories("state", "BR"),
-    getTimeseries("roubo_rua", "state", "Brasil", ANALYSIS_START_YEAR, 2026, "BR")
-  ]);
+export const metadata: Metadata = { title: "Séries históricas" };
 
+export default function TrendsPage() {
+  const latest = getLatestPeriod();
   return (
-    <div className="grid gap-8">
-      <section className="flex flex-col gap-4 border-b border-border pb-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">Tendências</p>
-          <h2 className="mt-1 text-4xl font-display text-foreground m-0 leading-none uppercase">Séries históricas por indicador</h2>
-        </div>
-      </section>
-
-      <TrendsExplorer indicators={indicators} initialTerritories={territories} initialData={timeseries} />
+    <div className="grid gap-12">
+      <PageHeader
+        eyebrow="Séries históricas"
+        title="Cada indicador, mês a mês e ano a ano"
+        lede="Estado desde 1991, áreas integradas (CISP) desde 2003, municípios desde 2014. Escolha o recorte, compare totais anuais ou a soma móvel de 12 meses, e baixe a série em CSV."
+        aside={
+          <>
+            <Tag>ISP Dados Abertos</Tag>
+            <Tag ghost>
+              até {monthLong(latest.month)} {latest.year}
+            </Tag>
+          </>
+        }
+      />
+      <Suspense>
+        <TrendsExplorer />
+      </Suspense>
     </div>
   );
 }

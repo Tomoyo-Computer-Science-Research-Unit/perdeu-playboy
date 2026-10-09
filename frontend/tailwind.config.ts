@@ -5,27 +5,31 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#050505",
-        surface: "#111111",
-        foreground: "#f2f2f2",
-        muted: "#9a9a9a",
-        border: "#303030",
-        accent: {
-          red: "#e01f1f"
-        }
+        ink: "var(--ink)",
+        sumi: "var(--sumi)",
+        char: "var(--char)",
+        slate: "var(--slate)",
+        ash: "var(--ash)",
+        smoke: "var(--smoke)",
+        fog: "var(--fog)",
+        mist: "var(--mist)",
+        haze: "var(--haze)",
+        bone: "var(--bone)",
+        paper: "var(--paper)",
+        line: "var(--line)",
+        "line-strong": "var(--line-strong)"
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "sans-serif"],
-        mono: ["var(--font-roboto-mono)", "monospace"],
-        display: ["var(--font-bebas-neue)", "sans-serif"],
-      },
-      boxShadow: {
-        hard: "4px 4px 0px 0px rgba(0,0,0,1)"
+        sans: ["var(--sans)"],
+        serif: ["var(--font-mincho)", "serif"],
+        display: ["var(--font-archivo)", "var(--sans)"]
       },
       borderRadius: {
         none: "0",
-        sm: "0.125rem",
-        DEFAULT: "0", /* overriding default rounded borders to be flat */
+        DEFAULT: "0"
+      },
+      maxWidth: {
+        wrap: "var(--wrap)"
       }
     }
   },

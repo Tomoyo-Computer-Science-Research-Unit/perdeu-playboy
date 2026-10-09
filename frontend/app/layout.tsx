@@ -1,116 +1,170 @@
 import type { Metadata } from "next";
-import { Inter, Roboto_Mono, Bebas_Neue } from "next/font/google";
-import Image from "next/image";
+import { Archivo, Shippori_Mincho_B1 } from "next/font/google";
 import Link from "next/link";
-import { UfSelector } from "@/components/UfSelector";
 import { SiteNav } from "@/components/SiteNav";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { getSnapshotMeta } from "@/lib/api";
+import { formatDateTime, monthLong } from "@/lib/format";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const robotoMono = Roboto_Mono({ subsets: ["latin"], variable: "--font-roboto-mono" });
-const bebasNeue = Bebas_Neue({ weight: "400", subsets: ["latin"], variable: "--font-bebas-neue" });
+const mincho = Shippori_Mincho_B1({ weight: ["500", "700"], subsets: ["latin"], variable: "--font-mincho", display: "swap" });
+const archivo = Archivo({ subsets: ["latin"], weight: "variable", axes: ["wdth"], variable: "--font-archivo", display: "swap" });
+
+const DESCRIPTION =
+  "Painel público de indicadores oficiais de violência e segurança pública no Estado do Rio de Janeiro: séries históricas desde 1991, municípios, áreas policiais, mapas e comparações por mandato.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://perdeu-playboy.online"),
   title: {
     default: "Perdeu, Playboy",
-    template: "%s | Perdeu, Playboy"
+    template: "%s · Perdeu, Playboy"
   },
-  description: "Painel publico de indicadores oficiais de violencia e seguranca publica nos 26 estados e no Distrito Federal, com series historicas, mapas, rankings e comparacoes por governo.",
+  description: DESCRIPTION,
   applicationName: "Perdeu, Playboy",
-  authors: [{ name: "g0v brazil & tomoyo", url: "https://x.com/333tomoyo" }],
-  creator: "g0v brazil & tomoyo",
-  publisher: "g0v brazil & tomoyo",
-  keywords: [
-    "Brasil",
-    "seguranca publica",
-    "violencia",
-    "estatisticas criminais",
-    "homicidio",
-    "ISP Dados Abertos",
-    "SSP-SP",
-    "Sinesp VDE",
-    "dados publicos",
-    "g0v"
-  ],
-  alternates: {
-    canonical: "/"
-  },
+  authors: [{ name: "Tomoyo", url: "https://tomoyo.systems" }],
+  creator: "Tomoyo",
+  publisher: "Tomoyo",
+  keywords: ["Rio de Janeiro", "segurança pública", "violência", "ISP Dados Abertos", "letalidade violenta", "dados públicos", "série histórica"],
+  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     locale: "pt_BR",
     url: "https://perdeu-playboy.online",
     siteName: "Perdeu, Playboy",
     title: "Perdeu, Playboy",
-    description: "Painel publico de indicadores oficiais de violencia e seguranca publica nos 26 estados e no Distrito Federal, com series historicas, mapas, rankings e comparacoes por governo.",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "Perdeu, Playboy - painel publico de dados sobre violencia e seguranca publica"
-      }
-    ]
+    description: DESCRIPTION,
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Perdeu, Playboy" }]
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "Perdeu, Playboy",
-    description: "Painel publico de indicadores oficiais de violencia e seguranca publica nos 26 estados e no Distrito Federal, com series historicas, mapas, rankings e comparacoes por governo.",
-    images: ["/og-image.png"]
-  },
-  icons: {
-    icon: "/favicon.png",
-    shortcut: "/favicon.png",
-    apple: "/favicon.png"
-  }
+  twitter: { card: "summary_large_image", title: "Perdeu, Playboy", description: DESCRIPTION, images: ["/og-image.png"] },
+  icons: { icon: "/favicon.png", shortcut: "/favicon.png", apple: "/favicon.png" }
 };
 
+// Aplica o tema antes da primeira pintura para não piscar (mesma técnica do tomoyo.systems).
+const THEME_SCRIPT = `(() => {
+  let saved = null;
+  try { saved = localStorage.getItem('pp-theme'); } catch (e) {}
+  const dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+})();`;
+
+const FOOTER_COLUMNS = [
+  {
+    title: "Dados",
+    links: [
+      { href: "/", label: "Panorama" },
+      { href: "/trends", label: "Séries históricas" },
+      { href: "/map", label: "Mapa" },
+      { href: "/rankings", label: "Rankings" },
+      { href: "/changes", label: "Mudanças" },
+      { href: "/governors", label: "Mandatos" }
+    ]
+  },
+  {
+    title: "Sobre",
+    links: [
+      { href: "/methodology", label: "Metodologia" },
+      { href: "/glossary", label: "Glossário" },
+      { href: "/sources", label: "Fontes e checksums" }
+    ]
+  },
+  {
+    title: "Fontes",
+    links: [
+      { href: "https://www.ispdados.rj.gov.br/", label: "ISP Dados Abertos", external: true },
+      { href: "https://sidra.ibge.gov.br/tabela/6579", label: "IBGE / SIDRA", external: true },
+      { href: "https://www.data.rio/", label: "Data.Rio", external: true }
+    ]
+  },
+  {
+    title: "Tomoyo",
+    links: [
+      { href: "https://tomoyo.systems", label: "tomoyo.systems", external: true },
+      { href: "https://github.com/Tomoyo-Computer-Science-Research-Unit/perdeu-playboy", label: "Código-fonte", external: true },
+      { href: "https://x.com/333tomoyo", label: "X", external: true }
+    ]
+  }
+];
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const meta = getSnapshotMeta();
+  const latest = meta.latest_period;
+
   return (
-    <html lang="pt-BR" className={`${inter.variable} ${robotoMono.variable} ${bebasNeue.variable}`}>
-      <body className="bg-background text-foreground font-sans selection:bg-accent-red selection:text-foreground">
-        <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <div className="flex items-center justify-between gap-4 py-3 sm:py-4">
-              <Link href="/dashboard" className="group flex items-center gap-3">
-                <Image
-                  src="/logo_perdeu-playboy.png"
-                  alt="Perdeu, Playboy"
-                  width={56}
-                  height={56}
-                  priority
-                  className="h-10 w-10 shrink-0 object-contain sm:h-11 sm:w-11"
-                />
-                <span className="flex flex-col leading-none">
-                  <span className="font-display text-2xl tracking-wide text-foreground transition-colors group-hover:text-accent-red sm:text-[1.75rem]">
-                    Perdeu, Playboy
-                  </span>
-                  <span className="mt-1 font-mono text-[10px] uppercase tracking-[0.22em] text-muted">
-                    Segurança pública · dados oficiais
-                  </span>
-                </span>
-              </Link>
-              <UfSelector />
+    <html lang="pt-BR" className={`${mincho.variable} ${archivo.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
+      <body className="bg-paper text-sumi">
+        <header className="wrap">
+          <div className="flex items-center justify-between gap-6 py-7 sm:py-9">
+            <Link href="/" className="group flex items-center gap-4 text-ink">
+              <Mark />
+              <span className="flex flex-col">
+                <span className="wordmark text-[20px] leading-none sm:text-[22px]">Perdeu, Playboy</span>
+                <span className="eyebrow mt-2 hidden text-[9px] sm:block">Segurança pública · Rio de Janeiro · desde 1991</span>
+              </span>
+            </Link>
+            <div className="flex items-center gap-3">
+              <span className="hidden text-[11px] tracking-[0.12em] text-ash md:inline">
+                ISP até {monthLong(latest.month)} de {latest.year}
+              </span>
+              <ThemeToggle />
             </div>
           </div>
-          <div className="border-t border-border">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6">
-              <SiteNav />
-            </div>
-          </div>
+          <SiteNav />
         </header>
-        <main className="mx-auto max-w-7xl px-4 py-7 md:py-12">{children}</main>
-        <footer className="border-t border-border bg-surface mt-12 py-8">
-          <div className="mx-auto max-w-7xl px-4 text-center">
-            <p className="font-mono text-xs text-muted">
-              dados públicos ✦ g0v brazil & tomoyo ✦{" "}
-              <a href="https://x.com/333tomoyo" className="text-foreground underline decoration-border underline-offset-4 hover:text-accent-red">
-                X
-              </a>
-            </p>
+
+        <main className="wrap pb-24 pt-10 sm:pt-14">{children}</main>
+
+        <footer className="wrap mt-16 border-t border-line pt-12 pb-10">
+          <div className="grid gap-10 md:grid-cols-[1.2fr_repeat(4,1fr)]">
+            <div className="flex items-start gap-4">
+              <Mark />
+              <div>
+                <p className="wordmark text-[18px] text-ink">Perdeu, Playboy</p>
+                <p className="mt-3 max-w-[32ch] text-[12.5px] leading-7 text-ash">
+                  Dados oficiais do Instituto de Segurança Pública do Rio de Janeiro, organizados como informação cívica. Sem
+                  identificação de vítimas, sem linguagem sensacionalista.
+                </p>
+              </div>
+            </div>
+            {FOOTER_COLUMNS.map((column) => (
+              <div key={column.title}>
+                <p className="serif border-b border-line pb-2 text-[13px] tracking-[0.14em] text-ink">{column.title}</p>
+                <ul className="mt-3 space-y-1.5 text-[12.5px] text-slate">
+                  {column.links.map((link) => (
+                    <li key={link.href}>
+                      {"external" in link && link.external ? (
+                        <a href={link.href} target="_blank" rel="noreferrer" className="hover:text-ink hover:underline hover:underline-offset-4">
+                          {link.label}
+                        </a>
+                      ) : (
+                        <Link href={link.href} className="hover:text-ink hover:underline hover:underline-offset-4">
+                          {link.label}
+                        </Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <div className="mt-12 flex flex-col gap-2 border-t border-line pt-5 text-[11px] tracking-[0.1em] text-ash sm:flex-row sm:items-center sm:justify-between">
+            <span>© {new Date().getFullYear()} Tomoyo · g0v brazil. Dados públicos, código aberto.</span>
+            <span>Snapshot gerado em {formatDateTime(meta.generated_at)}</span>
           </div>
         </footer>
       </body>
     </html>
+  );
+}
+
+/** Marca mínima: um círculo com barras, eco do selo do tomoyo.systems. */
+function Mark() {
+  return (
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true" className="shrink-0 text-ink">
+      <circle cx="17" cy="17" r="15.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M8 17h18M12 17v9M17 17v9M22 17v9M12 8v9M22 8v9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
   );
 }

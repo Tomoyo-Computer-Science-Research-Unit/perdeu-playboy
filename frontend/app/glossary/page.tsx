@@ -1,76 +1,88 @@
-import { SourceBadge } from "@/components/SourceBadge";
-import { getIndicators } from "@/lib/api";
+import type { Metadata } from "next";
+import { PageHeader, SectionHeading, Tag } from "@/components/ui";
+import { getFirstMonth, getIndicators } from "@/lib/api";
 
-const differences = [
+export const metadata: Metadata = { title: "Glossário" };
+
+const TERMS = [
   {
     title: "Letalidade violenta",
-    body: "Indicador agregado usado no RJ para reunir mortes violentas intencionais: homicídio doloso, latrocínio, lesão corporal seguida de morte e morte por intervenção de agente do Estado."
+    body: "Agregado do ISP para mortes violentas intencionais: homicídio doloso, latrocínio, lesão corporal seguida de morte e morte por intervenção de agente do Estado."
   },
   {
     title: "Homicídio doloso",
-    body: "Morte intencional registrada como homicídio. Não inclui automaticamente latrocínio ou morte por intervenção policial quando essas categorias aparecem separadas."
+    body: "Morte intencional registrada como homicídio. Não inclui latrocínio nem morte por intervenção policial, que aparecem separados."
   },
-  {
-    title: "Latrocínio",
-    body: "Roubo seguido de morte. É crime patrimonial com resultado morte e também compõe a letalidade violenta."
-  },
+  { title: "Latrocínio", body: "Roubo seguido de morte. Crime patrimonial com resultado morte; também compõe a letalidade violenta." },
   {
     title: "Morte por intervenção de agente do Estado",
-    body: "Morte decorrente de intervenção de agentes estatais, conforme registro policial. Também compõe a letalidade violenta."
+    body: "Morte decorrente de ação de agentes estatais, conforme o registro policial. Também compõe a letalidade violenta."
   },
+  { title: "Feminicídio", body: "Homicídio de mulher por razões da condição de sexo feminino. O ISP passou a publicar a série em outubro de 2024." },
   {
     title: "Roubo de rua",
-    body: "Agregado de roubos em via pública usado pelo ISP, incluindo subcategorias como transeunte, celular e coletivo conforme a base oficial."
+    body: "Agregado do ISP para roubos em via pública: transeunte, celular e em coletivo, conforme a base oficial."
+  },
+  { title: "Estupro", body: "Registros de estupro conforme a classificação policial. Série estadual desde 2003." },
+  {
+    title: "CISP / área integrada",
+    body: "Circunscrição Integrada de Segurança Pública: a área de uma delegacia, unidade territorial mínima dos dados do ISP. O site a chama de área integrada."
   },
   {
-    title: "Feminicídio",
-    body: "Homicídio contra mulher por razões da condição de sexo feminino, conforme tipificação legal e registro policial."
-  }
+    title: "Acumulado no ano",
+    body: "Soma de janeiro até o último mês publicado. Comparações usam os mesmos meses do ano anterior, nunca o ano inteiro contra um ano parcial."
+  },
+  {
+    title: "Soma móvel de 12 meses",
+    body: "Soma dos últimos doze meses terminados em cada mês. Remove a sazonalidade e permite comparar qualquer mês com o ano anterior."
+  },
+  { title: "Taxa por 100 mil", body: "Ocorrências divididas pela população residente do ano e multiplicadas por 100 mil. Só para anos completos." }
 ];
 
-export default async function GlossaryPage() {
-  const indicators = await getIndicators();
+export default function GlossaryPage() {
+  const indicators = getIndicators();
 
   return (
-    <div className="grid gap-8">
-      <section className="flex flex-col gap-4 border-b border-border pb-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted">Glossário</p>
-          <h2 className="m-0 mt-1 text-4xl font-display uppercase leading-none text-foreground">Como ler os indicadores</h2>
-        </div>
-        <SourceBadge label="Definições ISP" />
-      </section>
+    <div className="grid gap-12">
+      <PageHeader eyebrow="Glossário" title="Como ler os indicadores" aside={<Tag>Definições ISP</Tag>} />
 
-      <section className="grid gap-4 md:grid-cols-2">
-        {differences.map((item) => (
-          <article key={item.title} className="border border-border bg-surface p-5 shadow-hard">
-            <h3 className="m-0 text-2xl font-display uppercase leading-none text-foreground">{item.title}</h3>
-            <p className="mt-3 font-mono text-xs uppercase leading-5 tracking-wide text-muted">{item.body}</p>
-          </article>
+      <dl>
+        {TERMS.map((term) => (
+          <div key={term.title} className="table-line">
+            <dt>{term.title}</dt>
+            <dd>{term.body}</dd>
+          </div>
         ))}
-      </section>
+      </dl>
 
-      <section className="overflow-x-auto border border-border bg-surface shadow-hard">
-        <table className="w-full min-w-[760px] divide-y divide-border text-sm">
-          <thead className="bg-background text-left font-mono text-xs font-bold uppercase tracking-wide text-muted">
-            <tr>
-              <th className="px-4 py-3">Código</th>
-              <th className="px-4 py-3">Nome</th>
-              <th className="px-4 py-3">Categoria</th>
-              <th className="px-4 py-3">Unidade</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {indicators.map((indicator) => (
-              <tr key={indicator.code} className="hover:bg-background/50">
-                <td className="px-4 py-3 font-mono text-xs text-muted">{indicator.code}</td>
-                <td className="px-4 py-3 text-xs font-semibold uppercase text-foreground">{indicator.name}</td>
-                <td className="px-4 py-3 font-mono text-xs uppercase tracking-wide text-muted">{indicator.category}</td>
-                <td className="px-4 py-3 font-mono text-xs uppercase tracking-wide text-muted">{indicator.unit}</td>
+      <section className="grid gap-5">
+        <SectionHeading title="Cobertura por indicador" sub="Primeiro mês com dado publicado em cada nível territorial." />
+        <div className="overflow-x-auto">
+          <table className="ruled min-w-[640px]">
+            <thead>
+              <tr>
+                <th>Indicador</th>
+                <th>Categoria</th>
+                <th className="right">Estado</th>
+                <th className="right">CISP</th>
+                <th className="right">Município</th>
+                <th>Código</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {indicators.map((indicator) => (
+                <tr key={indicator.code}>
+                  <td className="text-ink">{indicator.name}</td>
+                  <td className="faint">{indicator.category}</td>
+                  <td className="num right">{getFirstMonth(indicator.code, "state") ?? "–"}</td>
+                  <td className="num right">{getFirstMonth(indicator.code, "police_area") ?? "–"}</td>
+                  <td className="num right">{getFirstMonth(indicator.code, "municipality") ?? "–"}</td>
+                  <td className="font-mono text-[11px] text-ash">{indicator.code}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   );
