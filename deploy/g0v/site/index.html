@@ -22,6 +22,7 @@
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<clipPath id="mon-inner"><circle cx="500" cy="500" r="428"/></clipPath>
 <filter id="print-fx-light" x="-4%" y="-4%" width="108%" height="108%"><feTurbulence type="turbulence" baseFrequency="0.018" numOctaves="1" seed="0" result="grain"/><feDisplacementMap in="SourceGraphic" in2="grain" scale="1.2" xChannelSelector="R" yChannelSelector="G" result="sheet"/><feTurbulence type="turbulence" baseFrequency="0.008" numOctaves="1" seed="7" result="drift"/><feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -.47 -.47 -.47 0 1.2" result="inkonly"/><feComposite in="inkonly" in2="SourceAlpha" operator="in" result="linework"/><feDisplacementMap in="linework" in2="drift" scale="1.8" xChannelSelector="R" yChannelSelector="G" result="wet"/><feFlood flood-color="#0e0e0e" result="inkwell"/><feComposite in="inkwell" in2="wet" operator="in" result="plate"/><feMerge><feMergeNode in="plate"/><feMergeNode in="sheet"/></feMerge></filter>
 <filter id="print-fx-dark" x="-4%" y="-4%" width="108%" height="108%"><feTurbulence type="turbulence" baseFrequency="0.018" numOctaves="1" seed="0" result="grain"/><feDisplacementMap in="SourceGraphic" in2="grain" scale="1.2" xChannelSelector="R" yChannelSelector="G" result="sheet"/><feTurbulence type="turbulence" baseFrequency="0.008" numOctaves="1" seed="7" result="drift"/><feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  .47 .47 .47 0 -.2" result="inkonly"/><feComposite in="inkonly" in2="SourceAlpha" operator="in" result="linework"/><feDisplacementMap in="linework" in2="drift" scale="1.8" xChannelSelector="R" yChannelSelector="G" result="wet"/><feFlood flood-color="#f4f4f3" result="inkwell"/><feComposite in="inkwell" in2="wet" operator="in" result="plate"/><feMerge><feMergeNode in="plate"/><feMergeNode in="sheet"/></feMerge></filter>
 </defs></svg>
@@ -29,7 +30,7 @@
 <div class="page">
 
 <div class="banner" data-brand>
-  <img src="/perdeu-playboy/logo_perdeu-playboy.png" alt="" width="96" height="96" data-brand>
+  <svg class="banner__mon" viewBox="0 0 1000 1000" aria-hidden="true" data-brand><path fill-rule="evenodd" d="M500 36a464 464 0 1 1 0 928a464 464 0 1 1 0-928zm0 36a428 428 0 1 0 0 856a428 428 0 1 0 0-856z"/><g clip-path="url(#mon-inner)"><rect x="193" y="0" width="56" height="600"/><rect x="749" y="0" width="56" height="600"/><rect x="0" y="580" width="1000" height="40"/><rect x="122" y="600" width="38" height="400"/><rect x="287" y="600" width="38" height="400"/><rect x="482" y="600" width="38" height="400"/><rect x="675" y="600" width="38" height="400"/><rect x="840" y="600" width="38" height="400"/></g></svg>
   <a class="banner__title" href="/" data-brand>g0v.tomoyo.systems</a>
 </div>
 
@@ -70,37 +71,17 @@
   <div class="bar"><h2>Projetos</h2></div>
   <div class="pad">
     <div class="project">
-      <a href="/perdeu-playboy/" class="project__thumb"><img src="/perdeu-playboy/logo_perdeu-playboy.png" alt="Perdeu, Playboy" width="140" height="140"></a>
+      <a href="/perdeu-playboy/" class="project__thumb"><img src="/perdeu-playboy/logo_perdeu-playboy.png" alt="" width="64" height="64"></a>
       <div class="project__body">
         <h3><a href="/perdeu-playboy/">Perdeu, Playboy</a></h3>
-        <p>Painel de violência e segurança pública no Estado do Rio de Janeiro, a partir dos dados mensais do Instituto de Segurança Pública (ISP): 11 indicadores, entre eles homicídio doloso, letalidade violenta, roubo de rua, roubo de veículo, estupro e armas apreendidas. Cobre o estado desde 1991, as 138 áreas policiais desde 2003 e os 92 municípios desde 2014.</p>
-        <p>Mostra o acumulado do ano contra os mesmos meses do ano anterior, mínimos e máximos históricos, taxas por 100 mil habitantes com a população anual do IBGE, mapa por município e por bairro da capital, e a variação dos indicadores em cada mandato de governador desde Brizola.</p>
+        <p>Violência e segurança pública no Estado do Rio de Janeiro, com os dados mensais do ISP: estado desde 1991, áreas policiais desde 2003, municípios desde 2014.</p>
         <p class="meta">maio de 2026 · dados até agosto de 2026 · <a href="https://github.com/Tomoyo-Computer-Science-Research-Unit/perdeu-playboy">código</a></p>
       </div>
     </div>
-    <div class="caption">O nome vem do grito do assaltante carioca. A marca é o mon da Tomoyo com sangue no olho direito.</div>
   </div>
 </div>
 
-<div class="box">
-  <div class="bar"><h2>Detalhes</h2></div>
-  <div class="pad">
-    <ul>
-      <li><b>Fontes:</b> ISP Dados Abertos, IBGE/SIDRA, Data.Rio.</li>
-      <li><b>Atualização:</b> toda segunda-feira um fluxo automático rebaixa os arquivos e republica se houver mês novo.</li>
-      <li><b>Código:</b> Python para o tratamento dos dados, Next.js para o site, no GitHub.</li>
-      <li><b>Teclas:</b> <kbd>1</kbd>–<kbd>7</kbd> trocam de tela, <kbd>T</kbd> tema, <kbd>F</kbd> efeitos de impressão.</li>
-      <li><b>Contato:</b> GitHub ou os canais da <a href="https://tomoyo.systems">Tomoyo</a>.</li>
-    </ul>
-  </div>
-</div>
-
-<div class="box box--bar">
-  <div class="bar"><h2>Sobre g0v.tomoyo.systems</h2></div>
-  <div class="pad small">
-    Este endereço reúne as frentes políticas da Tomoyo. O visual e os efeitos são os de <a href="https://tomoyo.systems">tomoyo.systems</a>; a estrutura da página segue a dos imageboards. © Tomoyo.
-  </div>
-</div>
+<p class="links small">© Tomoyo</p>
 
 </div>
 

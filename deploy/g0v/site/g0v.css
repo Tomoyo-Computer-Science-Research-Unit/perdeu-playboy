@@ -99,9 +99,10 @@ kbd {
   background: var(--bone);
 }
 
-.banner img {
-  width: 72px;
-  height: 72px;
+.banner__mon {
+  width: 56px;
+  height: 56px;
+  fill: var(--ink);
 }
 
 .banner__title {
@@ -154,6 +155,12 @@ kbd {
   font-size: 13px;
 }
 
+.links.small {
+  margin-top: 1.5em;
+  font-size: 11.5px;
+  color: var(--ash);
+}
+
 .caption {
   margin: 1em 0 0;
   padding: 0.8em 1em;
@@ -181,11 +188,8 @@ li {
 
 .project__thumb img {
   display: block;
-  width: 140px;
-  height: 140px;
-  padding: 10px;
-  border: 1px solid var(--ash);
-  background: var(--paper);
+  width: 64px;
+  height: 64px;
 }
 
 .project__body h3 {
