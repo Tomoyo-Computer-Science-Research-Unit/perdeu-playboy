@@ -94,13 +94,45 @@ function tink() {
   whistle.stop(start + 0.45);
 }
 
-/** Faíscas, tinido e um tranco no alvo. */
+
+/** Marca de bala no ponto do tiro: um furo irregular que fica na página (as 40 últimas). */
+function bulletHole(layer: HTMLElement, x: number, y: number) {
+  const hole = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  hole.setAttribute("class", "bullet-hole");
+  hole.setAttribute("viewBox", "-10 -10 20 20");
+  hole.style.left = `${x}px`;
+  hole.style.top = `${y}px`;
+  const points: string[] = [];
+  for (let index = 0; index < 11; index += 1) {
+    const angle = (index / 11) * Math.PI * 2;
+    const radius = rand(5.5, 9.5);
+    points.push(`${(Math.cos(angle) * radius).toFixed(2)},${(Math.sin(angle) * radius).toFixed(2)}`);
+  }
+  const ring = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+  ring.setAttribute("class", "ring");
+  ring.setAttribute("points", points.join(" "));
+  const core = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  core.setAttribute("class", "core");
+  core.setAttribute("r", rand(2.2, 3.4).toFixed(2));
+  core.setAttribute("cx", rand(-0.8, 0.8).toFixed(2));
+  core.setAttribute("cy", rand(-0.8, 0.8).toFixed(2));
+  hole.appendChild(ring);
+  hole.appendChild(core);
+  layer.appendChild(hole);
+  const holes = layer.querySelectorAll(".bullet-hole");
+  if (holes.length > 40) {
+    holes[0].remove();
+  }
+}
+
+/** Faíscas, tinido, um tranco no alvo e a marca de bala. */
 function ricochet(element: Element, clientX: number, clientY: number) {
   tink();
   const fixed = insideFixed(element);
   const layer = layerFor(fixed);
   const x = clientX + (fixed ? 0 : scrollX);
   const y = clientY + (fixed ? 0 : scrollY);
+  bulletHole(layer, x, y);
   const start = rand(0, Math.PI * 2);
   for (let index = 0; index < 7; index += 1) {
     const spark = document.createElement("div");

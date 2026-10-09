@@ -833,7 +833,7 @@ html.is-grabbing .scope {
   transform: scale(1);
 }
 
-.scope.is-fire .scope__cross {
+.scope.is-fire .scope__fire {
   animation: scope-fire 0.28s ease-out;
 }
 
@@ -889,3 +889,22 @@ html.is-grabbing .scope {
   pointer-events: none;
 }
 
+
+/* Marca de bala: fica onde o tiro acertou */
+.bullet-hole {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  overflow: visible;
+}
+
+.bullet-hole .ring {
+  fill: var(--ink);
+  fill-opacity: 0.22;
+}
+
+.bullet-hole .core {
+  fill: var(--ink);
+}

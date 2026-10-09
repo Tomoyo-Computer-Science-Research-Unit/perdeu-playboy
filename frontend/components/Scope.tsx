@@ -161,13 +161,15 @@ export function Scope() {
         </g>
       </svg>
       <svg className="scope__cross" viewBox="-60 -60 120 120">
-        <g stroke="currentColor" strokeWidth="1.2">
-          <line x1="0" y1="-22" x2="0" y2="-7" />
-          <line x1="0" y1="7" x2="0" y2="22" />
-          <line x1="-22" y1="0" x2="-7" y2="0" />
-          <line x1="7" y1="0" x2="22" y2="0" />
+        <g className="scope__fire">
+          <g stroke="currentColor" strokeWidth="1.2">
+            <line x1="0" y1="-22" x2="0" y2="-7" />
+            <line x1="0" y1="7" x2="0" y2="22" />
+            <line x1="-22" y1="0" x2="-7" y2="0" />
+            <line x1="7" y1="0" x2="22" y2="0" />
+          </g>
+          <circle r="1.8" fill="currentColor" />
         </g>
-        <circle r="1.8" fill="currentColor" />
       </svg>
     </div>
   );

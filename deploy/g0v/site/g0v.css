@@ -295,7 +295,7 @@ html.scope-off .scope {
   transform: scale(1);
 }
 
-.scope.is-fire .scope__cross {
+.scope.is-fire .scope__fire {
   animation: scope-fire 0.28s ease-out;
 }
 
@@ -372,18 +372,14 @@ html.scope-off .scope {
 
 .mon-float img {
   display: block;
-  width: 200px;
-  height: 200px;
+  width: 192px;
+  height: 192px;
+  image-rendering: pixelated;
   transition: transform 0.12s ease-out;
 }
 
-.mon-float .mon-night,
-[data-theme="dark"] .mon-float .mon-day {
-  display: none;
-}
-
-[data-theme="dark"] .mon-float .mon-night {
-  display: block;
+[data-theme="dark"] .mon-float img {
+  filter: invert(1);
 }
 
 .mon-float__link:hover img,
@@ -445,4 +441,23 @@ html[data-hide~="mon"] .mon-float {
     width: 120px;
     height: 120px;
   }
+}
+
+/* Marca de bala: fica onde o tiro acertou */
+.bullet-hole {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  overflow: visible;
+}
+
+.bullet-hole .ring {
+  fill: var(--ink);
+  fill-opacity: 0.22;
+}
+
+.bullet-hole .core {
+  fill: var(--ink);
 }
