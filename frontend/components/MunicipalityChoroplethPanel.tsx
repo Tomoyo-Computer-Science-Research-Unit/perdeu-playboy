@@ -371,7 +371,7 @@ export function MunicipalityChoroplethPanel() {
 
       <Panel
         title={<b>{unitLabel}</b>}
-        foot={noteFor(indicator) ?? (view === "rio_city" ? "Bairros herdam o valor da CISP que os cobre." : undefined)}
+        foot={noteFor(indicator) ?? (view === "rio_city" ? "Cada bairro recebe o valor da CISP que o cobre; população do Censo 2022 por bairro." : undefined)}
       >
         <h3 className="serif text-[18px] leading-snug text-ink">{selected ? String(selected.territory_name) : "Passe o mouse pelo mapa"}</h3>
         {selected?.source_territory_name ? <p className="mt-1 text-[11px] leading-5 text-ash">{String(selected.source_territory_name)}</p> : null}

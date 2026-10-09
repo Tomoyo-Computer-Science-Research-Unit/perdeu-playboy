@@ -11,34 +11,34 @@ const GITHUB_URL = process.env.NEXT_PUBLIC_GITHUB_URL ?? "https://github.com/Tom
 const SOURCES = [
   {
     label: "ISP Dados Abertos",
-    description: "Séries mensais oficiais do ISP-RJ por estado (desde 1991), área integrada (CISP, desde 2003) e município (desde 2014), além de armas apreendidas.",
+    description: "Séries mensais do Instituto de Segurança Pública do RJ: estado desde 1991, área policial (CISP) desde 2003, município desde 2014, armas apreendidas por CISP desde 2007.",
     href: "https://www.ispdados.rj.gov.br/estatistica.html"
   },
   {
     label: "IBGE / SIDRA",
-    description: "População residente por ano: censos de 1991, 2000, 2010 e 2022, contagem de 2007 e estimativas anuais. Anos sem publicação são interpolados e marcados.",
+    description: "População residente por ano: censos de 1991, 2000, 2010 e 2022, contagem de 2007, estimativas anuais da tabela 6579. Os anos 1992–1999 e 2023, sem publicação, são interpolados.",
     href: "https://sidra.ibge.gov.br/tabela/6579"
   },
   {
     label: "IBGE Malhas",
-    description: "Geometria oficial dos municípios fluminenses, em qualidade mínima, para o mapa.",
+    description: "Limites dos 92 municípios fluminenses, resolução mínima.",
     href: "https://servicodados.ibge.gov.br/api/docs/malhas?versao=3"
   },
   {
     label: "Data.Rio / IPP",
-    description: "Limites de bairros da cidade do Rio e população por bairro (Censo 2022), para ler as CISPs em escala de bairro.",
+    description: "Limites dos bairros da cidade do Rio e população por bairro no Censo 2022.",
     href: "https://www.data.rio/"
   }
 ];
 
 const STEPS = [
-  ["Coleta", "CSVs do ISP e tabelas do IBGE baixados toda semana por um fluxo automatizado e guardados com checksum."],
-  ["Normalização", "Nomes de municípios com codificação mista no CSV do ISP são reparados; grafias da divisão territorial são alinhadas ao CSV mensal."],
-  ["Sem dado ≠ zero", "Meses em que o ISP ainda não apurava um indicador ficam vazios. Nenhuma soma, mínimo ou variação usa um mês vazio."],
+  ["Coleta", "Um fluxo automático baixa os CSVs do ISP e as tabelas do IBGE toda segunda-feira e guarda cada arquivo com seu SHA-256."],
+  ["Normalização", "O CSV municipal do ISP mistura linhas em UTF-8 e latin-1; os nomes são corrigidos e alinhados à grafia da divisão territorial."],
+  ["Sem dado", "Um mês em que o ISP ainda não apurava o indicador fica vazio e não entra em soma, mínimo ou variação. Vazio não é zero."],
   ["Acumulados", "Resumo e rankings somam de janeiro até o último mês publicado e comparam com os mesmos meses do ano anterior."],
-  ["Taxas", "Ocorrências ÷ população do ano × 100 mil, só para anos completos. CISPs não têm população oficial; bairros do Rio usam o Censo 2022."],
-  ["Mandatos", "Média mensal durante o governo contra a média dos 12 meses anteriores à posse. Descreve, não explica."],
-  ["Notificação", "Registro não é crime: tipologias novas (feminicídio, 2024 no ISP), leis que mudam a definição (estupro, 2009) e mais disposição para denunciar sobem a série sem que o crime suba. Os indicadores afetados trazem esse aviso no rodapé."]
+  ["Taxas", "Ocorrências ÷ população do ano × 100 mil, só para anos completos. Áreas policiais não têm população oficial; bairros do Rio usam o Censo 2022."],
+  ["Mandatos", "Média mensal de cada indicador durante o governo contra a média dos 12 meses anteriores à posse. Comparação descritiva."],
+  ["Registro", "A série conta registros, não crimes. Tipos novos (feminicídio, publicado pelo ISP desde 2024), mudanças na lei (estupro, 2009) e variação na disposição de denunciar movem a série. Os indicadores afetados trazem o aviso no rodapé."]
 ];
 
 export default function MethodologyPage() {
@@ -61,7 +61,7 @@ export default function MethodologyPage() {
         <p className="mt-4 text-[12px] leading-6 text-slate">
           {methodology.update_frequency}{" "}
           <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="underline decoration-fog underline-offset-4 hover:decoration-ink">
-            Código do ETL e do site.
+            Código do tratamento e do site.
           </a>
         </p>
       </Panel>

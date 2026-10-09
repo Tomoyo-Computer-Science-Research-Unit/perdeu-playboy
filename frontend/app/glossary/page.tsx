@@ -5,20 +5,17 @@ import { getFirstMonth, getIndicators } from "@/lib/api";
 export const metadata: Metadata = { title: "Glossário" };
 
 const TERMS = [
-  {
-    title: "Letalidade violenta",
-    body: "Agregado do ISP para mortes violentas intencionais: homicídio doloso, latrocínio, lesão corporal seguida de morte e morte por intervenção de agente do Estado."
-  },
-  { title: "Homicídio doloso", body: "Morte intencional registrada como homicídio. Não inclui latrocínio nem morte por intervenção policial, que aparecem separados." },
-  { title: "Latrocínio", body: "Roubo seguido de morte. Crime patrimonial com resultado morte; também compõe a letalidade violenta." },
-  { title: "Morte por intervenção de agente do Estado", body: "Morte decorrente de ação de agentes estatais, conforme o registro policial. Também compõe a letalidade violenta." },
-  { title: "Feminicídio", body: "Homicídio de mulher por razões da condição de sexo feminino. O ISP passou a publicar a série em outubro de 2024." },
-  { title: "Roubo de rua", body: "Agregado do ISP para roubos em via pública: transeunte, celular e em coletivo, conforme a base oficial." },
-  { title: "Estupro", body: "Registros de estupro conforme a classificação policial. Série estadual desde 2003." },
-  { title: "CISP / área integrada", body: "Circunscrição Integrada de Segurança Pública: a área de uma delegacia, unidade territorial mínima dos dados do ISP." },
-  { title: "Acumulado no ano", body: "Soma de janeiro até o último mês publicado. Comparações usam os mesmos meses do ano anterior, nunca o ano inteiro contra um ano parcial." },
-  { title: "Soma móvel de 12 meses", body: "Soma dos últimos doze meses terminados em cada mês. Remove a sazonalidade e permite comparar qualquer mês com o ano anterior." },
-  { title: "Taxa por 100 mil", body: "Ocorrências divididas pela população residente do ano e multiplicadas por 100 mil. Só para anos completos." }
+  { title: "Letalidade violenta", body: "Soma de homicídio doloso, latrocínio, lesão corporal seguida de morte e morte por intervenção de agente do Estado. Agregado criado pelo ISP." },
+  { title: "Homicídio doloso", body: "Morte intencional registrada como homicídio. Latrocínio e morte por intervenção policial são contados à parte." },
+  { title: "Latrocínio", body: "Roubo seguido de morte. Crime contra o patrimônio com resultado morte; também compõe a letalidade violenta." },
+  { title: "Morte por intervenção de agente do Estado", body: "Morte causada por agente estatal em serviço, conforme o registro policial. Também compõe a letalidade violenta." },
+  { title: "Feminicídio", body: "Homicídio de mulher por razões da condição de sexo feminino (Lei 13.104/2015). Na série do ISP desde outubro de 2024." },
+  { title: "Roubo de rua", body: "Soma de roubo a transeunte, de celular e em coletivo, conforme a base do ISP." },
+  { title: "Estupro", body: "Registros de estupro conforme a classificação policial. Série estadual desde 2003; a definição legal mudou em 2009." },
+  { title: "CISP / área integrada", body: "Circunscrição Integrada de Segurança Pública: a área de uma delegacia. Menor unidade territorial dos dados do ISP; 138 no estado, 41 na capital." },
+  { title: "Acumulado no ano", body: "Soma de janeiro até o último mês publicado, comparada com os mesmos meses do ano anterior." },
+  { title: "Soma móvel de 12 meses", body: "Soma dos 12 meses terminados em cada mês. Elimina a sazonalidade." },
+  { title: "Taxa por 100 mil", body: "Ocorrências ÷ população residente do ano × 100 mil. Só para anos completos." }
 ];
 
 export default function GlossaryPage() {

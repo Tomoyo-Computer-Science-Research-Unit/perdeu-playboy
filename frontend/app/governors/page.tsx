@@ -13,7 +13,7 @@ export default function GovernorsPage() {
         title={<b>Governadores do Rio</b>}
         aside={<span>média mensal no mandato vs 12 meses antes da posse · {performance.indicators.length} indicadores</span>}
         flush
-        foot="Variação negativa = menos registros durante o mandato. Comparação descritiva, não atribuição de causa; mandatos curtos entram com os meses disponíveis."
+        foot="Variação negativa: menos registros por mês durante o mandato do que nos 12 meses anteriores à posse. Comparação descritiva; mandatos curtos entram com os meses disponíveis."
       >
         <GovernorsPerformanceTable rows={performance.rows} />
       </Panel>

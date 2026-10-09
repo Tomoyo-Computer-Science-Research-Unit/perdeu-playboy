@@ -2,10 +2,10 @@
 
 Painel público de dados sobre violência e segurança pública no **Estado do Rio de Janeiro**, da Tomoyo.
 
-O projeto baixa as bases oficiais do ISP, normaliza as séries históricas e publica um site estático com indicadores,
-séries desde 1991, mapas, rankings, mudanças recentes e comparações por mandato. O tom é de dados cívicos: sem
-identificação de vítimas, sem endereços privados e sem linguagem sensacionalista. O visual segue a identidade de
-[tomoyo.systems](https://tomoyo.systems): tinta sobre papel, Shippori Mincho e Archivo, tema claro e escuro.
+O projeto baixa as bases do ISP, normaliza as séries e publica um site estático: indicadores acumulados, séries
+desde 1991, mapa, rankings, mudanças recentes e comparação por mandato. Vítimas não são identificadas e endereços
+não são publicados. O visual é o de [tomoyo.systems](https://tomoyo.systems): tinta sobre papel, Shippori Mincho e
+Archivo, tema claro e escuro.
 
 Site em produção: https://g0v.tomoyo.systems/perdeu-playboy/ (perdeu-playboy.online redireciona para lá).
 
