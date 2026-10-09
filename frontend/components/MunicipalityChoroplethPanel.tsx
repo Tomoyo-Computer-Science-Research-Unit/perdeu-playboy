@@ -1,18 +1,19 @@
 "use client";
 
+import type { Geometry } from "geojson";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Field, Segmented } from "@/components/ui";
+import { useScreenHotkeys } from "@/components/Hotkeys";
+import { Panel, Screen, Segmented, Stat } from "@/components/ui";
 import { CRIME_GENERAL_CODE, getIndicator, getIndicators, getLatestPeriod, getMapData, getSnapshotMeta } from "@/lib/api";
 import { formatMonthYear, formatNumber, formatPercent, formatRate } from "@/lib/format";
 import type { GeoFeatureCollection, RankingMode } from "@/types/api";
 
-import type { Geometry } from "geojson";
 type MapView = "state" | "rio_city";
 type Period = { year: number; month: number; label: string };
 
 const MAP_WIDTH = 1000;
 const MAP_HEIGHT = 680;
-const MAP_PADDING = 18;
+const MAP_PADDING = 12;
 const EMPTY: GeoFeatureCollection = { type: "FeatureCollection", features: [] };
 
 function projectPoint(lon: number, lat: number, bbox: [number, number, number, number]) {
@@ -105,12 +106,13 @@ export function MunicipalityChoroplethPanel() {
   );
   const period = periods[periodIndex] ?? periods[periods.length - 1];
   const effectiveMode: RankingMode = indicator === CRIME_GENERAL_CODE ? "rate" : mode;
+  const activeIndex = Math.max(0, indicators.findIndex((item) => item.code === indicator));
 
   // Permalink: ?indicator=&mode=&period=AAAA-MM&view=
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const nextIndicator = params.get("indicator");
-    if (nextIndicator && (nextIndicator === CRIME_GENERAL_CODE || indicators.some((item) => item.code === nextIndicator))) {
+    if (nextIndicator && indicators.some((item) => item.code === nextIndicator)) {
       setIndicator(nextIndicator);
     }
     const nextMode = params.get("mode");
@@ -138,7 +140,9 @@ export function MunicipalityChoroplethPanel() {
       .then((next) => {
         if (!cancelled) {
           setData(next);
-          setSelected(null);
+          setSelected((current) =>
+            current ? next.features.find((feature) => feature.properties.territory_name === current.territory_name)?.properties ?? null : null
+          );
         }
       })
       .catch(() => {
@@ -197,8 +201,7 @@ export function MunicipalityChoroplethPanel() {
         high = mid;
       }
     }
-    const intensity = low / (sortedMetrics.length - 1);
-    return 0.06 + Math.max(0, Math.min(1, intensity)) * 0.88;
+    return 0.06 + Math.max(0, Math.min(1, low / (sortedMetrics.length - 1))) * 0.88;
   }
 
   function changeView(nextView: MapView) {
@@ -208,6 +211,27 @@ export function MunicipalityChoroplethPanel() {
       setPeriodKey(formatMonthYear(nextStart, 1));
     }
   }
+
+  function stepPeriod(step: number) {
+    const next = periods[Math.max(0, Math.min(periods.length - 1, periodIndex + step))];
+    if (next) {
+      setPeriodKey(next.label);
+    }
+  }
+
+  const hotkeys = useMemo(
+    () => ({
+      ArrowUp: () => setIndicator(indicators[(activeIndex - 1 + indicators.length) % indicators.length].code),
+      ArrowDown: () => setIndicator(indicators[(activeIndex + 1) % indicators.length].code),
+      ArrowLeft: () => stepPeriod(-1),
+      ArrowRight: () => stepPeriod(1),
+      r: () => changeView(view === "state" ? "rio_city" : "state"),
+      m: () => setMode((current) => (current === "rate" ? "count" : current === "count" ? "yoy" : "rate"))
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeIndex, indicators, periodIndex, periods, view, period.year]
+  );
+  useScreenHotkeys(hotkeys);
 
   const label = metricLabel(indicator, effectiveMode);
   const unitLabel = view === "rio_city" ? "Bairro · CISP" : "Município";
@@ -220,69 +244,105 @@ export function MunicipalityChoroplethPanel() {
     : "–";
 
   return (
-    <section className="grid gap-6">
-      <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
-        <Field label="Indicador">
-          <select value={indicator} onChange={(event) => setIndicator(event.target.value)} className="min-w-[240px]">
-            {indicators.map((item) => (
-              <option key={item.code} value={item.code}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Segmented
-          label="Métrica"
-          value={effectiveMode}
-          onChange={setMode}
-          options={[
-            { value: "rate", label: "Por 100 mil" },
-            { value: "count", label: "Ocorrências", disabled: indicator === CRIME_GENERAL_CODE },
-            { value: "yoy", label: "Variação", disabled: indicator === CRIME_GENERAL_CODE }
-          ]}
-        />
-        <Segmented
-          label="Recorte"
-          value={view}
-          onChange={changeView}
-          options={[
-            { value: "state", label: "Estado" },
-            { value: "rio_city", label: "Cidade do Rio" }
-          ]}
-        />
-        {view === "rio_city" ? (
-          <button type="button" className="btn btn--ghost" onClick={() => changeView("state")}>
-            Voltar
-          </button>
-        ) : null}
-      </div>
+    <Screen columns="260px minmax(0, 1fr) 280px">
+      <Panel title="Mapa" flush foot={`Municípios desde ${coverage.municipality_start_year ?? 2014}; bairros do Rio por CISP desde ${coverage.police_area_start_year ?? 2003}.`}>
+        <div className="grid gap-2 border-b border-line p-3">
+          <Segmented
+            label="Recorte"
+            value={view}
+            onChange={changeView}
+            options={[
+              { value: "state", label: "Estado" },
+              { value: "rio_city", label: "Cidade do Rio" }
+            ]}
+          />
+          <Segmented
+            label="Métrica"
+            value={effectiveMode}
+            onChange={setMode}
+            options={[
+              { value: "rate", label: "100 mil" },
+              { value: "count", label: "Ocorr.", disabled: indicator === CRIME_GENERAL_CODE },
+              { value: "yoy", label: "Var.", disabled: indicator === CRIME_GENERAL_CODE }
+            ]}
+          />
+        </div>
+        <ul className="menu" role="listbox" aria-label="Indicador">
+          {indicators.map((item) => (
+            <li key={item.code} role="presentation">
+              <button type="button" role="option" aria-selected={item.code === indicator} onClick={() => setIndicator(item.code)}>
+                <span>{item.name}</span>
+                <span />
+                <span />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Panel>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="relative border border-line">
+      <Panel
+        title={
+          <>
+            <b>{getIndicator(indicator)?.name}</b> · {view === "rio_city" ? "bairros do Rio" : "municípios"} · acumulado jan–{period.label}
+          </>
+        }
+        aside={
+          view === "rio_city" ? (
+            <button type="button" className="btn btn--ghost !h-7 !px-2 text-[10px]" onClick={() => changeView("state")}>
+              Voltar
+            </button>
+          ) : null
+        }
+        fill
+        flush
+        foot={
+          <div className="flex items-center gap-4">
+            <span className="shrink-0 uppercase tracking-[0.18em]">{startYear}</span>
+            <input
+              aria-label="Linha do tempo do mapa"
+              type="range"
+              min={0}
+              max={Math.max(0, periods.length - 1)}
+              value={periodIndex}
+              className="!my-0"
+              onChange={(event) => setPeriodKey(periods[Number(event.target.value)]?.label ?? periodKey)}
+            />
+            <span className="num shrink-0 text-ink">{period.label}</span>
+            <span className="flex shrink-0 items-center gap-2 uppercase tracking-[0.18em]">
+              menor
+              <span className="h-2 w-16 border border-line" style={{ background: "linear-gradient(90deg, var(--haze), var(--ink))" }} aria-hidden="true" />
+              maior
+            </span>
+          </div>
+        }
+      >
+        <div className="relative min-h-0 flex-1">
           {loading ? (
             <div className="absolute inset-0 z-10 grid place-items-center bg-paper/70 text-[11px] tracking-[0.22em] text-ash" role="status" aria-live="polite">
-              CARREGANDO MAPA
+              CARREGANDO
             </div>
           ) : null}
           <svg
             viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
+            preserveAspectRatio="xMidYMid meet"
             role="img"
             aria-label={view === "rio_city" ? "Mapa da cidade do Rio de Janeiro por bairros" : "Mapa do estado do Rio de Janeiro por municípios"}
-            className="h-[400px] w-full sm:h-[540px] lg:h-[640px]"
+            className="block h-full w-full"
           >
             {data.features.map((feature) => {
               const name = String(feature.properties.territory_name ?? "");
               const sourceName = String(feature.properties.source_territory_name ?? "");
               const hasData = Boolean(feature.properties.has_data);
               const canOpenRio = view === "state" && name === "Rio de Janeiro";
+              const isSelected = selected?.territory_name === name;
               return (
                 <path
                   key={`${name}-${sourceName}`}
                   d={geometryPath(feature.geometry, bbox)}
                   fill={hasData ? "var(--ink)" : "var(--haze)"}
                   fillOpacity={hasData ? opacityFor(Number(feature.properties.metric_value ?? 0)) : 1}
-                  stroke="var(--paper)"
-                  strokeWidth={canOpenRio ? 2.2 : 0.9}
+                  stroke={isSelected ? "var(--ink)" : "var(--paper)"}
+                  strokeWidth={isSelected ? 2.4 : canOpenRio ? 2 : 0.8}
                   className={canOpenRio ? "cursor-pointer" : undefined}
                   onMouseEnter={() => setSelected(feature.properties)}
                   onFocus={() => setSelected(feature.properties)}
@@ -300,73 +360,28 @@ export function MunicipalityChoroplethPanel() {
               );
             })}
           </svg>
-          {!hasMapData && !loading ? (
-            <div className="absolute inset-x-4 top-4 border border-line bg-paper p-4">
-              <p className="text-[11px] tracking-[0.2em] text-ink">SEM DADOS PARA ESTE RECORTE</p>
-              <p className="mt-1 text-[12px] text-ash">Troque o indicador, a métrica ou o período.</p>
-            </div>
-          ) : null}
-          {error ? <p className="absolute inset-x-4 bottom-4 text-[11px] tracking-[0.2em] text-ink">{error}</p> : null}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-3 text-[10.5px] tracking-[0.2em] text-ash">
-            <span>{label.toUpperCase()}</span>
-            <span className="flex items-center gap-2">
-              MENOR
-              <span className="h-2.5 w-24 border border-line" style={{ background: "linear-gradient(90deg, var(--haze), var(--ink))" }} aria-hidden="true" />
-              MAIOR · POR POSIÇÃO
-            </span>
-            <span className="num text-ink">{period.label}</span>
-          </div>
+          {!hasMapData && !loading ? <p className="absolute left-3 top-3 text-[11px] tracking-[0.2em] text-ink">SEM DADOS PARA ESTE RECORTE</p> : null}
+          {error ? <p className="absolute bottom-3 left-3 text-[11px] tracking-[0.2em] text-ink">{error}</p> : null}
         </div>
+      </Panel>
 
-        <aside className="grid content-start gap-5 border-t border-line-strong pt-4">
-          <div>
-            <p className="eyebrow text-[9.5px]">{unitLabel}</p>
-            <h3 className="serif mt-2 text-[20px] leading-snug tracking-[0.04em] text-ink">{selected ? String(selected.territory_name) : "Passe o mouse pelo mapa"}</h3>
-            {selected?.source_territory_name ? <p className="mt-1 text-[11.5px] leading-6 text-ash">{String(selected.source_territory_name)}</p> : null}
+      <Panel
+        title={unitLabel}
+        foot={view === "rio_city" ? "Bairros herdam o valor da CISP que os cobre; população do Censo 2022 por bairro." : "Acumulado de janeiro até o mês escolhido. População do ano, IBGE."}
+      >
+        <h3 className="serif text-[18px] leading-snug text-ink">{selected ? String(selected.territory_name) : "Passe o mouse pelo mapa"}</h3>
+        {selected?.source_territory_name ? <p className="mt-1 text-[11px] leading-5 text-ash">{String(selected.source_territory_name)}</p> : null}
+        <div className="mt-4">
+          <div className="flex items-baseline justify-between gap-3 border-t border-line py-2">
+            <span className="text-[11.5px] text-ash">{label}</span>
+            <span className="num display text-[26px] leading-none text-ink">{selectedMetric}</span>
           </div>
-          <dl className="grid gap-3 text-[12px]">
-            <div className="flex items-baseline justify-between border-t border-line pt-2">
-              <dt className="text-ash">{label}</dt>
-              <dd className="num text-[18px] text-ink">{selectedMetric}</dd>
-            </div>
-            {effectiveMode !== "count" && selected ? (
-              <div className="flex items-baseline justify-between border-t border-line pt-2">
-                <dt className="text-ash">Ocorrências</dt>
-                <dd className="num text-ink">{formatNumber(selected.value as number | null)}</dd>
-              </div>
-            ) : null}
-            {effectiveMode !== "yoy" && selected ? (
-              <div className="flex items-baseline justify-between border-t border-line pt-2">
-                <dt className="text-ash">Variação anual</dt>
-                <dd className="num text-ink">{formatPercent(selected.yoy_percent_change as number | null)}</dd>
-              </div>
-            ) : null}
-            <div className="flex items-baseline justify-between border-t border-line pt-2">
-              <dt className="text-ash">Posição</dt>
-              <dd className="num text-ink">{selected?.rank ? `${String(selected.rank)}º` : "–"}</dd>
-            </div>
-          </dl>
-          <p className="text-[11px] leading-6 text-ash">
-            Acumulado de janeiro até o mês escolhido. {view === "rio_city" ? "Bairros herdam o valor da CISP que os cobre; população do Censo 2022 por bairro." : "População do ano, IBGE."}
-          </p>
-        </aside>
-      </div>
-
-      <div className="border-t border-line pt-4">
-        <div className="flex items-center justify-between text-[10.5px] tracking-[0.2em] text-ash">
-          <span>{startYear}</span>
-          <span className="num text-[13px] text-ink">{period.label}</span>
-          <span>{latest.year}</span>
+          {selected && effectiveMode !== "count" ? <Stat label="Ocorrências" value={formatNumber(selected.value as number | null)} /> : null}
+          {selected && effectiveMode !== "yoy" ? <Stat label="Variação anual" value={formatPercent(selected.yoy_percent_change as number | null)} /> : null}
+          {selected && effectiveMode !== "rate" && selected.rate_per_100k !== null ? <Stat label="Por 100 mil" value={formatRate(selected.rate_per_100k as number | null)} /> : null}
+          <Stat label="Posição" value={selected?.rank ? `${String(selected.rank)}º` : "–"} sub={hasMapData ? `de ${sortedMetrics.length}` : undefined} />
         </div>
-        <input
-          aria-label="Linha do tempo do mapa"
-          type="range"
-          min={0}
-          max={Math.max(0, periods.length - 1)}
-          value={periodIndex}
-          onChange={(event) => setPeriodKey(periods[Number(event.target.value)]?.label ?? periodKey)}
-        />
-      </div>
-    </section>
+      </Panel>
+    </Screen>
   );
 }

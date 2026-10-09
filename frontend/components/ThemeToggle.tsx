@@ -8,7 +8,10 @@ export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+    const read = () => setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+    read();
+    window.addEventListener("pp-theme", read);
+    return () => window.removeEventListener("pp-theme", read);
   }, []);
 
   function toggle() {
@@ -28,7 +31,7 @@ export function ThemeToggle() {
       onClick={toggle}
       aria-label={theme === "dark" ? "Usar tema claro" : "Usar tema escuro"}
       title={theme === "dark" ? "Tema claro" : "Tema escuro"}
-      className="grid h-9 w-9 place-items-center rounded-full border border-line-strong text-ink transition-colors hover:bg-ink hover:text-paper"
+      className="grid h-8 w-8 place-items-center rounded-full border border-line-strong text-ink transition-colors hover:bg-ink hover:text-paper"
     >
       {theme === "dark" ? (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">

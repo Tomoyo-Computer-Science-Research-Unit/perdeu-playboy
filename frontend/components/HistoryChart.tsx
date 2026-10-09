@@ -24,6 +24,7 @@ type Props = {
   digits?: number;
   terms?: GovernorTerm[];
   showTerms?: boolean;
+  /** Altura fixa em px; sem ela o gráfico preenche o pai (que precisa ter altura definida). */
   height?: number;
 };
 
@@ -31,23 +32,23 @@ type Props = {
  * Gráfico histórico em preto e branco. Barras para totais anuais, linha para séries mensais,
  * com faixas alternadas marcando os mandatos de governador.
  */
-export function HistoryChart({ points, kind, valueLabel, secondaryLabel, digits = 0, terms = [], showTerms = true, height = 360 }: Props) {
+export function HistoryChart({ points, kind, valueLabel, secondaryLabel, digits = 0, terms = [], showTerms = true, height }: Props) {
   const bands = useMemo(() => (showTerms ? termBands(terms, points) : []), [points, showTerms, terms]);
   const ticks = useMemo(() => xTicks(points, kind), [kind, points]);
   const hasData = points.some((point) => point.value !== null);
 
   if (!hasData) {
     return (
-      <div className="grid place-items-center border border-line text-[12px] tracking-[0.14em] text-ash" style={{ height }}>
-        Sem dados para este recorte
+      <div className="chart-fill grid place-items-center text-[11px] tracking-[0.18em] text-ash" style={{ height }}>
+        SEM DADOS PARA ESTE RECORTE
       </div>
     );
   }
 
   return (
-    <div className="chart" style={{ height }}>
+    <div className="chart chart-fill" style={height ? { height, flex: "none" } : undefined}>
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={points} margin={{ top: 28, right: 12, left: 0, bottom: 4 }} barCategoryGap={kind === "annual" ? "28%" : "5%"}>
+        <ComposedChart data={points} margin={{ top: 22, right: 10, left: 0, bottom: 0 }} barCategoryGap={kind === "annual" ? "28%" : "5%"}>
           <CartesianGrid vertical={false} strokeDasharray="2 4" />
           {bands.map((band, index) => (
             <ReferenceArea
@@ -62,7 +63,7 @@ export function HistoryChart({ points, kind, valueLabel, secondaryLabel, digits 
             />
           ))}
           <XAxis dataKey="key" ticks={ticks} tickFormatter={(key: string) => key.slice(0, 4)} interval={0} tickMargin={8} minTickGap={12} />
-          <YAxis width={56} tickFormatter={(value: number) => formatNumber(value, digits)} tickMargin={6} axisLine={false} tickLine={false} />
+          <YAxis width={50} tickFormatter={(value: number) => formatNumber(value, digits)} tickMargin={6} axisLine={false} tickLine={false} />
           <Tooltip
             cursor={{ fill: "var(--line)" }}
             content={({ active, payload }) => {

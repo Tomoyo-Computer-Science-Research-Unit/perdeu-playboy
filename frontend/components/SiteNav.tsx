@@ -3,36 +3,45 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const NAV_ITEMS = [
-  { href: "/", label: "Panorama", sub: "resumo" },
-  { href: "/trends", label: "Séries", sub: "desde 1991" },
-  { href: "/map", label: "Mapa", sub: "municípios e bairros" },
-  { href: "/rankings", label: "Rankings", sub: "territórios" },
-  { href: "/changes", label: "Mudanças", sub: "últimos 12 meses" },
-  { href: "/governors", label: "Mandatos", sub: "governadores" },
-  { href: "/methodology", label: "Método", sub: "fontes e glossário" }
+export const NAV_ITEMS = [
+  { href: "/", label: "Panorama", key: "1" },
+  { href: "/trends", label: "Séries", key: "2" },
+  { href: "/map", label: "Mapa", key: "3" },
+  { href: "/rankings", label: "Rankings", key: "4" },
+  { href: "/changes", label: "Mudanças", key: "5" },
+  { href: "/governors", label: "Mandatos", key: "6" },
+  { href: "/methodology", label: "Método", key: "7" }
 ];
+
+export function isActivePath(pathname: string, href: string) {
+  if (href === "/") {
+    return pathname === "/" || pathname.startsWith("/dashboard");
+  }
+  if (href === "/methodology") {
+    return ["/methodology", "/glossary", "/sources"].some((path) => pathname.startsWith(path));
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function SiteNav() {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Seções" className="-mx-[var(--gutter)] border-y border-line sm:mx-0">
-      <ul className="flex overflow-x-auto px-[var(--gutter)] sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <nav aria-label="Seções" className="min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <ul className="flex items-center">
         {NAV_ITEMS.map((item) => {
-          const active = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active = isActivePath(pathname, item.href);
           return (
             <li key={item.href} className="shrink-0">
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`relative flex h-[58px] flex-col items-center justify-center px-4 text-[12px] font-medium tracking-[0.14em] transition-colors sm:px-5 ${
-                  active ? "text-ink" : "text-slate hover:text-ink"
+                className={`flex h-12 items-center gap-1.5 px-2.5 text-[10.5px] font-medium uppercase tracking-[0.14em] transition-colors xl:px-3 xl:text-[11px] ${
+                  active ? "text-ink shadow-[inset_0_-1px_0_var(--ink)]" : "text-slate hover:text-ink"
                 }`}
               >
+                <span className="kbd">{item.key}</span>
                 {item.label}
-                <small className="serif mt-0.5 hidden text-[10.5px] italic tracking-[0.06em] text-smoke md:block">{item.sub}</small>
-                <span aria-hidden="true" className={`absolute inset-x-4 bottom-0 h-px ${active ? "bg-ink" : "bg-transparent"}`} />
               </Link>
             </li>
           );

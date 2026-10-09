@@ -4,6 +4,7 @@ import { Field, Segmented } from "@/components/ui";
 import type { Territory, TerritorialUnit, TerritoryType } from "@/types/api";
 
 export type TerritorySelection = { type: TerritoryType; name: string };
+export const TERRITORY_TYPES: TerritoryType[] = ["state", "municipality", "police_area"];
 
 type Props = {
   value: TerritorySelection;
@@ -12,37 +13,41 @@ type Props = {
   policeAreas: Territory[];
   rioUnits: TerritorialUnit[];
   defaultMunicipality: string;
+  compact?: boolean;
 };
 
-/** Seletor de recorte: estado inteiro, um município ou uma área integrada (CISP). */
-export function TerritoryPicker({ value, onChange, municipalities, policeAreas, rioUnits, defaultMunicipality }: Props) {
+export function nextSelection(type: TerritoryType, current: TerritorySelection, rioUnits: TerritorialUnit[], policeAreas: Territory[], defaultMunicipality: string): TerritorySelection {
+  if (type === current.type) {
+    return current;
+  }
+  if (type === "state") {
+    return { type, name: "" };
+  }
+  if (type === "municipality") {
+    return { type, name: defaultMunicipality };
+  }
+  return { type, name: rioUnits[0]?.territorial_unit ?? policeAreas[0]?.name ?? "" };
+}
+
+/** Seletor de recorte compacto: estado inteiro, um município ou uma área integrada (CISP). */
+export function TerritoryControls({ value, onChange, municipalities, policeAreas, rioUnits, defaultMunicipality, compact = false }: Props) {
   const rioUnitNames = new Set(rioUnits.map((unit) => unit.territorial_unit));
   const otherAreas = policeAreas.filter((area) => !rioUnitNames.has(area.name));
 
-  function changeType(type: TerritoryType) {
-    if (type === "state") {
-      onChange({ type, name: "" });
-    } else if (type === "municipality") {
-      onChange({ type, name: defaultMunicipality });
-    } else {
-      onChange({ type, name: rioUnits[0]?.territorial_unit ?? policeAreas[0]?.name ?? "" });
-    }
-  }
-
   return (
-    <div className="grid gap-4 md:grid-cols-[auto_1fr] md:items-end">
+    <div className={compact ? "grid gap-2" : "flex flex-wrap items-end gap-3"}>
       <Segmented
         label="Tipo de território"
         value={value.type}
-        onChange={changeType}
+        onChange={(type) => onChange(nextSelection(type, value, rioUnits, policeAreas, defaultMunicipality))}
         options={[
           { value: "state", label: "Estado" },
           { value: "municipality", label: "Município" },
-          { value: "police_area", label: "Área (CISP)" }
+          { value: "police_area", label: "CISP" }
         ]}
       />
       {value.type === "municipality" ? (
-        <Field label="Município">
+        <Field label="Município" className={compact ? "" : "min-w-[220px]"}>
           <select value={value.name} onChange={(event) => onChange({ type: "municipality", name: event.target.value })}>
             {municipalities.map((item) => (
               <option key={item.name} value={item.name}>
@@ -51,8 +56,9 @@ export function TerritoryPicker({ value, onChange, municipalities, policeAreas, 
             ))}
           </select>
         </Field>
-      ) : value.type === "police_area" ? (
-        <Field label="Área integrada de segurança pública">
+      ) : null}
+      {value.type === "police_area" ? (
+        <Field label="Área integrada" className={compact ? "" : "min-w-[280px]"}>
           <select value={value.name} onChange={(event) => onChange({ type: "police_area", name: event.target.value })}>
             <optgroup label="Cidade do Rio de Janeiro">
               {rioUnits.map((unit) => (
@@ -70,9 +76,7 @@ export function TerritoryPicker({ value, onChange, municipalities, policeAreas, 
             </optgroup>
           </select>
         </Field>
-      ) : (
-        <p className="text-[12px] leading-6 tracking-[0.04em] text-ash md:pb-2">Estado do Rio de Janeiro inteiro. Série mensal do ISP desde janeiro de 1991.</p>
-      )}
+      ) : null}
     </div>
   );
 }
