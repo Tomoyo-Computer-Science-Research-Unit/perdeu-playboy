@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useScreenHotkeys } from "@/components/Hotkeys";
 import { Panel, Screen, Segmented, Stat } from "@/components/ui";
 import { CRIME_GENERAL_CODE, getIndicator, getIndicators, getLatestPeriod, getMapData, getSnapshotMeta } from "@/lib/api";
-import { formatMonthYear, formatNumber, formatPercent, formatRate } from "@/lib/format";
+import { deltaClass, formatMonthYear, formatNumber, formatPercent, formatRate } from "@/lib/format";
 import type { GeoFeatureCollection, RankingMode } from "@/types/api";
 
 type MapView = "state" | "rio_city";
@@ -245,7 +245,7 @@ export function MunicipalityChoroplethPanel() {
 
   return (
     <Screen columns="260px minmax(0, 1fr) 280px">
-      <Panel title="Mapa" flush foot={`Municípios desde ${coverage.municipality_start_year ?? 2014}; bairros do Rio por CISP desde ${coverage.police_area_start_year ?? 2003}.`}>
+      <Panel title={<b>Mapa</b>} flush foot={`Municípios desde ${coverage.municipality_start_year ?? 2014}; bairros do Rio por CISP desde ${coverage.police_area_start_year ?? 2003}.`}>
         <div className="grid gap-2 border-b border-line p-3">
           <Segmented
             label="Recorte"
@@ -283,15 +283,18 @@ export function MunicipalityChoroplethPanel() {
       <Panel
         title={
           <>
-            <b>{getIndicator(indicator)?.name}</b> · {view === "rio_city" ? "bairros do Rio" : "municípios"} · acumulado jan–{period.label}
+            <b>{getIndicator(indicator)?.name}</b> {view === "rio_city" ? "bairros do Rio" : "municípios"}
           </>
         }
         aside={
-          view === "rio_city" ? (
-            <button type="button" className="btn btn--ghost !h-7 !px-2 text-[10px]" onClick={() => changeView("state")}>
-              Voltar
-            </button>
-          ) : null
+          <>
+            <span>jan–{period.label}</span>
+            {view === "rio_city" ? (
+              <button type="button" className="btn !h-7 !px-2 text-[10px]" onClick={() => changeView("state")}>
+                Voltar
+              </button>
+            ) : null}
+          </>
         }
         fill
         flush
@@ -343,7 +346,7 @@ export function MunicipalityChoroplethPanel() {
                   fillOpacity={hasData ? opacityFor(Number(feature.properties.metric_value ?? 0)) : 1}
                   stroke={isSelected ? "var(--ink)" : "var(--paper)"}
                   strokeWidth={isSelected ? 2.4 : canOpenRio ? 2 : 0.8}
-                  className={canOpenRio ? "cursor-pointer" : undefined}
+                  className={canOpenRio ? "map-shape cursor-pointer" : "map-shape"}
                   onMouseEnter={() => setSelected(feature.properties)}
                   onFocus={() => setSelected(feature.properties)}
                   onClick={canOpenRio ? () => changeView("rio_city") : undefined}
@@ -366,7 +369,7 @@ export function MunicipalityChoroplethPanel() {
       </Panel>
 
       <Panel
-        title={unitLabel}
+        title={<b>{unitLabel}</b>}
         foot={view === "rio_city" ? "Bairros herdam o valor da CISP que os cobre; população do Censo 2022 por bairro." : "Acumulado de janeiro até o mês escolhido. População do ano, IBGE."}
       >
         <h3 className="serif text-[18px] leading-snug text-ink">{selected ? String(selected.territory_name) : "Passe o mouse pelo mapa"}</h3>
@@ -377,7 +380,9 @@ export function MunicipalityChoroplethPanel() {
             <span className="num display text-[26px] leading-none text-ink">{selectedMetric}</span>
           </div>
           {selected && effectiveMode !== "count" ? <Stat label="Ocorrências" value={formatNumber(selected.value as number | null)} /> : null}
-          {selected && effectiveMode !== "yoy" ? <Stat label="Variação anual" value={formatPercent(selected.yoy_percent_change as number | null)} /> : null}
+          {selected && effectiveMode !== "yoy" ? (
+            <Stat label="Variação anual" value={<span className={deltaClass(selected.yoy_percent_change as number | null, indicator)}>{formatPercent(selected.yoy_percent_change as number | null)}</span>} />
+          ) : null}
           {selected && effectiveMode !== "rate" && selected.rate_per_100k !== null ? <Stat label="Por 100 mil" value={formatRate(selected.rate_per_100k as number | null)} /> : null}
           <Stat label="Posição" value={selected?.rank ? `${String(selected.rank)}º` : "–"} sub={hasMapData ? `de ${sortedMetrics.length}` : undefined} />
         </div>

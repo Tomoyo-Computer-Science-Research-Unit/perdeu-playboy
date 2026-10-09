@@ -87,6 +87,9 @@ class GovernorPerformanceRow(BaseModel):
     annualized_baseline_value: float | None = None
     best_indicator: str | None = None
     worst_indicator: str | None = None
+    # Variacao percentual do indicador no mandato vs os 12 meses anteriores: negativo = caiu.
+    best_indicator_change: float | None = None
+    worst_indicator_change: float | None = None
     note: str | None = None
 
 

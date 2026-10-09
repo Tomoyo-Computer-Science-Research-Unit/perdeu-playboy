@@ -89,3 +89,19 @@ export function deltaGlyph(value: number | null | undefined): string {
   }
   return value > 0 ? "▲" : "▼";
 }
+
+/** Indicadores em que subir é bom (apreensões), não ruim. */
+const INVERTED_INDICATORS = new Set(["apreensao_armas"]);
+
+/**
+ * Classe de cor para uma variação: "worse" quando a violência sobe, "better" quando cai.
+ * Para apreensões a polaridade inverte; sem indicador, assume que subir é pior.
+ */
+export function deltaClass(value: number | null | undefined, indicator?: string): string {
+  if (value === null || value === undefined || !Number.isFinite(value) || value === 0) {
+    return "";
+  }
+  const up = value > 0;
+  const upIsGood = indicator ? INVERTED_INDICATORS.has(indicator) : false;
+  return up === upIsGood ? "better" : "worse";
+}

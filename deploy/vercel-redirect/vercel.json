@@ -1,0 +1,10 @@
+{
+  "framework": null,
+  "buildCommand": "",
+  "installCommand": "",
+  "outputDirectory": "public",
+  "redirects": [
+    { "source": "/", "destination": "https://g0v.tomoyo.systems/perdeu-playboy/", "permanent": true },
+    { "source": "/:path*", "destination": "https://g0v.tomoyo.systems/perdeu-playboy/:path*", "permanent": true }
+  ]
+}

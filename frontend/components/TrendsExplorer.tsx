@@ -160,7 +160,7 @@ export function TrendsExplorer() {
 
   return (
     <Screen columns="minmax(0, 1fr) 420px" rows="auto minmax(0, 1fr)">
-      <Panel title="Controles" style={{ gridColumn: "1 / span 2" }}>
+      <Panel title={<b>Séries</b>} style={{ gridColumn: "1 / span 2" }}>
         <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
           <Field label="Indicador" className="min-w-[220px]">
             <select value={activeIndicator} onChange={(event) => setIndicator(event.target.value)}>
@@ -228,7 +228,7 @@ export function TrendsExplorer() {
           <button type="button" aria-pressed={showTerms} onClick={() => setShowTerms((current) => !current)} className="toggle">
             Mandatos
           </button>
-          <button type="button" onClick={downloadCsv} className="btn btn--ghost ml-auto">
+          <button type="button" onClick={downloadCsv} className="btn ml-auto">
             CSV
           </button>
         </div>
@@ -237,9 +237,10 @@ export function TrendsExplorer() {
       <Panel
         title={
           <>
-            <b>{indicatorMeta?.name}</b> · {territoryLabel} · {subtitle(view, effectiveMetric, startYear, endYear, latest.year, latest.month)}
+            <b>{indicatorMeta?.name}</b> {territoryLabel}
           </>
         }
+        aside={<span>{subtitle(view, effectiveMetric, startYear, endYear, latest.year, latest.month)}</span>}
         fill
         foot={
           view === "monthly"
@@ -260,8 +261,8 @@ export function TrendsExplorer() {
         />
       </Panel>
 
-      <Panel title={`Ano a ano · ${startYear}–${endYear}`} flush foot="* ano incompleto, variação sobre os mesmos meses. ~ população interpolada (IBGE).">
-        <AnnualTable points={annual} latestMonth={latest.month} unitLabel={indicatorMeta?.unit === "armas" ? "armas" : "ocorrências"} compact />
+      <Panel title={<><b>Ano a ano</b> {startYear}–{endYear}</>} flush foot="* ano incompleto, variação sobre os mesmos meses. ~ população interpolada (IBGE).">
+        <AnnualTable points={annual} latestMonth={latest.month} unitLabel={indicatorMeta?.unit === "armas" ? "armas" : "ocorrências"} compact indicator={activeIndicator} />
       </Panel>
     </Screen>
   );
@@ -294,11 +295,11 @@ function monthlyToChart(points: MonthlyPoint[], view: View): ChartPoint[] {
 }
 
 function subtitle(view: View, metric: Metric, startYear: number, endYear: number, latestYear: number, latestMonth: number): string {
-  const until = endYear === latestYear ? ` · até ${formatMonthYear(latestYear, latestMonth)}` : "";
+  const until = endYear === latestYear ? ` até ${formatMonthYear(latestYear, latestMonth)}` : "";
   if (view === "annual") {
     return `${metric === "rate" ? "por 100 mil" : "totais anuais"} ${startYear}–${endYear}${until}`;
   }
-  return `${view === "rolling" ? "soma móvel de 12 meses" : "mensal"} ${startYear}–${endYear}${until}`;
+  return `${view === "rolling" ? "soma de 12 meses" : "mensal"} ${startYear}–${endYear}${until}`;
 }
 
 function slug(value: string): string {

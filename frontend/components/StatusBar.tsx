@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { formatDateTime } from "@/lib/format";
 
 const HINTS: Record<string, Array<[string, string]>> = {
   "/": [
@@ -35,7 +34,7 @@ const HINTS: Record<string, Array<[string, string]>> = {
   "/sources": []
 };
 
-export function StatusBar({ generatedAt }: { generatedAt: string }) {
+export function StatusBar({ latestLabel }: { latestLabel: string }) {
   const pathname = usePathname();
   const base = pathname.startsWith("/dashboard") ? "/" : pathname;
   const hints = HINTS[base] ?? [];
@@ -55,16 +54,11 @@ export function StatusBar({ generatedAt }: { generatedAt: string }) {
         <span>
           <span className="kbd">t</span>tema
         </span>
+        <span>
+          <span className="kbd">f</span>efeitos
+        </span>
       </span>
-      <span className="hidden items-center gap-4 md:flex">
-        <a href="https://tomoyo.systems" target="_blank" rel="noreferrer" className="hover:text-ink">
-          Tomoyo
-        </a>
-        <a href="https://github.com/Tomoyo-Computer-Science-Research-Unit/perdeu-playboy" target="_blank" rel="noreferrer" className="hover:text-ink">
-          Código
-        </a>
-        <span>snapshot {formatDateTime(generatedAt)}</span>
-      </span>
+      <span className="num">{latestLabel}</span>
     </footer>
   );
 }

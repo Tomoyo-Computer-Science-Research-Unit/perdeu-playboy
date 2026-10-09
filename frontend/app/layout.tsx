@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { Archivo, Shippori_Mincho_B1 } from "next/font/google";
 import Link from "next/link";
+import { Fx } from "@/components/Fx";
 import { Hotkeys } from "@/components/Hotkeys";
+import { Scope } from "@/components/Scope";
+import { Shatter } from "@/components/Shatter";
 import { SiteNav } from "@/components/SiteNav";
 import { StatusBar } from "@/components/StatusBar";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -15,8 +18,11 @@ const archivo = Archivo({ subsets: ["latin"], weight: "variable", axes: ["wdth"]
 const DESCRIPTION =
   "Painel público de indicadores oficiais de violência e segurança pública no Estado do Rio de Janeiro: séries históricas desde 1991, municípios, áreas policiais, mapas e comparações por mandato.";
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const SITE_URL = `https://g0v.tomoyo.systems${BASE_PATH}`;
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://perdeu-playboy.online"),
+  metadataBase: new URL(SITE_URL),
   title: { default: "Perdeu, Playboy", template: "%s · Perdeu, Playboy" },
   description: DESCRIPTION,
   applicationName: "Perdeu, Playboy",
@@ -28,7 +34,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "pt_BR",
-    url: "https://perdeu-playboy.online",
+    url: SITE_URL,
     siteName: "Perdeu, Playboy",
     title: "Perdeu, Playboy",
     description: DESCRIPTION,
@@ -47,8 +53,7 @@ const THEME_SCRIPT = `(() => {
 })();`;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const meta = getSnapshotMeta();
-  const latest = meta.latest_period;
+  const latest = getSnapshotMeta().latest_period;
 
   return (
     <html lang="pt-BR" className={`${mincho.variable} ${archivo.variable}`} suppressHydrationWarning>
@@ -58,34 +63,25 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="bg-paper text-sumi">
         <div className="app">
           <header className="app__header">
-            <Link href="/" className="flex shrink-0 items-center gap-3 whitespace-nowrap text-ink">
-              <Mark />
-              <span className="wordmark text-[15px] leading-none">Perdeu, Playboy</span>
-              <span className="eyebrow hidden text-[9px] 2xl:inline">· Rio de Janeiro · ISP</span>
+            <Link href="/" className="flex shrink-0 items-center gap-3 whitespace-nowrap text-ink" data-brand>
+              {/* O mon da Tomoyo com sangue no olho direito: marca do projeto, inquebrável. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`${BASE_PATH}/logo_perdeu-playboy.png`} alt="" width={30} height={30} className="h-[30px] w-[30px] shrink-0" data-brand />
+              <span className="wordmark text-[15px] leading-none" data-brand>
+                Perdeu, Playboy
+              </span>
             </Link>
             <SiteNav />
-            <div className="flex shrink-0 items-center gap-3 whitespace-nowrap">
-              <span className="num hidden text-[11px] tracking-[0.1em] text-ash xl:inline">
-                até {monthShort(latest.month)} {latest.year}
-              </span>
-              <ThemeToggle />
-            </div>
+            <ThemeToggle />
           </header>
           <main className="app__main">{children}</main>
-          <StatusBar generatedAt={meta.generated_at} />
+          <StatusBar latestLabel={`ISP ${monthShort(latest.month)} ${latest.year}`} />
         </div>
         <Hotkeys />
+        <Fx />
+        <Scope />
+        <Shatter />
       </body>
     </html>
-  );
-}
-
-/** Marca mínima: um círculo com barras, eco do selo do tomoyo.systems. */
-function Mark() {
-  return (
-    <svg width="26" height="26" viewBox="0 0 34 34" aria-hidden="true" className="shrink-0 text-ink">
-      <circle cx="17" cy="17" r="15.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M8 17h18M12 17v9M17 17v9M22 17v9M12 8v9M22 8v9" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
   );
 }

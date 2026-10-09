@@ -14,18 +14,14 @@ export default function SourcesPage() {
   return (
     <Screen columns="minmax(0, 1fr)" rows="minmax(0, 1fr)">
       <Panel
-        title={
-          <>
-            <b>Arquivos oficiais e checksums</b> · snapshot {formatDateTime(meta.generated_at)} · último mês {formatMonthYear(meta.latest_period.year, meta.latest_period.month)}
-          </>
-        }
+        title={<b>Arquivos oficiais e checksums</b>}
         aside={
-          <a href={WORKFLOW_URL} target="_blank" rel="noreferrer" className="btn btn--ghost !h-7 !px-2 text-[10px]">
+          <a href={WORKFLOW_URL} target="_blank" rel="noreferrer" className="btn !h-7 !px-2 text-[10px]">
             Fluxo semanal
           </a>
         }
         flush
-        foot="Cada arquivo baixado para gerar o snapshot, com tamanho e SHA-256, para que qualquer pessoa reproduza os números."
+        foot={`Snapshot gerado em ${formatDateTime(meta.generated_at)} com dados até ${formatMonthYear(meta.latest_period.year, meta.latest_period.month)}. Tamanho e SHA-256 de cada arquivo, para reproduzir os números.`}
       >
         <table className="ruled">
           <thead>

@@ -144,6 +144,9 @@ export interface GovernorPerformanceRow {
   annualized_baseline_value: number | null;
   best_indicator: string | null;
   worst_indicator: string | null;
+  /** Variação do indicador no mandato vs os 12 meses anteriores; negativo = caiu. */
+  best_indicator_change: number | null;
+  worst_indicator_change: number | null;
   note: string | null;
 }
 

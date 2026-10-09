@@ -7,7 +7,7 @@ séries desde 1991, mapas, rankings, mudanças recentes e comparações por mand
 identificação de vítimas, sem endereços privados e sem linguagem sensacionalista. O visual segue a identidade de
 [tomoyo.systems](https://tomoyo.systems): tinta sobre papel, Shippori Mincho e Archivo, tema claro e escuro.
 
-Site em produção: https://perdeu-playboy.online
+Site em produção: https://g0v.tomoyo.systems/perdeu-playboy/ (perdeu-playboy.online redireciona para lá).
 
 ## Escopo
 
@@ -41,6 +41,10 @@ Indicadores publicados: `homicidio_doloso`, `lesao_corp_morte`, `latrocinio`, `l
 carga + estupro) e só existe num mês quando todos os componentes têm dado.
 
 ## Produto
+
+Tudo cabe numa tela de 1280×720 ou mais, sem rolagem de página; abaixo disso a página rola, o
+layout não cede. Teclas `1`–`7` trocam de tela, `T` tema, `F` efeitos de impressão, setas e `M`/`V`/`R`
+por tela. A mira e os elementos quebráveis são os do tomoyo.systems; o mon com sangue é inquebrável.
 
 - `/` Panorama: acumulado do ano por indicador contra os mesmos meses do ano anterior, mínimo e máximo históricos
   no mesmo período, sparkline anual, gráfico anual com faixas de mandato e pequenos múltiplos de todos os
@@ -105,7 +109,20 @@ mudança.
 
 ## Deploy
 
-Vercel, export estático (`frontend/out`). Veja `docs/deployment.md`.
+O site vive em `g0v.tomoyo.systems/perdeu-playboy`, no servidor principal da Tomoyo (droplet
+`mail.tomoyo.systems` na DigitalOcean), como um nginx estático atrás do Traefik, ao lado dos outros
+serviços. O subdomínio `g0v` reúne as frentes políticas da Tomoyo inspiradas no g0v de Taiwan; a
+página raiz lista os projetos (`deploy/g0v/index.html`).
+
+```bash
+scripts/deploy-g0v.sh   # build com NEXT_PUBLIC_BASE_PATH=/perdeu-playboy, rsync e docker compose
+```
+
+O script resolve o droplet pelo `doctl`, sobe `frontend/out` para `/root/g0v/site/perdeu-playboy`
+e recria o container `g0v-static` (`deploy/g0v/docker-compose.yml`, `nginx.conf`). O certificado
+vem do Traefik (Let's Encrypt via DNS Cloudflare) e o DNS é o wildcard `*.tomoyo.systems`.
+
+O projeto Vercel antigo (`perdeu-playboy.online`) só redireciona (`deploy/vercel-redirect`).
 
 ## Roadmap
 
