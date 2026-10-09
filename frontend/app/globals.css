@@ -139,9 +139,13 @@ dd {
 }
 
 /* Barras de rolagem quadradas, pretas, chapadas: Plan 9 / Unix dos anos 80–90. */
-* {
-  scrollbar-width: auto;
-  scrollbar-color: var(--ink) var(--paper);
+/* No Chromium, scrollbar-color desliga os pseudo-elementos ::-webkit-scrollbar e devolve o
+   polegar arredondado; a propriedade padrão fica só para o Firefox. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: auto;
+    scrollbar-color: var(--ink) var(--paper);
+  }
 }
 
 ::-webkit-scrollbar {
