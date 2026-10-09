@@ -12,7 +12,7 @@ node_modules/
 dist/
 build/
 out/
-frontend/.vercel/
+.vercel/
 frontend/test-results/
 frontend/playwright-report/
 marketing/**/preview-frames/
