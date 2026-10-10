@@ -32,7 +32,7 @@ from app.etl.extract import checksum_file
 from app.etl.sources import default_isp_sources
 from app.services import isp_repository, population_repository
 from app.services.analytics import latest_period, methodology
-from app.services.governor_performance import GOVERNOR_TERMS, governor_performance
+from app.services.governor_performance import GOVERNOR_TERMS, MAYOR_TERMS, governor_performance
 from app.services.indicator_catalog import INDICATORS
 from app.services.territory_repository import ISP_TERRITORIAL_DIVISION_URL, territorial_units
 
@@ -104,6 +104,18 @@ def export_static_frontend(output_path: Path, geo_output_path: Path | None = Non
             }
             for term in GOVERNOR_TERMS
         ],
+        "mayor_terms": {
+            municipality: [
+                {
+                    "governor": term.governor,
+                    "party_or_condition": term.party_or_condition,
+                    "term_start": term.start.isoformat(),
+                    "term_end": term.end.isoformat() if term.end else None,
+                }
+                for term in terms
+            ]
+            for municipality, terms in MAYOR_TERMS.items()
+        },
         "governor_performance": governor_performance().model_dump(mode="json"),
         "sources": _source_metadata(),
         "methodology": methodology(),

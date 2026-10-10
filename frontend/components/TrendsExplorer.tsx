@@ -11,6 +11,7 @@ import {
   RIO_MUNICIPALITY,
   getAnnualSeries,
   getGovernorTerms,
+  getMayorTerms,
   getIndicator,
   getIndicatorsFor,
   getLatestPeriod,
@@ -74,6 +75,11 @@ export function TrendsExplorer() {
   }, [latest.year]);
 
   const territoryName = resolveTerritoryName(selection.type, selection.name || undefined);
+  // Na cidade do Rio (município ou uma de suas áreas), os prefeitos entram junto com os governadores.
+  const inRio =
+    (selection.type === "municipality" && territoryName === RIO_MUNICIPALITY) ||
+    (selection.type === "police_area" && rioUnits.some((unit) => unit.territorial_unit === territoryName));
+  const mayors = useMemo(() => (inRio ? getMayorTerms(RIO_MUNICIPALITY) : []), [inRio]);
   const indicators = useMemo(() => {
     const available = getIndicatorsFor(selection.type, territoryName);
     const general = getIndicator(CRIME_GENERAL_CODE);
@@ -252,6 +258,7 @@ export function TrendsExplorer() {
           secondaryLabel={view === "monthly" ? "Soma de 12 meses ÷ 12" : undefined}
           digits={effectiveMetric === "rate" ? 1 : view === "monthly" ? 1 : 0}
           terms={terms}
+          mayors={mayors}
           showTerms={showTerms}
         />
       </Panel>

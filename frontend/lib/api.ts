@@ -14,6 +14,7 @@ export {
   getLatestChanges,
   getLatestPeriod,
   getMapData,
+  getMayorTerms,
   getMethodology,
   getMonthlySeries,
   getPopulation,

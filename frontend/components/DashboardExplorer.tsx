@@ -12,6 +12,7 @@ import {
   RIO_MUNICIPALITY,
   getAnnualSeries,
   getGovernorTerms,
+  getMayorTerms,
   getIndicator,
   getIndicatorsFor,
   getLatestPeriod,
@@ -40,6 +41,11 @@ export function DashboardExplorer() {
   const terms = useMemo(() => getGovernorTerms(), []);
 
   const territoryName = resolveTerritoryName(selection.type, selection.name || undefined);
+  // Na cidade do Rio (município ou uma de suas áreas), os prefeitos entram junto com os governadores.
+  const inRio =
+    (selection.type === "municipality" && territoryName === RIO_MUNICIPALITY) ||
+    (selection.type === "police_area" && rioUnits.some((unit) => unit.territorial_unit === territoryName));
+  const mayors = useMemo(() => (inRio ? getMayorTerms(RIO_MUNICIPALITY) : []), [inRio]);
   const summary = useMemo(() => getSummary(selection.type, territoryName), [selection.type, territoryName]);
   const indicators = useMemo(() => getIndicatorsFor(selection.type, territoryName), [selection.type, territoryName]);
   const activeIndicator = indicators.some((item) => item.code === indicator) ? indicator : indicators[0]?.code ?? "letalidade_violenta";
@@ -151,6 +157,7 @@ export function DashboardExplorer() {
           valueLabel={effectiveMetric === "rate" ? "Por 100 mil hab." : indicatorMeta?.unit === "armas" ? "Armas" : "Ocorrências"}
           digits={effectiveMetric === "rate" ? 1 : 0}
           terms={terms}
+          mayors={mayors}
           showTerms={showTerms}
         />
       </Panel>

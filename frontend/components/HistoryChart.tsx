@@ -23,6 +23,8 @@ type Props = {
   secondaryLabel?: string;
   digits?: number;
   terms?: GovernorTerm[];
+  /** Prefeitos: faixas desenhadas pela base do gráfico, com rótulo embaixo. */
+  mayors?: GovernorTerm[];
   showTerms?: boolean;
   /** Altura fixa em px; sem ela o gráfico preenche o pai (que precisa ter altura definida). */
   height?: number;
@@ -32,8 +34,9 @@ type Props = {
  * Gráfico histórico em preto e branco. Barras para totais anuais, linha para séries mensais,
  * com faixas alternadas marcando os mandatos de governador.
  */
-export function HistoryChart({ points, kind, valueLabel, secondaryLabel, digits = 0, terms = [], showTerms = true, height }: Props) {
+export function HistoryChart({ points, kind, valueLabel, secondaryLabel, digits = 0, terms = [], mayors = [], showTerms = true, height }: Props) {
   const bands = useMemo(() => (showTerms ? termBands(terms, points) : []), [points, showTerms, terms]);
+  const mayorBands = useMemo(() => (showTerms ? termBands(mayors, points) : []), [mayors, points, showTerms]);
   const ticks = useMemo(() => xTicks(points, kind), [kind, points]);
   const hasData = points.some((point) => point.value !== null);
 
@@ -48,7 +51,7 @@ export function HistoryChart({ points, kind, valueLabel, secondaryLabel, digits 
   return (
     <div className="chart chart-fill" style={height ? { height, flex: "none" } : undefined}>
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={points} margin={{ top: 22, right: 10, left: 0, bottom: 0 }} barCategoryGap={kind === "annual" ? "28%" : "5%"}>
+        <ComposedChart data={points} margin={{ top: 22, right: 10, left: 0, bottom: mayorBands.length ? 18 : 0 }} barCategoryGap={kind === "annual" ? "28%" : "5%"}>
           <CartesianGrid vertical={false} strokeDasharray="2 4" />
           {bands.map((band, index) => (
             <ReferenceArea
@@ -64,6 +67,23 @@ export function HistoryChart({ points, kind, valueLabel, secondaryLabel, digits 
                   ? undefined
                   : // Mandatos curtos encostam uns nos outros: alterna a linha do rótulo para não sobrepor.
                     { value: band.short, position: "insideTopLeft", fill: "var(--ash)", fontSize: 10, letterSpacing: "0.12em", offset: index % 2 === 0 ? 6 : 20 }
+              }
+            />
+          ))}
+          {mayorBands.map((band, index) => (
+            <ReferenceArea
+              key={`mayor-${band.governor}-${band.x1}`}
+              x1={band.x1}
+              x2={band.x2}
+              ifOverflow="hidden"
+              fillOpacity={0}
+              stroke="var(--line-strong)"
+              strokeDasharray="2 3"
+              strokeOpacity={1}
+              label={
+                band.x1 === band.x2
+                  ? undefined
+                  : { value: `pref. ${band.short}`, position: "insideBottomLeft", fill: "var(--ash)", fontSize: 10, letterSpacing: "0.12em", offset: index % 2 === 0 ? 6 : 20 }
               }
             />
           ))}
@@ -159,8 +179,8 @@ function shortName(governor: string): string {
   const parts = governor.split(" ");
   const last = parts[parts.length - 1];
   // "Rosinha" e "Anthony Garotinho" dividem o sobrenome, e "Silva" diz pouco: usa o primeiro nome.
-  if (["Garotinho", "Silva"].includes(last)) {
-    return parts[0];
+  if (["Garotinho", "Silva", "Maia", "Conde"].includes(last)) {
+    return parts[0] === "Luiz" ? "Conde" : parts[0];
   }
   return last;
 }

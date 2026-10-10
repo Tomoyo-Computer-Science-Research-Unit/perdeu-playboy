@@ -49,6 +49,7 @@ type Snapshot = {
     municipality: Record<string, Record<string, PopulationYear>>;
   };
   governor_terms: GovernorTerm[];
+  mayor_terms?: Record<string, GovernorTerm[]>;
   governor_performance: GovernorPerformanceResponse;
   sources: DataSource[];
   methodology: Methodology;
@@ -114,6 +115,11 @@ export function getTerritorialUnits(municipality = RIO_MUNICIPALITY): Territoria
 
 export function getGovernorTerms(): GovernorTerm[] {
   return DATA.governor_terms;
+}
+
+/** Prefeitos de um município (hoje só a cidade do Rio), para as faixas de mandato. */
+export function getMayorTerms(municipality: string): GovernorTerm[] {
+  return DATA.mayor_terms?.[municipality] ?? [];
 }
 
 export function getGovernorPerformance(): GovernorPerformanceResponse {

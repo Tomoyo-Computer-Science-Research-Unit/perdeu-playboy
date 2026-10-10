@@ -98,6 +98,21 @@ GOVERNOR_TERMS = [
 ]
 
 
+# Prefeitos da cidade do Rio de Janeiro desde 1989, para as faixas de mandato quando o recorte
+# e o municipio do Rio ou uma de suas areas integradas. Nao entram no ranking de desempenho.
+MAYOR_TERMS: dict[str, list[GovernorTerm]] = {
+    "Rio de Janeiro": [
+        GovernorTerm(governor="Marcello Alencar", party_or_condition="PDT", start=date(1989, 1, 1), end=date(1992, 12, 31)),
+        GovernorTerm(governor="César Maia", party_or_condition="PMDB", start=date(1993, 1, 1), end=date(1996, 12, 31)),
+        GovernorTerm(governor="Luiz Paulo Conde", party_or_condition="PFL", start=date(1997, 1, 1), end=date(2000, 12, 31)),
+        GovernorTerm(governor="César Maia", party_or_condition="PTB / PFL / DEM", start=date(2001, 1, 1), end=date(2008, 12, 31)),
+        GovernorTerm(governor="Eduardo Paes", party_or_condition="PMDB", start=date(2009, 1, 1), end=date(2016, 12, 31)),
+        GovernorTerm(governor="Marcelo Crivella", party_or_condition="PRB / Republicanos", start=date(2017, 1, 1), end=date(2020, 12, 31)),
+        GovernorTerm(governor="Eduardo Paes", party_or_condition="DEM / PSD", start=date(2021, 1, 1), end=None),
+    ],
+}
+
+
 def governor_performance() -> GovernorPerformanceOut:
     latest_year, latest_month = isp_repository.latest_period()
     latest_date = pd.Timestamp(latest_year, latest_month, 1) + pd.offsets.MonthEnd(0)
