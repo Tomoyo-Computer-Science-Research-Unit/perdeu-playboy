@@ -23,7 +23,7 @@ type Props = {
   secondaryLabel?: string;
   digits?: number;
   terms?: GovernorTerm[];
-  /** Prefeitos: faixas desenhadas pela base do gráfico, com rótulo embaixo. */
+  /** Prefeitos: limites tracejados e rótulos numa segunda linha, abaixo dos governadores. */
   mayors?: GovernorTerm[];
   showTerms?: boolean;
   /** Altura fixa em px; sem ela o gráfico preenche o pai (que precisa ter altura definida). */
@@ -51,7 +51,7 @@ export function HistoryChart({ points, kind, valueLabel, secondaryLabel, digits 
   return (
     <div className="chart chart-fill" style={height ? { height, flex: "none" } : undefined}>
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={points} margin={{ top: 22, right: 10, left: 0, bottom: mayorBands.length ? 18 : 0 }} barCategoryGap={kind === "annual" ? "28%" : "5%"}>
+        <ComposedChart data={points} margin={{ top: mayorBands.length ? 48 : 22, right: 10, left: 0, bottom: 0 }} barCategoryGap={kind === "annual" ? "28%" : "5%"}>
           <CartesianGrid vertical={false} strokeDasharray="2 4" />
           {bands.map((band, index) => (
             <ReferenceArea
@@ -83,7 +83,8 @@ export function HistoryChart({ points, kind, valueLabel, secondaryLabel, digits 
               label={
                 band.x1 === band.x2
                   ? undefined
-                  : { value: `pref. ${band.short}`, position: "insideBottomLeft", fill: "var(--ash)", fontSize: 10, letterSpacing: "0.12em", offset: index % 2 === 0 ? 6 : 20 }
+                  : // Segunda e terceira linhas do topo, abaixo dos governadores, onde não há barras.
+                    { value: `pref. ${band.short}`, position: "insideTopLeft", fill: "var(--ash)", fontSize: 10, letterSpacing: "0.12em", offset: index % 2 === 0 ? 34 : 48 }
               }
             />
           ))}
