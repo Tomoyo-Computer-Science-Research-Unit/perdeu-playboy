@@ -51,7 +51,7 @@ export function HistoryChart({ points, kind, valueLabel, secondaryLabel, digits 
   return (
     <div className="chart chart-fill" style={height ? { height, flex: "none" } : undefined}>
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={points} margin={{ top: mayorBands.length ? 48 : 22, right: 10, left: 0, bottom: 0 }} barCategoryGap={kind === "annual" ? "28%" : "5%"}>
+        <ComposedChart data={points} margin={{ top: 12, right: 10, left: 0, bottom: 0 }} barCategoryGap={kind === "annual" ? "28%" : "5%"}>
           <CartesianGrid vertical={false} strokeDasharray="2 4" />
           {bands.map((band, index) => (
             <ReferenceArea
@@ -84,12 +84,20 @@ export function HistoryChart({ points, kind, valueLabel, secondaryLabel, digits 
                 band.x1 === band.x2
                   ? undefined
                   : // Segunda e terceira linhas do topo, abaixo dos governadores, onde não há barras.
-                    { value: `pref. ${band.short}`, position: "insideTopLeft", fill: "var(--ash)", fontSize: 10, letterSpacing: "0.12em", offset: index % 2 === 0 ? 34 : 48 }
+                    { value: `pref. ${band.short}`, position: "insideTopLeft", fill: "var(--ash)", fontSize: 10, letterSpacing: "0.12em", offset: index % 2 === 0 ? 24 : 38 }
               }
             />
           ))}
           <XAxis dataKey="key" ticks={ticks} tickFormatter={(key: string) => key.slice(0, 4)} interval={0} tickMargin={8} minTickGap={12} />
-          <YAxis width={50} tickFormatter={(value: number) => formatNumber(value, digits)} tickMargin={6} axisLine={false} tickLine={false} />
+          <YAxis
+            width={50}
+            // Folga no topo para os rótulos de mandato não caírem sobre as barras mais altas.
+            domain={[0, (dataMax: number) => Math.ceil(dataMax * (mayorBands.length ? 1.22 : 1.1))]}
+            tickFormatter={(value: number) => formatNumber(value, digits)}
+            tickMargin={6}
+            axisLine={false}
+            tickLine={false}
+          />
           <Tooltip
             cursor={{ fill: "var(--line)" }}
             content={({ active, payload }) => {
