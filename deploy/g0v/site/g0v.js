@@ -124,10 +124,12 @@
     addEventListener("scroll", nudge, { passive: true });
   }
 
-  // --- Tiro, como na home do tomoyo.systems ------------------------------------------
-  const TARGETS = "a[href], button, h1, h2, h3, p, li, kbd, code, img, svg, .caption, .banner__title";
-  const EXCLUDE = "input, textarea, select, iframe, [contenteditable], .no-shatter, .scope";
+  // --- Tiros, como no tomoyo.systems: marca de bala que some; a marca ricocheteia ----------
+  const SKIP = "input, textarea, select, iframe, [contenteditable], [download], .no-shatter, .scope";
+  const BRAND = "[data-brand]";
+  const HOLE_LIFE = 9000, MAX_HOLES = 48;
   const rand = (a, b) => a + Math.random() * (b - a);
+  const holes = [];
   let audio = null;
   const insideFixed = (el) => {
     for (let n = el; n; n = n.parentElement) if (getComputedStyle(n).position === "fixed") return true;
@@ -144,80 +146,101 @@
     }
     return layer;
   }
-
-  function tink() {
-    try { audio ??= new AudioContext(); } catch (e) { return; }
-    const ctx = audio, t = ctx.currentTime + 0.005;
-    if (ctx.state === "suspended") ctx.resume();
-    const master = ctx.createGain(); master.gain.value = 0.16; master.connect(ctx.destination);
-    const buf = ctx.createBuffer(1, Math.round(ctx.sampleRate * 0.03), ctx.sampleRate), data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length) ** 2;
-    const noise = ctx.createBufferSource(); noise.buffer = buf;
-    const band = ctx.createBiquadFilter(); band.type = "bandpass"; band.frequency.value = 3200; band.Q.value = 0.9;
-    noise.connect(band).connect(master); noise.start(t);
-    const base = rand(1700, 2500);
-    for (const [ratio, gain, len] of [[1, 0.5, 0.55], [2.76, 0.28, 0.35], [5.4, 0.16, 0.2], [8.93, 0.08, 0.12]]) {
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.frequency.value = base * ratio; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(1e-4, t + len);
-      o.connect(g).connect(master); o.start(t); o.stop(t + len + 0.02);
-    }
-    const w = ctx.createOscillator(), wg = ctx.createGain();
+  function context() {
+    try { audio ??= new AudioContext(); } catch (e) { return null; }
+    if (audio.state === "suspended") audio.resume();
+    return audio;
+  }
+  function bang() {
+    const ac = context(); if (!ac) return;
+    const t = ac.currentTime + 0.005;
+    const out = ac.createGain(); out.gain.value = 0.09; out.connect(ac.destination);
+    const len = Math.round(ac.sampleRate * 0.14);
+    const noise = ac.createBuffer(1, len, ac.sampleRate), ch = noise.getChannelData(0);
+    for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 3;
+    const crack = ac.createBufferSource(); crack.buffer = noise;
+    const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 0.7;
+    lp.frequency.setValueAtTime(rand(2600, 3600), t); lp.frequency.exponentialRampToValueAtTime(220, t + 0.14);
+    crack.connect(lp).connect(out); crack.start(t);
+    const thump = ac.createOscillator(), tg = ac.createGain();
+    thump.frequency.setValueAtTime(rand(130, 170), t); thump.frequency.exponentialRampToValueAtTime(45, t + 0.09);
+    tg.gain.setValueAtTime(0.7, t); tg.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+    thump.connect(tg).connect(out); thump.start(t); thump.stop(t + 0.12);
+  }
+  function hole(target, cx, cy) {
+    bang();
+    const fixed = insideFixed(target), layer = layerFor(fixed);
+    const ox = cx + (fixed ? 0 : scrollX), oy = cy + (fixed ? 0 : scrollY);
+    const flash = document.createElement("div");
+    flash.className = "shatter-flash";
+    Object.assign(flash.style, { left: `${ox}px`, top: `${oy}px` });
+    layer.appendChild(flash);
+    flash.animate([{ transform: "translate(-50%,-50%) scale(0)", opacity: 0.5 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 0 }], { duration: 200, easing: "cubic-bezier(.2,.8,.3,1)" }).onfinish = () => flash.remove();
+    const h = document.createElement("div");
+    h.className = "bullet-hole";
+    const d = rand(6, 9), r = () => `${rand(42, 58).toFixed(0)}%`;
+    Object.assign(h.style, { left: `${ox}px`, top: `${oy}px`, width: `${d.toFixed(1)}px`, height: `${(d * rand(0.85, 1.15)).toFixed(1)}px`, borderRadius: `${r()} ${r()} ${r()} ${r()} / ${r()} ${r()} ${r()} ${r()}`, rotate: `${rand(0, 360).toFixed(0)}deg` });
+    layer.appendChild(h);
+    holes.push(h);
+    while (holes.length > MAX_HOLES) holes.shift().remove();
+    h.animate([{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.35 }, { opacity: 0, offset: 1 }], { duration: HOLE_LIFE, easing: "ease-in", fill: "forwards" }).onfinish = () => {
+      h.remove();
+      const i = holes.indexOf(h); if (i >= 0) holes.splice(i, 1);
+    };
+  }
+  function ping() {
+    const ac = context(); if (!ac) return;
+    const t = ac.currentTime + 0.005;
+    const out = ac.createGain(); out.gain.value = 0.16; out.connect(ac.destination);
+    const noise = ac.createBuffer(1, Math.round(ac.sampleRate * 0.03), ac.sampleRate), ch = noise.getChannelData(0);
+    for (let i = 0; i < ch.length; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / ch.length) ** 2;
+    const hit = ac.createBufferSource(); hit.buffer = noise;
+    const bp = ac.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 3200; bp.Q.value = 0.9;
+    hit.connect(bp).connect(out); hit.start(t);
+    const f0 = rand(1700, 2500);
+    [[1, 0.5, 0.55], [2.76, 0.28, 0.35], [5.4, 0.16, 0.2], [8.93, 0.08, 0.12]].forEach(([r, a, d]) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.frequency.value = f0 * r; g.gain.setValueAtTime(a, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      o.connect(g).connect(out); o.start(t); o.stop(t + d + 0.02);
+    });
+    const w = ac.createOscillator(), wg = ac.createGain();
     w.type = "triangle"; w.frequency.setValueAtTime(rand(3400, 4200), t + 0.02); w.frequency.exponentialRampToValueAtTime(rand(700, 1000), t + 0.4);
-    wg.gain.setValueAtTime(1e-4, t); wg.gain.linearRampToValueAtTime(0.12, t + 0.04); wg.gain.exponentialRampToValueAtTime(1e-4, t + 0.42);
-    w.connect(wg).connect(master); w.start(t); w.stop(t + 0.45);
+    wg.gain.setValueAtTime(0.0001, t); wg.gain.linearRampToValueAtTime(0.12, t + 0.04); wg.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
+    w.connect(wg).connect(out); w.start(t); w.stop(t + 0.45);
   }
-
-
-  /** Marca de bala no ponto do tiro: um furo irregular que fica na página (as 40 últimas). */
-  function bulletHole(layer, x, y) {
-    const hole = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    hole.setAttribute("class", "bullet-hole");
-    hole.setAttribute("viewBox", "-10 -10 20 20");
-    hole.style.left = `${x}px`;
-    hole.style.top = `${y}px`;
-    const points = [];
-    for (let index = 0; index < 11; index += 1) {
-      const angle = (index / 11) * Math.PI * 2;
-      const radius = rand(5.5, 9.5);
-      points.push(`${(Math.cos(angle) * radius).toFixed(2)},${(Math.sin(angle) * radius).toFixed(2)}`);
-    }
-    const ring = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    ring.setAttribute("class", "ring");
-    ring.setAttribute("points", points.join(" "));
-    const core = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    core.setAttribute("class", "core");
-    core.setAttribute("r", rand(2.2, 3.4).toFixed(2));
-    core.setAttribute("cx", rand(-0.8, 0.8).toFixed(2));
-    core.setAttribute("cy", rand(-0.8, 0.8).toFixed(2));
-    hole.appendChild(ring);
-    hole.appendChild(core);
-    layer.appendChild(hole);
-    const holes = layer.querySelectorAll(".bullet-hole");
-    if (holes.length > 40) {
-      holes[0].remove();
-    }
-  }
-  function ricochet(el, cx, cy) {
-    tink();
-    const fixed = insideFixed(el), layer = layerFor(fixed);
-    const x = cx + (fixed ? 0 : scrollX), y = cy + (fixed ? 0 : scrollY), start = rand(0, Math.PI * 2);
-    bulletHole(layer, x, y);
+  function ricochet(target, cx, cy) {
+    ping();
+    const fixed = insideFixed(target), layer = layerFor(fixed);
+    const ox = cx + (fixed ? 0 : scrollX), oy = cy + (fixed ? 0 : scrollY), base = rand(0, Math.PI * 2);
     for (let i = 0; i < 7; i++) {
-      const spark = document.createElement("div");
-      spark.className = "ricochet-spark";
-      Object.assign(spark.style, { left: `${x}px`, top: `${y}px` });
-      layer.appendChild(spark);
-      const ang = start + (i / 7) * Math.PI * 2 + rand(-0.3, 0.3), dist = rand(26, 64), deg = (ang * 180) / Math.PI;
-      spark.animate([{ transform: `translate(-50%,-50%) rotate(${deg}deg) translateX(4px) scaleX(1)`, opacity: 1 }, { transform: `translate(-50%,-50%) rotate(${deg}deg) translateX(${dist}px) scaleX(.3)`, opacity: 0 }], { duration: rand(220, 360), easing: "cubic-bezier(.1,.7,.3,1)" }).onfinish = () => spark.remove();
+      const s = document.createElement("div");
+      s.className = "ricochet-spark";
+      Object.assign(s.style, { left: `${ox}px`, top: `${oy}px` });
+      layer.appendChild(s);
+      const ang = base + (i / 7) * Math.PI * 2 + rand(-0.3, 0.3), dist = rand(26, 64), deg = (ang * 180) / Math.PI;
+      s.animate([{ transform: `translate(-50%,-50%) rotate(${deg}deg) translateX(4px) scaleX(1)`, opacity: 1 }, { transform: `translate(-50%,-50%) rotate(${deg}deg) translateX(${dist}px) scaleX(.3)`, opacity: 0 }], { duration: rand(220, 360), easing: "cubic-bezier(.1,.7,.3,1)" }).onfinish = () => s.remove();
     }
-    const box = el.getBoundingClientRect(), side = Math.sign(box.left + box.width / 2 - cx) || 1;
-    el.animate && el.animate([{ translate: "0 0" }, { translate: `${side * 3}px -1px` }, { translate: `${-side * 2}px 1px` }, { translate: `${side}px 0` }, { translate: "0 0" }], { duration: 220, easing: "ease-out" });
+    const r = target.getBoundingClientRect(), kx = Math.sign(r.left + r.width / 2 - cx) || 1;
+    target.animate && target.animate([{ translate: "0 0" }, { translate: `${kx * 3}px -1px` }, { translate: `${-kx * 2}px 1px` }, { translate: `${kx}px 0` }, { translate: "0 0" }], { duration: 220, easing: "ease-out" });
   }
-
+  function follow(link) {
+    const url = new URL(link.getAttribute("href"), location.href);
+    const external = /^https?:$/.test(url.protocol) && url.origin !== location.origin;
+    if (external || link.getAttribute("target") === "_blank") open(url.href, "_blank", "noopener");
+    else location.href = url.href;
+  }
   document.addEventListener("click", (event) => {
     if (event.defaultPrevented || event.button !== 0 || event.detail === 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    const origin = event.target;
-    if (!origin.closest || origin.closest(EXCLUDE)) return;
-    ricochet(origin.closest(TARGETS) || origin, event.clientX, event.clientY);
+    const start = event.target;
+    if (!start.closest || start.closest(SKIP)) return;
+    if (!start.closest("a[href]") && !getSelection().isCollapsed) return;
+    const brand = start.closest(BRAND);
+    if (brand) {
+      ricochet(brand, event.clientX, event.clientY);
+      const a = start.closest("a[href]");
+      if (a) { event.preventDefault(); setTimeout(() => follow(a), 260); }
+      return;
+    }
+    hole(start, event.clientX, event.clientY);
   });
 })();

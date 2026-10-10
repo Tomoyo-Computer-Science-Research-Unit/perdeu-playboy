@@ -833,6 +833,11 @@ html.is-grabbing .scope {
   transform: scale(1);
 }
 
+.scope__fire {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 .scope.is-fire .scope__fire {
   animation: scope-fire 0.28s ease-out;
 }
@@ -889,22 +894,21 @@ html.is-grabbing .scope {
   pointer-events: none;
 }
 
-
-/* Marca de bala: fica onde o tiro acertou */
+/* Marca de bala (como no tomoyo.systems): núcleo de tinta com um fio de papel rasgado em volta
+   e uma mancha leve; some sozinha em alguns segundos. */
 .bullet-hole {
   position: absolute;
-  width: 18px;
-  height: 18px;
+  translate: -50% -50%;
+  background: var(--ink);
   pointer-events: none;
-  transform: translate(-50%, -50%);
-  overflow: visible;
+  box-shadow: 0 0 0 1px var(--paper), 0 0 0 2px color-mix(in srgb, var(--ink) 30%, transparent);
 }
 
-.bullet-hole .ring {
-  fill: var(--ink);
-  fill-opacity: 0.22;
-}
-
-.bullet-hole .core {
-  fill: var(--ink);
+.shatter-flash {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ink);
+  pointer-events: none;
 }
