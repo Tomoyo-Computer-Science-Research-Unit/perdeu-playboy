@@ -7,15 +7,15 @@ const lastModified = new Date("2026-06-17T00:00:00-03:00");
 
 const routes = [
   "",
-  "/dashboard",
-  "/trends",
-  "/map",
+  "/",
+  "/series",
+  "/mapa",
   "/rankings",
-  "/changes",
-  "/governors",
-  "/sources",
-  "/glossary",
-  "/methodology"
+  "/mudancas",
+  "/mandatos",
+  "/fontes",
+  "/glossario",
+  "/metodologia"
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

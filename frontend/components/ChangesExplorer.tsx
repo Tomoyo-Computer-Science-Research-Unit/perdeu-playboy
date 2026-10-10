@@ -25,7 +25,7 @@ function ChangeTable({ rows, territoryType }: { rows: ChangeRow[]; territoryType
             <td className="num faint">{row.rank}</td>
             <td className="max-w-[240px] truncate">
               <Link
-                href={`/trends?indicator=crime_geral&type=${territoryType}&name=${encodeURIComponent(row.territory_name)}&view=rolling`}
+                href={`/series?indicator=crime_geral&type=${territoryType}&name=${encodeURIComponent(row.territory_name)}&view=rolling`}
                 className="text-ink hover:underline hover:underline-offset-4"
                 title={row.territory_name}
               >

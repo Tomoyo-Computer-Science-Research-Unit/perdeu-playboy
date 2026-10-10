@@ -69,7 +69,7 @@ export default function MethodologyPage() {
       <Panel
         title={<b>Fontes e limitações</b>}
         aside={
-          <Link href="/sources" className="btn !h-7 !px-2 text-[10px]">
+          <Link href="/fontes" className="btn !h-7 !px-2 text-[10px]">
             Checksums
           </Link>
         }
@@ -99,7 +99,7 @@ export default function MethodologyPage() {
       <Panel
         title={<b>Indicadores e uso responsável</b>}
         aside={
-          <Link href="/glossary" className="btn !h-7 !px-2 text-[10px]">
+          <Link href="/glossario" className="btn !h-7 !px-2 text-[10px]">
             Glossário
           </Link>
         }

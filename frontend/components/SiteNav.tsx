@@ -5,20 +5,20 @@ import { usePathname } from "next/navigation";
 
 export const NAV_ITEMS = [
   { href: "/", label: "Panorama", key: "1" },
-  { href: "/trends", label: "Séries", key: "2" },
-  { href: "/map", label: "Mapa", key: "3" },
+  { href: "/series", label: "Séries", key: "2" },
+  { href: "/mapa", label: "Mapa", key: "3" },
   { href: "/rankings", label: "Rankings", key: "4" },
-  { href: "/changes", label: "Mudanças", key: "5" },
-  { href: "/governors", label: "Mandatos", key: "6" },
-  { href: "/methodology", label: "Método", key: "7" }
+  { href: "/mudancas", label: "Mudanças", key: "5" },
+  { href: "/mandatos", label: "Mandatos", key: "6" },
+  { href: "/metodologia", label: "Método", key: "7" }
 ];
 
 export function isActivePath(pathname: string, href: string) {
   if (href === "/") {
-    return pathname === "/" || pathname.startsWith("/dashboard");
+    return pathname === "/";
   }
-  if (href === "/methodology") {
-    return ["/methodology", "/glossary", "/sources"].some((path) => pathname.startsWith(path));
+  if (href === "/metodologia") {
+    return ["/metodologia", "/glossario", "/fontes"].some((path) => pathname.startsWith(path));
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

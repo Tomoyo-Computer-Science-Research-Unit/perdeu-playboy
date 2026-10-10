@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const pages = ["/", "/dashboard", "/trends", "/map", "/rankings", "/changes", "/governors", "/sources", "/glossary", "/methodology"];
+const pages = ["/", "/series", "/mapa", "/rankings", "/mudancas", "/mandatos", "/fontes", "/glossario", "/metodologia"];
 
 test.describe("static pages", () => {
   for (const path of pages) {
@@ -30,8 +30,8 @@ test("home shows year-to-date cards for the state", async ({ page }) => {
   await expect(page.getByText("Estado do Rio de Janeiro").first()).toBeVisible();
 });
 
-test("trends accepts permalink filters", async ({ page }) => {
-  await page.goto("/trends?indicator=roubo_rua&type=municipality&name=Niter%C3%B3i&view=rolling&from=2015&to=2024");
+test("series accepts permalink filters", async ({ page }) => {
+  await page.goto("/series?indicator=roubo_rua&type=municipality&name=Niter%C3%B3i&view=rolling&from=2015&to=2024");
   await expect(page.getByLabel("Indicador", { exact: true })).toHaveValue("roubo_rua");
   await expect(page.getByLabel("Município", { exact: true })).toHaveValue("Niterói");
   await expect(page.getByRole("button", { name: "12 meses" })).toHaveAttribute("aria-pressed", "true");
@@ -40,7 +40,7 @@ test("trends accepts permalink filters", async ({ page }) => {
 });
 
 test("map accepts permalink filters", async ({ page }) => {
-  await page.goto("/map?indicator=crime_geral&mode=rate&period=2024-12&view=rio_city");
+  await page.goto("/mapa?indicator=crime_geral&mode=rate&period=2024-12&view=rio_city");
   await expect(page.getByRole("option", { name: "Crime geral" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("text=12/2024").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Voltar" })).toBeVisible();
@@ -54,7 +54,7 @@ test("theme toggle switches to dark", async ({ page }) => {
 });
 
 test("screens fit the viewport without page scroll", async ({ page }) => {
-  for (const path of ["/", "/trends", "/map", "/rankings", "/changes", "/governors", "/methodology"]) {
+  for (const path of ["/", "/series", "/mapa", "/rankings", "/mudancas", "/mandatos", "/metodologia"]) {
     await page.goto(path);
     await page.waitForLoadState("networkidle");
     const [scrollHeight, viewport] = await page.evaluate(() => [document.documentElement.scrollHeight, window.innerHeight]);
@@ -67,5 +67,5 @@ test("hotkeys switch screens and indicators", async ({ page }) => {
   await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("option", { selected: true })).not.toHaveText(/Homicidio doloso/);
   await page.keyboard.press("2");
-  await expect(page).toHaveURL(/\/trends/);
+  await expect(page).toHaveURL(/\/series/);
 });

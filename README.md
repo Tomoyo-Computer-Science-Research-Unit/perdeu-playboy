@@ -49,10 +49,10 @@ por tela. A mira e os elementos quebráveis são os do tomoyo.systems; o mon com
 - `/` Panorama: acumulado do ano por indicador contra os mesmos meses do ano anterior, mínimo e máximo históricos
   no mesmo período, sparkline anual, gráfico anual com faixas de mandato e pequenos múltiplos de todos os
   indicadores. Recorte por estado, município ou área integrada.
-- `/trends` Séries: anual, mensal ou soma móvel de 12 meses; ocorrências ou por 100 mil; intervalo de anos;
+- `/series` Séries: anual, mensal ou soma móvel de 12 meses; ocorrências ou por 100 mil; intervalo de anos;
   tabela ano a ano; CSV. Permalinks em `?indicator=&type=&name=&view=&metric=&from=&to=`.
-- `/map` Mapa: coropleto de municípios e, ao clicar no Rio, de bairros agregados por CISP. Escala por posição.
-- `/rankings`, `/changes`, `/governors`, `/methodology`, `/glossary`, `/sources`.
+- `/mapa` Mapa: coropleto de municípios e, ao clicar no Rio, de bairros agregados por CISP. Escala por posição.
+- `/rankings`, `/mudancas`, `/mandatos`, `/metodologia`, `/glossario`, `/fontes`.
 
 ## Arquitetura
 

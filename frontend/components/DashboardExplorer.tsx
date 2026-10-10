@@ -62,7 +62,7 @@ export function DashboardExplorer() {
   const indicatorMeta = getIndicator(activeIndicator);
   const firstYear = annual[0]?.year ?? latest.year;
   const territoryLabel = selection.type === "state" ? "Estado do Rio de Janeiro" : territoryName;
-  const trendsHref = `/trends?indicator=${activeIndicator}&type=${selection.type}&name=${encodeURIComponent(territoryName)}`;
+  const trendsHref = `/series?indicator=${activeIndicator}&type=${selection.type}&name=${encodeURIComponent(territoryName)}`;
 
   const hotkeys = useMemo(
     () => ({

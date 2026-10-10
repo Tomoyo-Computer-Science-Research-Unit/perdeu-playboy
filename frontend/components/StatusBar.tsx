@@ -9,14 +9,14 @@ const HINTS: Record<string, Array<[string, string]>> = {
     ["m", "métrica"],
     ["⏎", "série"]
   ],
-  "/trends": [
+  "/series": [
     ["↑↓", "indicador"],
     ["←→", "anos"],
     ["v", "visualização"],
     ["m", "métrica"],
     ["c", "csv"]
   ],
-  "/map": [
+  "/mapa": [
     ["↑↓", "indicador"],
     ["←→", "mês"],
     ["r", "rio / estado"],
@@ -27,16 +27,16 @@ const HINTS: Record<string, Array<[string, string]>> = {
     ["←→", "mês"],
     ["m", "métrica"]
   ],
-  "/changes": [],
-  "/governors": [],
-  "/methodology": [],
-  "/glossary": [],
-  "/sources": []
+  "/mudancas": [],
+  "/mandatos": [],
+  "/metodologia": [],
+  "/glossario": [],
+  "/fontes": []
 };
 
 export function StatusBar({ latestLabel }: { latestLabel: string }) {
   const pathname = usePathname();
-  const base = pathname.startsWith("/dashboard") ? "/" : pathname;
+  const base = pathname.replace(/\/+$/, "") || "/";
   const hints = HINTS[base] ?? [];
 
   return (

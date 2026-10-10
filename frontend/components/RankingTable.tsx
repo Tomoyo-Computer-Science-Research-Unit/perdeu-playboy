@@ -64,7 +64,7 @@ export function RankingTable({
           <tr key={`${row.rank}-${row.territory_name}`}>
             <td className="num faint">{row.rank}</td>
             <td className="max-w-[260px] truncate">
-              <Link href={`/trends?type=${territoryType}&name=${encodeURIComponent(row.territory_name)}`} className="text-ink hover:underline hover:underline-offset-4" title={row.territory_name}>
+              <Link href={`/series?type=${territoryType}&name=${encodeURIComponent(row.territory_name)}`} className="text-ink hover:underline hover:underline-offset-4" title={row.territory_name}>
                 {row.territory_name}
               </Link>
             </td>
