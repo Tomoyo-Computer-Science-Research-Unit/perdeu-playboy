@@ -84,7 +84,7 @@ export function HistoryChart({ points, kind, valueLabel, secondaryLabel, digits 
                 band.x1 === band.x2
                   ? undefined
                   : // Segunda e terceira linhas do topo, abaixo dos governadores, onde não há barras.
-                    { value: `pref. ${band.short}`, position: "insideTopLeft", fill: "var(--ash)", fontSize: 10, letterSpacing: "0.12em", offset: index % 2 === 0 ? 24 : 38 }
+                    { value: `pref. ${band.short}`, position: "insideTopLeft", fill: "var(--ash)", fontSize: 10, letterSpacing: "0.12em", offset: index % 2 === 0 ? 40 : 54 }
               }
             />
           ))}
@@ -92,7 +92,7 @@ export function HistoryChart({ points, kind, valueLabel, secondaryLabel, digits 
           <YAxis
             width={50}
             // Folga no topo para os rótulos de mandato não caírem sobre as barras mais altas.
-            domain={[0, (dataMax: number) => Math.ceil(dataMax * (mayorBands.length ? 1.22 : 1.1))]}
+            domain={[0, (dataMax: number) => Math.ceil(dataMax * (mayorBands.length ? 1.3 : 1.1))]}
             tickFormatter={(value: number) => formatNumber(value, digits)}
             tickMargin={6}
             axisLine={false}
