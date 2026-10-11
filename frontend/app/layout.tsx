@@ -38,9 +38,9 @@ export const metadata: Metadata = {
     siteName: "Perdeu, Playboy",
     title: "Perdeu, Playboy",
     description: DESCRIPTION,
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Perdeu, Playboy" }]
+    images: [{ url: "/embed.png", width: 640, height: 480, alt: "Perdeu, Playboy" }]
   },
-  twitter: { card: "summary_large_image", title: "Perdeu, Playboy", description: DESCRIPTION, images: ["/og-image.png"] },
+  twitter: { card: "summary_large_image", title: "Perdeu, Playboy", description: DESCRIPTION, images: ["/embed.png"] },
   icons: { icon: `${BASE_PATH}/favicon.png`, shortcut: `${BASE_PATH}/favicon.png`, apple: `${BASE_PATH}/favicon.png` }
 };
 
