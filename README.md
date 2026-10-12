@@ -104,8 +104,6 @@ cd frontend && npx tsc --noEmit && npm run build && npm run test:visual
 ```
 
 O CI (`.github/workflows/ci.yml`) roda os testes do backend e os testes visuais do frontend com Playwright.
-O workflow `update-data.yml` regenera os dois snapshots toda segunda-feira e faz deploy na Vercel quando há
-mudança.
 
 ## Deploy
 
@@ -114,13 +112,24 @@ O site vive em `g0v.tomoyo.systems/perdeu-playboy`, no servidor principal da Tom
 serviços. O subdomínio `g0v` reúne as frentes políticas da Tomoyo inspiradas no g0v de Taiwan; a
 página raiz lista os projetos (`deploy/g0v/index.html`).
 
+Fluxo normal, sem intervenção: o workflow `update-data.yml` ("Dados e site") roda todo dia às 06:23
+de Brasília, baixa de novo os arquivos do ISP e do IBGE, regenera os snapshots e, se algum dado mudou
+(ignorando `generated_at`), commita em `main` e publica o site construído no branch `site`. Um push em
+`main` que toque `frontend/` ou `deploy/g0v/site/` também republica. No droplet, o cron roda
+`deploy/g0v/pull-site.sh` (instalado em `/root/g0v/pull-site.sh`) a cada hora: puxa o branch `site`
+e, quando o commit mudou, troca os arquivos e recarrega o nginx. Nenhuma credencial sai do GitHub: o
+droplet só lê o repositório público.
+
+Deploy manual, para publicar na hora ou quando o Actions estiver fora:
+
 ```bash
 scripts/deploy-g0v.sh   # build com NEXT_PUBLIC_BASE_PATH=/perdeu-playboy, rsync e docker compose
 ```
 
-O script resolve o droplet pelo `doctl`, sobe `frontend/out` para `/root/g0v/site/perdeu-playboy`
-e recria o container `g0v-static` (`deploy/g0v/docker-compose.yml`, `nginx.conf`). O certificado
-vem do Traefik (Let's Encrypt via DNS Cloudflare) e o DNS é o wildcard `*.tomoyo.systems`.
+O script resolve o droplet pelo `doctl`, sobe `frontend/out` para `/root/g0v/site/perdeu-playboy`,
+sincroniza `deploy/g0v/conf` (o nginx; só o script manual leva mudanças de configuração) e recarrega o
+container `g0v-static` (`deploy/g0v/docker-compose.yml`). O certificado vem do Traefik (Let's Encrypt via
+DNS Cloudflare) e o DNS é o wildcard `*.tomoyo.systems`.
 
 O projeto Vercel antigo (`perdeu-playboy.online`) só redireciona (`deploy/vercel-redirect`).
 
