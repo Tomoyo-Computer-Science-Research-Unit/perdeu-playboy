@@ -112,15 +112,21 @@ O site vive em `g0v.tomoyo.systems/perdeu-playboy`, no servidor principal da Tom
 serviços. O subdomínio `g0v` reúne as frentes políticas da Tomoyo inspiradas no g0v de Taiwan; a
 página raiz lista os projetos (`deploy/g0v/index.html`).
 
-Fluxo normal, sem intervenção: o workflow `update-data.yml` ("Dados e site") roda todo dia às 06:23
-de Brasília, baixa de novo os arquivos do ISP e do IBGE, regenera os snapshots e, se algum dado mudou
-(ignorando `generated_at`), commita em `main` e publica o site construído no branch `site`. Um push em
-`main` que toque `frontend/` ou `deploy/g0v/site/` também republica. No droplet, o cron roda
-`deploy/g0v/pull-site.sh` (instalado em `/root/g0v/pull-site.sh`) a cada hora: puxa o branch `site`
-e, quando o commit mudou, troca os arquivos e recarrega o nginx. Nenhuma credencial sai do GitHub: o
-droplet só lê o repositório público.
+Fluxo normal, sem intervenção, todo dia às 06:23 de Brasília no próprio servidor: o cron
+(`/etc/cron.d/g0v-build-site`) roda `deploy/g0v/build-site.sh` (instalado em `/root/g0v/build-site.sh`,
+clone em `/root/g0v/src`, log em `/root/g0v/build-site.log`). O script puxa `main`, baixa de novo os
+arquivos do ISP e do IBGE, regenera os snapshots e, se o commit ou os dados mudaram desde o último build
+(ignorando `generated_at`), constrói o site, sincroniza `deploy/g0v/conf` e recarrega o nginx. Para
+publicar na hora, depois de um push em `main`:
 
-Deploy manual, para publicar na hora ou quando o Actions estiver fora:
+```bash
+ssh root@mail.tomoyo.systems 'FORCE=1 SKIP_DATA=1 /root/g0v/build-site.sh'
+```
+
+O workflow `update-data.yml` faz só a parte dos dados, às 05:53: regenera o snapshot e commita em
+`main` quando mudou, para manter o repositório em dia.
+
+Deploy a partir desta máquina, com build local (serve para testar mudanças não commitadas):
 
 ```bash
 scripts/deploy-g0v.sh   # build com NEXT_PUBLIC_BASE_PATH=/perdeu-playboy, rsync e docker compose

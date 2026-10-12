@@ -1,19 +1,13 @@
-name: Dados e site
+name: Update static data
 
-# Todo dia: baixa de novo os arquivos oficiais (ISP, IBGE), regenera o snapshot e, se algum dado
-# mudou, commita e publica o site construído no branch `site`. O droplet puxa esse branch
-# (deploy/g0v/pull-site.sh). Um push em main com mudança no frontend também republica.
+# Todo dia: baixa de novo os arquivos oficiais, regenera o snapshot e commita em main quando algum
+# dado mudou (ignorando generated_at). Mantém o snapshot do repositório em dia para quem desenvolve;
+# o site em produção é construído no próprio servidor (deploy/g0v/build-site.sh).
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "23 9 * * *" # 06:23 em Brasília
-  push:
-    branches: [main]
-    paths:
-      - "frontend/**"
-      - "deploy/g0v/site/**"
-      - ".github/workflows/update-data.yml"
+    - cron: "53 8 * * *" # 05:53 em Brasília, antes do build no servidor
 
 permissions:
   contents: write
@@ -23,37 +17,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  update:
+  update-data:
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
       ISP_DATA_BASE_URL: "http://www.ispdados.rj.gov.br/Arquivos"
-      CHECK_DATA: ${{ github.event_name != 'push' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Python
-        if: env.CHECK_DATA == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
       - name: Install backend dependencies
-        if: env.CHECK_DATA == 'true'
         working-directory: backend
         run: python -m pip install -e .
 
       # Sem cache dos arquivos brutos: baixar de novo é a checagem de arquivo novo.
       - name: Download official files and export the snapshot
-        if: env.CHECK_DATA == 'true'
         working-directory: backend
         run: |
           python -m app.etl.export_static_frontend || {
@@ -66,12 +48,10 @@ jobs:
           }
 
       - name: Commit the snapshot when the data changed
-        id: data
-        if: env.CHECK_DATA == 'true'
         run: |
           python3 - <<'EOF'
           # generated_at muda a cada execução; só conta como mudança o resto do snapshot.
-          import json, os, pathlib, subprocess
+          import json, pathlib, subprocess
           files = ["frontend/lib/static-data.generated.json", "frontend/lib/static-geo.generated.json"]
           def body(text):
               data = json.loads(text)
@@ -85,8 +65,6 @@ jobs:
                   changed.append(f)
               else:
                   subprocess.run(["git", "checkout", "--", f], check=True)
-          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
-              out.write(f"changed={'true' if changed else 'false'}\n")
           print("changed:", changed or "nothing")
           EOF
           if [ "$(git status --porcelain -- frontend/lib)" != "" ]; then
@@ -96,34 +74,3 @@ jobs:
             git commit -m "Update static official-data snapshot"
             git push
           fi
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Build the site
-        working-directory: frontend
-        env:
-          NEXT_PUBLIC_BASE_PATH: /perdeu-playboy
-        run: npm run build
-
-      - name: Publish to the site branch
-        if: github.event_name != 'schedule' || steps.data.outputs.changed == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          rev="$(git rev-parse --short HEAD)"
-          stage="$(mktemp -d)"
-          cp -r deploy/g0v/site/. "$stage/"
-          sed -i "s/VERSION/$rev/g" "$stage/index.html"
-          mkdir -p "$stage/perdeu-playboy"
-          cp -r frontend/out/. "$stage/perdeu-playboy/"
-          cd "$stage"
-          git init -q -b site
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -q -m "site from $rev"
-          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" site
-          echo "published site from $rev"
