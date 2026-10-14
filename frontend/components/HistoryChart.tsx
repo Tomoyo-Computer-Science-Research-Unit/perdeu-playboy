@@ -62,12 +62,9 @@ export function HistoryChart({ points, kind, valueLabel, secondaryLabel, digits 
               fillOpacity={index % 2 === 0 ? 0.045 : 0}
               stroke="var(--line)"
               strokeOpacity={1}
-              label={
-                band.x1 === band.x2
-                  ? undefined
-                  : // Mandatos curtos encostam uns nos outros: alterna a linha do rótulo para não sobrepor.
-                    { value: band.short, position: "insideTopLeft", fill: "var(--ash)", fontSize: 10, letterSpacing: "0.12em", offset: index % 2 === 0 ? 6 : 20 }
-              }
+              // Mandatos curtos encostam uns nos outros, e dois podem cair na mesma barra anual
+              // (Castro e Couto em 2026): alterna a linha do rótulo para não sobrepor.
+              label={{ value: band.short, position: "insideTopLeft", fill: "var(--ash)", fontSize: 10, letterSpacing: "0.12em", offset: index % 2 === 0 ? 6 : 20 }}
             />
           ))}
           {mayorBands.map((band, index) => (
@@ -80,12 +77,8 @@ export function HistoryChart({ points, kind, valueLabel, secondaryLabel, digits 
               stroke="var(--line-strong)"
               strokeDasharray="2 3"
               strokeOpacity={1}
-              label={
-                band.x1 === band.x2
-                  ? undefined
-                  : // Segunda e terceira linhas do topo, abaixo dos governadores, onde não há barras.
-                    { value: `pref. ${band.short}`, position: "insideTopLeft", fill: "var(--ash)", fontSize: 10, letterSpacing: "0.12em", offset: index % 2 === 0 ? 40 : 54 }
-              }
+              // Segunda e terceira linhas do topo, abaixo dos governadores, onde não há barras.
+              label={{ value: `pref. ${band.short}`, position: "insideTopLeft", fill: "var(--ash)", fontSize: 10, letterSpacing: "0.12em", offset: index % 2 === 0 ? 40 : 54 }}
             />
           ))}
           <XAxis dataKey="key" ticks={ticks} tickFormatter={(key: string) => key.slice(0, 4)} interval={0} tickMargin={8} minTickGap={12} />
