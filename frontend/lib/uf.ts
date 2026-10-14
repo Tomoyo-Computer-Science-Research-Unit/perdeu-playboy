@@ -186,7 +186,7 @@ const SP: UfConfig = {
   hasShootings: false,
   localIndicator: "homicidio_doloso",
   changesIndicatorLabel: "homicídio doloso",
-  policeAreaChangesLabel: "DPs da capital",
+  policeAreaChangesLabel: "DPs",
   governorsTitle: "Governadores de São Paulo",
   description:
     "Painel público de indicadores oficiais de violência e segurança pública no Estado de São Paulo: séries mensais da SSP-SP desde 2001, 645 municípios, distritos policiais da capital, mapa e comparações por mandato.",
@@ -195,7 +195,7 @@ const SP: UfConfig = {
     {
       label: "SSP-SP, dados mensais",
       description:
-        "Ocorrências por natureza e produtividade policial do portal Números sem Mistério da Secretaria da Segurança Pública: estado, 645 municípios e 93 distritos policiais da capital, desde janeiro de 2001.",
+        "Ocorrências por natureza e produtividade policial do portal Números sem Mistério da Secretaria da Segurança Pública: estado e 93 distritos policiais da capital desde janeiro de 2001; 645 municípios desde janeiro de 2023 (os anos anteriores entram aos poucos na coleta diária).",
       href: "https://www.ssp.sp.gov.br/estatistica/dados-mensais"
     },
     {

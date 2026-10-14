@@ -24,6 +24,7 @@ from app.services import isp_repository, sinesp_repository, ssp_repository
 from app.uf import current, set_current
 
 STALE_AFTER_MONTHS = 4
+SSP_CALLS_PER_RUN = 3_000
 MAX_UNKEYED_SHARE = 0.01
 
 
@@ -205,7 +206,9 @@ def check_all(download: bool = True) -> list[FileReport]:
     uf_source = current().source
     if uf_source == "ssp":
         if download:
-            ssp_repository.download()
+            # No maximo 3.000 chamadas por rodada (50 min a 1 req/s): o ano corrente primeiro, depois os
+            # anos municipais que ainda faltam no consolidado, do mais recente para o mais antigo.
+            ssp_repository.download(budget=SSP_CALLS_PER_RUN)
             sinesp_repository.download()
             sinesp_repository.extract_uf("SP")
             ssp_repository.consolidate()

@@ -318,6 +318,7 @@ def _methodology_sp() -> dict:
             "Roubo (outros) é o total de roubos da SSP-SP menos roubo de carga e roubo a banco; não equivale ao roubo de rua do ISP.",
             "Feminicídio vem da tabela de violência contra a mulher da SSP-SP, estadual, desde 2018.",
             "Taxas por 100 mil existem para estado e municípios; distritos policiais não têm população oficial.",
+            "Municípios começam em janeiro de 2023 neste snapshot: a coleta de 2001 a 2022 (cerca de 28 mil chamadas à API) entra aos poucos, até 3.000 chamadas por rodada diária. Estado e distritos policiais vão desde 2001.",
             "A SSP-SP não publica os limites dos distritos policiais; o mapa de São Paulo é só por município.",
         ],
         "definitions": {

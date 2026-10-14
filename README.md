@@ -51,13 +51,16 @@ Censo 2022 por bairro).
 
 | Fonte | Formato | Cobertura |
 | --- | --- | --- |
-| SSP-SP, [dados mensais](https://www.ssp.sp.gov.br/estatistica/dados-mensais) (`v1/OcorrenciasMensais/RecuperaDadosMensaisAgrupados`) | JSON, uma chamada por território, ano e grupo (criminal, produtividade) | estado, 645 municípios e 93 DPs da capital, desde 2001-01 |
+| SSP-SP, [dados mensais](https://www.ssp.sp.gov.br/estatistica/dados-mensais) (`v1/OcorrenciasMensais/RecuperaDadosMensaisAgrupados`) | JSON, uma chamada por território, ano e grupo (criminal, produtividade) | estado e 93 DPs da capital desde 2001-01; 645 municípios desde 2023-01 no snapshot de 2026-10-14 |
 | SSP-SP, violência contra a mulher (`v1/ViolenciaMulher/RecuperaDadosPorAno`) | JSON | feminicídio estadual desde 2018-01 |
 | Sinesp VDE/MJSP (`bancovde-AAAA.xlsx`) | XLSX anual, todas as UFs | morte por intervenção de agente do Estado, só total estadual, desde 2015 |
 
 O download respeita uma chamada por segundo; as respostas ficam em `data/raw/ssp_sp/monthly/` (ignoradas)
 e o consolidado `data/raw/ssp_sp/ssp_monthly.csv.gz` é versionado, então a rodada diária só baixa o ano
 corrente (e o anterior até março). `python -m app.services.ssp_repository --download` faz tudo.
+Lacuna conhecida: a coleta municipal de 2001 a 2022 (cerca de 28 mil chamadas, 8 horas a 1 req/s) não
+foi feita; o `check_sources --uf SP` do servidor baixa até 3.000 chamadas por rodada, do ano mais recente
+para o mais antigo, e o snapshot ganha esses anos em cerca de dez rodadas.
 Homicídio doloso e latrocínio contam vítimas; as demais naturezas, ocorrências. Roubo (outros) é o total de
 roubos menos carga e banco (não equivale ao roubo de rua do ISP). Lesão corporal seguida de morte começa em
 2016-09; letalidade violenta e crime geral só existem para o estado, desde 2016-09. Não há mapa por DP:
