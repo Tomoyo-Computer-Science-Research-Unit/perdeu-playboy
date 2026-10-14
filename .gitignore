@@ -27,3 +27,4 @@ data/raw/ibge/*_municipalities_min.geojson
 data/processed/*
 !data/processed/.gitkeep
 !data/raw/isp/.gitkeep
+.claude/
