@@ -10,7 +10,8 @@ export const NAV_ITEMS = [
   { href: "/rankings", label: "Rankings", key: "4" },
   { href: "/mudancas", label: "Mudanças", key: "5" },
   { href: "/mandatos", label: "Mandatos", key: "6" },
-  { href: "/metodologia", label: "Método", key: "7" }
+  { href: "/tiroteios", label: "Tiroteios", key: "7" },
+  { href: "/metodologia", label: "Método", key: "8" }
 ];
 
 export function isActivePath(pathname: string, href: string) {

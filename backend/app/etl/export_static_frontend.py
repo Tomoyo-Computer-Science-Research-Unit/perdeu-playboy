@@ -141,6 +141,11 @@ def export_static_frontend(output_path: Path, geo_output_path: Path | None = Non
             isp_repository.territories("municipality"),
             _rio_neighborhood_names(),
         )
+        # As series entram no mesmo esquema das do ISP, com o prefixo fc_: estado no snapshot
+        # principal, municipios e bairros num arquivo por indicador.
+        for code, by_type in snapshot["fogo_cruzado"].pop("series").items():
+            series[f"fc_{code}"] = by_type
+        snapshot["series"] = {code: {"state": by_type.get("state", {})} for code, by_type in series.items()}
     geo = {
         "generated_at": generated_at,
         "municipality_geometries": _round_collection(_municipality_geometries()),

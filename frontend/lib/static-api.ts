@@ -55,6 +55,13 @@ type Snapshot = {
   methodology: Methodology;
   series: Record<string, Partial<Record<TerritoryType, Record<string, SparseSeries>>>>;
   coverage: Coverage;
+  fogo_cruzado?: FogoCruzado;
+};
+export type FogoCruzado = {
+  indicators: Indicator[];
+  territory_types: string[];
+  coverage: { first_month?: string | null; last_month?: string | null; months?: number; occurrences?: number; unmatched_municipalities?: Record<string, number>; unmatched_neighborhoods?: Record<string, number>; [key: string]: unknown };
+  source: { name: string; url: string; attribution: string; last_update?: string | null; [key: string]: unknown };
 };
 
 const DATA = snapshot as unknown as Snapshot;
@@ -169,6 +176,16 @@ export function getMayorTerms(municipality: string): GovernorTerm[] {
 
 export function getGovernorPerformance(): GovernorPerformanceResponse {
   return DATA.governor_performance;
+}
+
+/** Fonte opcional de tiroteios; null quando o snapshot foi gerado sem credenciais. */
+export function getFogoCruzado(): FogoCruzado | null {
+  return DATA.fogo_cruzado ?? null;
+}
+
+/** Territórios presentes no arquivo já carregado de um indicador (bairros do Rio, por exemplo). */
+export function loadedTerritoryNames(indicator: string, territoryType: Exclude<TerritoryType, "state">): string[] {
+  return Object.keys(detailCache.get(indicator)?.[territoryType] ?? {}).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
 export function getDataSources(): DataSource[] {

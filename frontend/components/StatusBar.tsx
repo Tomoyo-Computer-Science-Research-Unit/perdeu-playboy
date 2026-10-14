@@ -27,6 +27,11 @@ const HINTS: Record<string, Array<[string, string]>> = {
     ["←→", "mês"],
     ["m", "métrica"]
   ],
+  "/tiroteios": [
+    ["↑↓", "indicador"],
+    ["←→", "recorte"],
+    ["v", "anual / mensal"]
+  ],
   "/mudancas": [],
   "/mandatos": [],
   "/metodologia": [],
@@ -50,7 +55,7 @@ export function StatusBar({ latestLabel }: { latestLabel: string }) {
           </span>
         ))}
         <span>
-          <span className="kbd">1–7</span>telas
+          <span className="kbd">1–8</span>telas
         </span>
         <span>
           <span className="kbd">t</span>tema

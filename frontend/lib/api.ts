@@ -5,6 +5,7 @@ export {
   STATE_NAME,
   getAnnualSeries,
   getDataSources,
+  getFogoCruzado,
   getFirstMonth,
   getGovernorPerformance,
   getGovernorTerms,
@@ -25,6 +26,7 @@ export {
   getTerritories,
   isSeriesLoaded,
   loadSeries,
+  loadedTerritoryNames,
   monthIndex,
   monthKeyAt,
   resolveTerritoryName

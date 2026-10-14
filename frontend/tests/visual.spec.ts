@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const pages = ["/", "/series", "/mapa", "/rankings", "/mudancas", "/mandatos", "/fontes", "/glossario", "/metodologia", "/status"];
+const pages = ["/", "/series", "/mapa", "/rankings", "/mudancas", "/mandatos", "/fontes", "/glossario", "/metodologia", "/status", "/tiroteios"];
 
 test.describe("static pages", () => {
   for (const path of pages) {
@@ -63,7 +63,7 @@ test("theme toggle switches to dark", async ({ page }) => {
 });
 
 test("screens fit the viewport without page scroll", async ({ page }) => {
-  for (const path of ["/", "/series", "/mapa", "/rankings", "/mudancas", "/mandatos", "/metodologia", "/status"]) {
+  for (const path of ["/", "/series", "/mapa", "/rankings", "/mudancas", "/mandatos", "/metodologia", "/status", "/tiroteios"]) {
     await page.goto(path);
     await page.waitForLoadState("networkidle");
     const [scrollHeight, viewport] = await page.evaluate(() => [document.documentElement.scrollHeight, window.innerHeight]);

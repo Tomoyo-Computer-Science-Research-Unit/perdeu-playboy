@@ -1,6 +1,6 @@
 import type { Geometry } from "geojson";
 
-export type TerritoryType = "state" | "municipality" | "police_area";
+export type TerritoryType = "state" | "municipality" | "police_area" | "neighborhood";
 export type RankingMode = "count" | "rate" | "yoy";
 
 export interface Indicator {
