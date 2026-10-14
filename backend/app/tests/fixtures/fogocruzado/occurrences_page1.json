@@ -1,0 +1,137 @@
+{
+  "_synthetic": "Dados ficticios construidos a partir da documentacao da API v2; nao sao ocorrencias reais.",
+  "msg": "Success in filtering occurrences",
+  "msgCode": "success",
+  "code": 200,
+  "pageMeta": {
+    "page": 1,
+    "take": 3,
+    "itemCount": 5,
+    "pageCount": 2,
+    "hasPreviousPage": false,
+    "hasNextPage": true
+  },
+  "data": [
+    {
+      "id": "occ-0001",
+      "documentNumber": 1,
+      "address": "Rua Siqueira Campos - Copacabana, Rio de Janeiro - RJ, Brasil",
+      "state": {"id": "00000000-0000-4000-8000-00000000rj01", "name": "Rio de Janeiro"},
+      "region": {"id": "reg-se", "region": "Sudeste", "state": "Rio de Janeiro", "enabled": true},
+      "city": {"id": "city-rio", "name": "RIO DE JANEIRO"},
+      "neighborhood": {"id": "nb-copa", "name": "COPACABANA"},
+      "subNeighborhood": null,
+      "locality": null,
+      "latitude": "-22.9680000000",
+      "longitude": "-43.1860000000",
+      "date": "2016-07-05T22:10:00.000-03:00",
+      "policeAction": true,
+      "agentPresence": true,
+      "relatedRecord": null,
+      "contextInfo": {
+        "mainReason": {"id": "reason-op", "name": "Operação policial"},
+        "complementaryReasons": [],
+        "clippings": [],
+        "massacre": false,
+        "policeUnit": "12º BPM"
+      },
+      "transports": [],
+      "victims": [
+        {
+          "id": "vic-0001", "occurrenceId": "occ-0001", "type": "People", "situation": "Dead",
+          "circumstances": [], "deathDate": "2016-07-05T22:30:00.000-03:00", "personType": "Civilian",
+          "age": 31, "ageGroup": {"id": "ag-adult", "name": "Adulto"}, "genre": {"id": "g-m", "name": "Masculino"},
+          "race": null, "place": {"id": "pl-street", "name": "Via pública"},
+          "serviceStatus": {"id": "ss-na", "name": "Não se aplica", "type": "Servico"},
+          "qualifications": [], "politicalPosition": null, "politicalStatus": null, "partie": null,
+          "coorporation": {"id": "corp-na", "name": "Não se aplica"}, "agentPosition": null,
+          "agentStatus": {"id": "as-na", "name": "Não se aplica", "type": "Agente"}, "unit": ""
+        },
+        {
+          "id": "vic-0002", "occurrenceId": "occ-0001", "type": "People", "situation": "Wounded",
+          "circumstances": [], "deathDate": null, "personType": "Agent",
+          "age": 27, "ageGroup": {"id": "ag-adult", "name": "Adulto"}, "genre": {"id": "g-m", "name": "Masculino"},
+          "race": null, "place": {"id": "pl-street", "name": "Via pública"},
+          "serviceStatus": {"id": "ss-on", "name": "Em serviço", "type": "Servico"},
+          "qualifications": [{"id": "q-agent", "name": "Agente de segurança", "type": "Agente"}],
+          "politicalPosition": null, "politicalStatus": null, "partie": null,
+          "coorporation": {"id": "corp-pm", "name": "Polícia Militar"},
+          "agentPosition": {"id": "ap-sold", "name": "Soldado", "type": "Agente"},
+          "agentStatus": {"id": "as-on", "name": "Em serviço", "type": "Agente"}, "unit": "12º BPM"
+        }
+      ],
+      "animalVictims": []
+    },
+    {
+      "id": "occ-0002",
+      "documentNumber": 2,
+      "address": "Rua Figueiredo de Magalhães - Copacabana, Rio de Janeiro - RJ, Brasil",
+      "state": {"id": "00000000-0000-4000-8000-00000000rj01", "name": "Rio de Janeiro"},
+      "region": {"id": "reg-se", "region": "Sudeste", "state": "Rio de Janeiro", "enabled": true},
+      "city": {"id": "city-rio", "name": "RIO DE JANEIRO"},
+      "neighborhood": {"id": "nb-copa", "name": "COPACABANA"},
+      "subNeighborhood": null,
+      "locality": null,
+      "latitude": "-22.9650000000",
+      "longitude": "-43.1900000000",
+      "date": "2016-07-20T01:15:00.000-03:00",
+      "policeAction": false,
+      "agentPresence": false,
+      "relatedRecord": null,
+      "contextInfo": {
+        "mainReason": {"id": "reason-unknown", "name": "Não identificado"},
+        "complementaryReasons": [],
+        "clippings": [],
+        "massacre": false,
+        "policeUnit": null
+      },
+      "transports": [],
+      "victims": [],
+      "animalVictims": []
+    },
+    {
+      "id": "occ-0003",
+      "documentNumber": 3,
+      "address": "Rua Dr. Nilo Peçanha - Centro, São Gonçalo - RJ, Brasil",
+      "state": {"id": "00000000-0000-4000-8000-00000000rj01", "name": "Rio de Janeiro"},
+      "region": {"id": "reg-se", "region": "Sudeste", "state": "Rio de Janeiro", "enabled": true},
+      "city": {"id": "city-sg", "name": "SAO GONCALO"},
+      "neighborhood": {"id": "nb-sg-centro", "name": "CENTRO"},
+      "subNeighborhood": null,
+      "locality": null,
+      "latitude": "-22.8270000000",
+      "longitude": "-43.0540000000",
+      "date": "2016-07-28T19:00:00.000-03:00",
+      "policeAction": false,
+      "agentPresence": true,
+      "relatedRecord": null,
+      "contextInfo": {
+        "mainReason": {"id": "reason-rob", "name": "Tentativa/roubo"},
+        "complementaryReasons": [],
+        "clippings": [],
+        "massacre": false,
+        "policeUnit": null
+      },
+      "transports": [],
+      "victims": [
+        {
+          "id": "vic-0003", "occurrenceId": "occ-0003", "type": "People", "situation": "Dead",
+          "circumstances": [], "deathDate": "2016-07-28T19:05:00.000-03:00", "personType": "Agent",
+          "age": 40, "ageGroup": {"id": "ag-adult", "name": "Adulto"}, "genre": {"id": "g-m", "name": "Masculino"},
+          "race": null, "place": {"id": "pl-street", "name": "Via pública"},
+          "serviceStatus": {"id": "ss-off", "name": "Fora de serviço", "type": "Servico"},
+          "qualifications": [{"id": "q-agent", "name": "Agente de segurança", "type": "Agente"}],
+          "politicalPosition": null, "politicalStatus": null, "partie": null,
+          "coorporation": {"id": "corp-pm", "name": "Polícia Militar"},
+          "agentPosition": {"id": "ap-sgt", "name": "Sargento", "type": "Agente"},
+          "agentStatus": {"id": "as-off", "name": "Fora de serviço", "type": "Agente"}, "unit": ""
+        },
+        {
+          "id": "anim-0001", "occurrenceId": "occ-0003", "type": "Animal", "animalType": "Cachorro",
+          "name": null, "situation": "Dead", "circumstances": [], "deathDate": null
+        }
+      ],
+      "animalVictims": []
+    }
+  ]
+}
