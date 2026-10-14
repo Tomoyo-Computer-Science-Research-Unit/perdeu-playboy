@@ -131,9 +131,10 @@ stage="$(mktemp -d)"
 chmod 755 "$stage"
 cp -r "$SRC/deploy/g0v/site/." "$stage/"
 sed -i "s/VERSION/$rev/g" "$stage/index.html"
-mkdir -p "$stage$BASE_PATH"
-cp -r "$SRC/frontend/out/." "$stage$BASE_PATH/"
-rsync -a --delete --chmod=D755,F644 "$stage/" "$DIR/site/"
+# A landing fica na raiz de site/; cada projeto (perdeu-playboy, emendas, ...) tem o seu
+# subdiretório, publicado pelo seu próprio script. Os subdiretórios ficam fora do --delete.
+rsync -a --delete --exclude='/*/' --chmod=D755,F644 "$stage/" "$DIR/site/"
+rsync -a --delete --chmod=D755,F644 "$SRC/frontend/out/" "$DIR/site$BASE_PATH/"
 rm -rf "$stage"
 
 rsync -a --chmod=D755,F644 "$SRC/deploy/g0v/conf/" "$DIR/conf/"
