@@ -23,6 +23,7 @@ import {
 } from "@/lib/api";
 import { deltaClass, deltaGlyph, formatNumber, formatPercent, formatPeriodRange, formatRate } from "@/lib/format";
 import { noteFor } from "@/lib/notes";
+import { useSeries } from "@/lib/use-series";
 import type { AnnualPoint, SummaryCardData } from "@/types/api";
 
 type Metric = "count" | "rate";
@@ -46,15 +47,18 @@ export function DashboardExplorer() {
     (selection.type === "municipality" && territoryName === RIO_MUNICIPALITY) ||
     (selection.type === "police_area" && rioUnits.some((unit) => unit.territorial_unit === territoryName));
   const mayors = useMemo(() => (inRio ? getMayorTerms(RIO_MUNICIPALITY) : []), [inRio]);
-  const summary = useMemo(() => getSummary(selection.type, territoryName), [selection.type, territoryName]);
-  const indicators = useMemo(() => getIndicatorsFor(selection.type, territoryName), [selection.type, territoryName]);
+  const allCodes = useMemo(() => getIndicatorsFor(selection.type, territoryName).map((item) => item.code), [selection.type, territoryName]);
+  // Município e CISP vêm num arquivo por indicador; o painel inteiro precisa de todos.
+  const ready = useSeries(allCodes, selection.type);
+  const summary = useMemo(() => getSummary(selection.type, territoryName), [selection.type, territoryName, ready]);
+  const indicators = useMemo(() => getIndicatorsFor(selection.type, territoryName), [selection.type, territoryName, ready]);
   const activeIndicator = indicators.some((item) => item.code === indicator) ? indicator : indicators[0]?.code ?? "letalidade_violenta";
   const activeIndex = Math.max(0, indicators.findIndex((item) => item.code === activeIndicator));
   const card = summary.cards.find((item) => item.indicator === activeIndicator) ?? null;
-  const annual = useMemo(() => getAnnualSeries(activeIndicator, selection.type, territoryName), [activeIndicator, selection.type, territoryName]);
+  const annual = useMemo(() => getAnnualSeries(activeIndicator, selection.type, territoryName), [activeIndicator, selection.type, territoryName, ready]);
   const multiples = useMemo(
     () => indicators.map((item) => ({ indicator: item, points: getAnnualSeries(item.code, selection.type, territoryName) })),
-    [indicators, selection.type, territoryName]
+    [indicators, selection.type, territoryName, ready]
   );
   const hasRate = annual.some((point) => point.rate_per_100k !== null);
   const effectiveMetric: Metric = hasRate ? metric : "count";
@@ -86,7 +90,7 @@ export function DashboardExplorer() {
   }
 
   return (
-    <Screen columns="320px minmax(0, 1fr)" rows="minmax(0, 1fr) 150px">
+    <Screen columns="320px minmax(0, 1fr)" rows="minmax(0, 1fr) 150px" className={ready ? "" : "is-loading"}>
       <Panel
         title={<b>{territoryLabel}</b>}
         aside={<Link href={trendsHref} className="btn !h-7 !px-2 text-[10px]">Série</Link>}

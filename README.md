@@ -53,6 +53,9 @@ por tela. A mira e os elementos quebráveis são os do tomoyo.systems; o mon com
   tabela ano a ano; CSV. Permalinks em `?indicator=&type=&name=&view=&metric=&from=&to=`.
 - `/mapa` Mapa: coropleto de municípios e, ao clicar no Rio, de bairros agregados por CISP. Escala por posição.
 - `/rankings`, `/mudancas`, `/mandatos`, `/metodologia`, `/glossario`, `/fontes`.
+- `/status` Status: última checagem e último build no servidor, mês mais recente, cada arquivo do ISP
+  (data de modificação no servidor deles, tamanho, SHA-256, contrato) e as últimas rodadas. Lê o
+  `status.json` que o `build-site.sh` escreve a cada rodada.
 
 ## Arquitetura
 
@@ -62,8 +65,12 @@ backend/app/
   services/isp_repository.py      lê e normaliza os CSVs do ISP (sem dado ≠ zero, nomes reparados)
   services/population_repository.py  população anual do IBGE, com interpolação marcada
   services/governor_performance.py   mandatos e comparação descritiva
+  etl/check_sources.py            contrato de cada CSV do ISP (colunas, chaves, intervalos, atraso)
+  etl/write_status.py             status.json servido pelo site
 frontend/
-  lib/static-data.generated.json  séries esparsas, população, mandatos, fontes (~2,6 MB)
+  lib/static-data.generated.json  metadados, séries do estado, população, mandatos, fontes (~230 KB)
+  lib/static-series/<ind>.generated.json  séries por município e CISP de um indicador (~230 KB cada),
+                                  carregadas só quando o recorte pede; crime_geral já vem somado
   lib/static-geo.generated.json   geometrias, carregadas só no mapa (~2,3 MB)
   lib/static-api.ts               toda a leitura e os cálculos (acumulados, anuais, rankings, mapa)
   app/, components/               Next.js App Router, Tailwind com tokens em CSS, Recharts
@@ -72,6 +79,11 @@ data/raw/                         caches dos arquivos oficiais
 
 O site em produção não depende de backend ativo. As séries do snapshot são esparsas, no formato
 `{"from": "AAAA-MM", "values": [...]}`, com `null` para meses não apurados.
+
+Contrato dos arquivos oficiais: `python -m app.etl.check_sources` baixa o que falta e confere, por
+CSV, colunas obrigatórias, chave única, ano e mês dentro do intervalo, valores não negativos e o
+último mês apurado (atraso acima de quatro meses é aviso). Sai com código 1 quando algo quebra; o
+servidor então avisa por e-mail e mantém o snapshot anterior.
 
 ## Setup
 
@@ -115,9 +127,12 @@ página raiz lista os projetos (`deploy/g0v/index.html`).
 Fluxo normal, sem intervenção, todo dia às 06:23 de Brasília no próprio servidor: o cron
 (`/etc/cron.d/g0v-build-site`) roda `deploy/g0v/build-site.sh` (instalado em `/root/g0v/build-site.sh`,
 clone em `/root/g0v/src`, log em `/root/g0v/build-site.log`). O script puxa `main`, baixa de novo os
-arquivos do ISP e do IBGE, regenera os snapshots e, se o commit ou os dados mudaram desde o último build
-(ignorando `generated_at`), constrói o site, sincroniza `deploy/g0v/conf` e recarrega o nginx. Para
-publicar na hora, depois de um push em `main`:
+arquivos do ISP e do IBGE, confere o contrato de cada um, regenera os snapshots e, se o commit ou os
+dados mudaram desde o último build (ignorando `generated_at`), constrói o site, sincroniza
+`deploy/g0v/conf` e recarrega o nginx. Cada rodada vira uma linha em `/root/g0v/runs.jsonl` e o
+`status.json` da página `/status`; contrato, ETL ou build quebrados mandam e-mail para
+`arete@tomoyo.systems` pelo mailserver da própria máquina. Para publicar na hora, depois de um push
+em `main`:
 
 ```bash
 ssh root@mail.tomoyo.systems 'FORCE=1 SKIP_DATA=1 /root/g0v/build-site.sh'
@@ -141,8 +156,5 @@ O projeto Vercel antigo (`perdeu-playboy.online`) só redireciona (`deploy/verce
 
 ## Roadmap
 
-- Página de status da última atualização com o log resumido do workflow.
-- Testes de contrato para cada CSV oficial.
 - Geometrias oficiais das CISPs, quando o ISP publicar.
 - Fogo Cruzado como fonte separada, com credenciais autorizadas.
-- Dividir o snapshot por indicador para reduzir o JavaScript inicial.

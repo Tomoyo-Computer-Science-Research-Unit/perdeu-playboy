@@ -22,6 +22,7 @@ import {
 } from "@/lib/api";
 import { formatMonthYear, formatPeriodRange, monthShort } from "@/lib/format";
 import { noteFor } from "@/lib/notes";
+import { useSeries } from "@/lib/use-series";
 import type { AnnualPoint, MonthlyPoint, TerritoryType } from "@/types/api";
 
 type View = "annual" | "monthly" | "rolling";
@@ -88,15 +89,16 @@ export function TrendsExplorer() {
   const activeIndicator = indicators.some((item) => item.code === indicator) ? indicator : indicators[0]?.code ?? "letalidade_violenta";
   const activeIndex = Math.max(0, indicators.findIndex((item) => item.code === activeIndicator));
   const indicatorMeta = getIndicator(activeIndicator);
+  const ready = useSeries([activeIndicator], selection.type);
 
-  const annualAll = useMemo(() => getAnnualSeries(activeIndicator, selection.type, territoryName), [activeIndicator, selection.type, territoryName]);
+  const annualAll = useMemo(() => getAnnualSeries(activeIndicator, selection.type, territoryName), [activeIndicator, selection.type, territoryName, ready]);
   const firstYear = annualAll[0]?.year ?? latest.year;
   const startYear = Math.max(firstYear, range.start ?? firstYear);
   const endYear = Math.max(startYear, Math.min(range.end, latest.year));
   const annual = useMemo(() => annualAll.filter((point) => point.year >= startYear && point.year <= endYear), [annualAll, endYear, startYear]);
   const monthly = useMemo(
     () => (view === "annual" ? [] : getMonthlySeries(activeIndicator, selection.type, territoryName, startYear, endYear)),
-    [activeIndicator, endYear, selection.type, startYear, territoryName, view]
+    [activeIndicator, endYear, selection.type, startYear, territoryName, view, ready]
   );
   const hasRate = annualAll.some((point) => point.rate_per_100k !== null);
   const effectiveMetric: Metric = view === "annual" && hasRate ? metric : "count";
@@ -166,7 +168,7 @@ export function TrendsExplorer() {
   const valueLabel = effectiveMetric === "rate" ? "Por 100 mil hab." : indicatorMeta?.unit === "armas" ? "Armas" : "Ocorrências";
 
   return (
-    <Screen columns="minmax(0, 1fr) 420px" rows="auto minmax(0, 1fr)">
+    <Screen columns="minmax(0, 1fr) 420px" rows="auto minmax(0, 1fr)" className={ready ? "" : "is-loading"}>
       <Panel title={<b>Séries</b>} style={{ gridColumn: "1 / span 2" }}>
         <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
           <Field label="Indicador" className="min-w-[220px]">

@@ -4,7 +4,7 @@ import { getLatestChanges } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Mudanças" };
 
-export default function ChangesPage() {
-  const changes = getLatestChanges();
+export default async function ChangesPage() {
+  const changes = await getLatestChanges();
   return <ChangesExplorer sections={changes.sections} latest={changes.latest_period} />;
 }

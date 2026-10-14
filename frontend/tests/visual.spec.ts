@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const pages = ["/", "/series", "/mapa", "/rankings", "/mudancas", "/mandatos", "/fontes", "/glossario", "/metodologia"];
+const pages = ["/", "/series", "/mapa", "/rankings", "/mudancas", "/mandatos", "/fontes", "/glossario", "/metodologia", "/status"];
 
 test.describe("static pages", () => {
   for (const path of pages) {
@@ -47,6 +47,15 @@ test("map accepts permalink filters", async ({ page }) => {
   await expect(page.locator("svg[role=img] path").first()).toBeVisible();
 });
 
+test("municipal series load on demand", async ({ page }) => {
+  await page.goto("/rankings");
+  // 92 municípios no ranking de crime geral, carregados de static-series/crime_geral.
+  await expect.poll(async () => page.locator("table.ruled tbody tr").count(), { timeout: 15_000 }).toBeGreaterThan(60);
+  await page.goto("/series?indicator=roubo_rua&type=municipality&name=Niter%C3%B3i");
+  await expect(page.locator("svg.recharts-surface").first()).toBeVisible();
+  await expect.poll(async () => page.locator(".recharts-bar-rectangle, .recharts-line-curve").count(), { timeout: 15_000 }).toBeGreaterThan(0);
+});
+
 test("theme toggle switches to dark", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /tema escuro/i }).click();
@@ -54,7 +63,7 @@ test("theme toggle switches to dark", async ({ page }) => {
 });
 
 test("screens fit the viewport without page scroll", async ({ page }) => {
-  for (const path of ["/", "/series", "/mapa", "/rankings", "/mudancas", "/mandatos", "/metodologia"]) {
+  for (const path of ["/", "/series", "/mapa", "/rankings", "/mudancas", "/mandatos", "/metodologia", "/status"]) {
     await page.goto(path);
     await page.waitForLoadState("networkidle");
     const [scrollHeight, viewport] = await page.evaluate(() => [document.documentElement.scrollHeight, window.innerHeight]);

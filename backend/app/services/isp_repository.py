@@ -372,6 +372,12 @@ def _filter_territory(frame: pd.DataFrame, territory_name: str) -> pd.DataFrame:
     return frame[mask]
 
 
+def ensure_source_file(source: IspSource) -> Path:
+    """Return the local path of an official ISP CSV, downloading it when missing."""
+
+    return _ensure_source_file(source)
+
+
 def _ensure_source_file(source: IspSource) -> Path:
     raw_dir = (settings.data_dir / "raw" / "isp").resolve()
     raw_dir.mkdir(parents=True, exist_ok=True)

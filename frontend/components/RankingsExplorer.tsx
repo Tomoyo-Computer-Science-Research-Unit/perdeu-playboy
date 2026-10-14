@@ -6,6 +6,7 @@ import { RankingTable, type SortDirection, type SortKey } from "@/components/Ran
 import { Field, Panel, Screen, Segmented } from "@/components/ui";
 import { CRIME_GENERAL_CODE, getIndicator, getIndicators, getLatestPeriod, getRankings, getSnapshotMeta } from "@/lib/api";
 import { formatPeriodRange, monthLong } from "@/lib/format";
+import { useSeries } from "@/lib/use-series";
 import type { RankingMode, RankingRow } from "@/types/api";
 
 const MODES: RankingMode[] = ["rate", "count", "yoy"];
@@ -26,10 +27,12 @@ export function RankingsExplorer() {
   const activeIndex = Math.max(0, indicators.findIndex((item) => item.code === indicator));
   const maxMonth = year === latest.year ? latest.month : 12;
   const effectiveMonth = Math.min(month, maxMonth);
-  const municipalityRows = useMemo(() => sortRows(getRankings(indicator, mode, "municipality", year, effectiveMonth), sort), [indicator, mode, effectiveMonth, sort, year]);
+  // O arquivo de um indicador traz municípios e CISPs juntos.
+  const ready = useSeries([indicator], "municipality");
+  const municipalityRows = useMemo(() => sortRows(getRankings(indicator, mode, "municipality", year, effectiveMonth), sort), [indicator, mode, effectiveMonth, sort, year, ready]);
   const policeAreaRows = useMemo(
     () => sortRows(getRankings(indicator, mode === "rate" ? "count" : mode, "police_area", year, effectiveMonth), sort),
-    [indicator, mode, effectiveMonth, sort, year]
+    [indicator, mode, effectiveMonth, sort, year, ready]
   );
   const firstYear = Math.min(coverage.municipality_start_year ?? latest.year, coverage.police_area_start_year ?? latest.year);
   const years = Array.from({ length: latest.year - firstYear + 1 }, (_, index) => latest.year - index);
@@ -71,7 +74,7 @@ export function RankingsExplorer() {
   const periodLabel = formatPeriodRange(year, effectiveMonth);
 
   return (
-    <Screen columns="minmax(0, 1fr) minmax(0, 1fr)" rows="auto minmax(0, 1fr)">
+    <Screen columns="minmax(0, 1fr) minmax(0, 1fr)" rows="auto minmax(0, 1fr)" className={ready ? "" : "is-loading"}>
       <Panel title={<b>Rankings</b>} style={{ gridColumn: "1 / span 2" }}>
         <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
           <Field label="Indicador" className="min-w-[240px]">

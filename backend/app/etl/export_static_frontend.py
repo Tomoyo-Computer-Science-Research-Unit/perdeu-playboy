@@ -1,10 +1,15 @@
 """Exporta o snapshot estatico (somente Rio de Janeiro) consumido pelo frontend.
 
-Dois arquivos sao gerados em ``frontend/lib``:
+Arquivos gerados em ``frontend/lib``:
 
-* ``static-data.generated.json``: metadados, series mensais, populacao e mandatos.
+* ``static-data.generated.json``: metadados, series mensais do estado, populacao e mandatos.
+* ``static-series/<indicador>.generated.json``: series por municipio e por area integrada
+  (CISP) de um indicador, carregadas pelo frontend so quando o recorte pede.
 * ``static-geo.generated.json``: geometrias (municipios e bairros do Rio), carregadas
   pelo frontend apenas na pagina de mapa.
+
+``crime_geral`` e a soma de letalidade violenta, roubo de rua, de veiculo, de carga e estupro;
+um mes so existe quando todos os componentes tem dado.
 
 As series mensais sao esparsas: cada territorio tem ``{"from": "AAAA-MM", "values": [...]}``,
 onde ``values`` comeca no primeiro mes com dado e pode conter ``null`` para meses em que o
@@ -21,6 +26,7 @@ import zipfile
 from calendar import monthrange
 from datetime import date, datetime
 from pathlib import Path
+from typing import cast
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -59,12 +65,16 @@ RIO_NEIGHBORHOOD_POPULATION_URL = (
 Series = dict[str, object]
 SeriesStore = dict[str, dict[str, dict[str, Series]]]
 
+CRIME_GENERAL_CODE = "crime_geral"
+CRIME_GENERAL_COMPONENTS = ("letalidade_violenta", "roubo_rua", "roubo_veiculo", "roubo_carga", "estupro")
+
 
 def export_static_frontend(output_path: Path, geo_output_path: Path | None = None) -> None:
     latest = latest_period()
     month_keys = _month_keys(ANALYSIS_START_YEAR, latest.year, latest.month)
     month_index = {key: index for index, key in enumerate(month_keys)}
     series, coverage = _series(month_keys, month_index)
+    series[CRIME_GENERAL_CODE] = _crime_general(series, month_keys, month_index)
     generated_at = datetime.now(ZoneInfo("America/Sao_Paulo")).isoformat(timespec="seconds")
 
     snapshot = {
@@ -119,7 +129,9 @@ def export_static_frontend(output_path: Path, geo_output_path: Path | None = Non
         "governor_performance": governor_performance().model_dump(mode="json"),
         "sources": _source_metadata(),
         "methodology": methodology(),
-        "series": series,
+        # So o estado fica no snapshot principal; municipios e CISPs vao para um arquivo por
+        # indicador, carregado pelo frontend quando o recorte pede.
+        "series": {code: {"state": by_type.get("state", {})} for code, by_type in series.items()},
         "coverage": coverage,
     }
     geo = {
@@ -132,6 +144,16 @@ def export_static_frontend(output_path: Path, geo_output_path: Path | None = Non
     output_path.write_text(_dumps(snapshot), encoding="utf-8")
     geo_path = geo_output_path or output_path.with_name("static-geo.generated.json")
     geo_path.write_text(_dumps(geo), encoding="utf-8")
+    _write_series_files(series, output_path.with_name("static-series"))
+
+
+def _write_series_files(series: SeriesStore, directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    for stale in directory.glob("*.generated.json"):
+        stale.unlink()
+    for code, by_type in series.items():
+        detail = {territory_type: values for territory_type, values in by_type.items() if territory_type != "state"}
+        (directory / f"{code}.generated.json").write_text(_dumps(detail), encoding="utf-8")
 
 
 def _dumps(payload: object) -> str:
@@ -203,6 +225,43 @@ def _series_for_frame(frame: pd.DataFrame, month_keys: list[str], month_index: d
         output[str(territory_name)] = {"from": month_keys[start], "values": values}
 
     return output
+
+
+def _crime_general(series: SeriesStore, month_keys: list[str], month_index: dict[str, int]) -> dict[str, dict[str, Series]]:
+    """Sum the crime_geral components per territory; a month is null unless every component has data."""
+
+    output: dict[str, dict[str, Series]] = {}
+    for territory_type in TERRITORY_TYPES:
+        components = [series.get(code, {}).get(territory_type, {}) for code in CRIME_GENERAL_COMPONENTS]
+        names = set(components[0])
+        for component in components[1:]:
+            names &= set(component)
+        per_type: dict[str, Series] = {}
+        for name in sorted(names):
+            dense = [_dense(component[name], month_index, len(month_keys)) for component in components]
+            values: list[float | None] = []
+            for index in range(len(month_keys)):
+                parts = [column[index] for column in dense]
+                values.append(round(sum(cast_float(part) for part in parts), 1) if all(part is not None for part in parts) else None)
+            present = [index for index, value in enumerate(values) if value is not None]
+            if present:
+                per_type[name] = {"from": month_keys[present[0]], "values": values[present[0]: present[-1] + 1]}
+        output[territory_type] = per_type
+    return output
+
+
+def cast_float(value: float | None) -> float:
+    return float(value) if value is not None else 0.0
+
+
+def _dense(sparse: Series, month_index: dict[str, int], length: int) -> list[float | None]:
+    dense: list[float | None] = [None] * length
+    start = month_index.get(str(sparse["from"]), -1)
+    if start >= 0:
+        for offset, value in enumerate(cast(list[float | None], sparse["values"])):
+            if start + offset < length:
+                dense[start + offset] = value
+    return dense
 
 
 def _first_key(frame: pd.DataFrame) -> str | None:

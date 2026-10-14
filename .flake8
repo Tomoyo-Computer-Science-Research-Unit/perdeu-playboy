@@ -2,6 +2,7 @@
 max-line-length = 100
 extend-ignore = E203,E501,W503
 exclude =
+    .claude,
     .agents,
     .git,
     .mypy_cache,

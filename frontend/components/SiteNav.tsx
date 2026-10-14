@@ -18,7 +18,7 @@ export function isActivePath(pathname: string, href: string) {
     return pathname === "/";
   }
   if (href === "/metodologia") {
-    return ["/metodologia", "/glossario", "/fontes"].some((path) => pathname.startsWith(path));
+    return ["/metodologia", "/glossario", "/fontes", "/status"].some((path) => pathname.startsWith(path));
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

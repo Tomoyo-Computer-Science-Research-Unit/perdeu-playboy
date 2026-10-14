@@ -31,7 +31,8 @@ const HINTS: Record<string, Array<[string, string]>> = {
   "/mandatos": [],
   "/metodologia": [],
   "/glossario": [],
-  "/fontes": []
+  "/fontes": [],
+  "/status": []
 };
 
 export function StatusBar({ latestLabel }: { latestLabel: string }) {

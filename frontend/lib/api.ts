@@ -23,6 +23,8 @@ export {
   getSummary,
   getTerritorialUnits,
   getTerritories,
+  isSeriesLoaded,
+  loadSeries,
   monthIndex,
   monthKeyAt,
   resolveTerritoryName

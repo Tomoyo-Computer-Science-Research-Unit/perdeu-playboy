@@ -559,6 +559,12 @@ input[type="range"]::-moz-range-thumb {
   gap: 8px;
   height: 100%;
   min-height: 0;
+  transition: opacity 0.15s;
+}
+
+/* Esperando as séries do recorte (um arquivo por indicador). */
+.screen.is-loading {
+  opacity: 0.55;
 }
 
 .panel {

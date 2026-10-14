@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Panel, Screen } from "@/components/ui";
 import { getDataSources, getSnapshotMeta } from "@/lib/api";
 import { formatBytes, formatDateTime, formatMonthYear } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Fontes" };
-
-const WORKFLOW_URL = "https://github.com/Tomoyo-Computer-Science-Research-Unit/perdeu-playboy/actions/workflows/update-data.yml";
 
 export default function SourcesPage() {
   const sources = getDataSources();
@@ -16,12 +15,12 @@ export default function SourcesPage() {
       <Panel
         title={<b>Arquivos oficiais e checksums</b>}
         aside={
-          <a href={WORKFLOW_URL} target="_blank" rel="noreferrer" className="btn !h-7 !px-2 text-[10px]">
-            Fluxo semanal
-          </a>
+          <Link href="/status" className="btn !h-7 !px-2 text-[10px]">
+            Status
+          </Link>
         }
         flush
-        foot={`Snapshot gerado em ${formatDateTime(meta.generated_at)} com dados até ${formatMonthYear(meta.latest_period.year, meta.latest_period.month)}. Tamanho e SHA-256 de cada arquivo, para reproduzir os números.`}
+        foot={`Snapshot gerado em ${formatDateTime(meta.generated_at)} com dados até ${formatMonthYear(meta.latest_period.year, meta.latest_period.month)}.`}
       >
         <table className="ruled">
           <thead>

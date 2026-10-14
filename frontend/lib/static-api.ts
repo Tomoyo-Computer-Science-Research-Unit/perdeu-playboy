@@ -65,13 +65,52 @@ const LATEST_INDEX = monthIndex(LATEST.year, LATEST.month);
 
 export const STATE_NAME = DATA.territories.state[0]?.name ?? "Estado do Rio de Janeiro";
 export const RIO_MUNICIPALITY = "Rio de Janeiro";
-/** Indicadores somados no agregado "crime geral" (rankings, mudanças e mapa). */
+/** Indicadores somados no agregado "crime geral" (rankings, mudanças e mapa); a soma vem pronta do ETL. */
 export const CRIME_RATE_INDICATORS = ["letalidade_violenta", "roubo_rua", "roubo_veiculo", "roubo_carga", "estupro"];
 export const CRIME_GENERAL_CODE = "crime_geral";
 
 const denseCache = new Map<string, Array<number | null>>();
 const rankingCache = new Map<string, RankingRow[]>();
 const mapCache = new Map<string, GeoFeatureCollection>();
+
+// --- Séries por município e CISP: um arquivo por indicador, carregado quando o recorte pede ---
+
+type DetailSeries = Partial<Record<Exclude<TerritoryType, "state">, Record<string, SparseSeries>>>;
+const detailCache = new Map<string, DetailSeries>();
+const pendingLoads = new Map<string, Promise<void>>();
+
+/** As séries por município e CISP destes indicadores já estão em memória? O estado vem no snapshot. */
+export function isSeriesLoaded(indicators: string[], territoryType: TerritoryType): boolean {
+  return territoryType === "state" || indicators.every((code) => detailCache.has(code));
+}
+
+/** Carrega `static-series/<indicador>.generated.json` para cada indicador que ainda falta. */
+export async function loadSeries(indicators: string[], territoryType: TerritoryType = "municipality"): Promise<void> {
+  if (territoryType === "state") {
+    return;
+  }
+  await Promise.all(indicators.filter((code) => !detailCache.has(code)).map((code) => loadDetail(code)));
+}
+
+function loadDetail(code: string): Promise<void> {
+  const pending = pendingLoads.get(code);
+  if (pending) {
+    return pending;
+  }
+  const load = import(`@/lib/static-series/${code}.generated.json`)
+    .then((module: { default?: DetailSeries }) => {
+      detailCache.set(code, (module.default ?? module) as DetailSeries);
+    })
+    .catch(() => {
+      // Indicador sem arquivo (ou falha de rede): fica sem séries em vez de tentar para sempre.
+      detailCache.set(code, {});
+    })
+    .finally(() => {
+      pendingLoads.delete(code);
+    });
+  pendingLoads.set(code, load);
+  return load;
+}
 
 // --- Metadados ------------------------------------------------------------------------------
 
@@ -99,9 +138,15 @@ export function getIndicator(code: string): Indicator | undefined {
   return DATA.indicators.find((indicator) => indicator.code === code);
 }
 
-/** Indicadores que têm pelo menos um mês de dado para o território. */
+/**
+ * Indicadores que têm pelo menos um mês de dado para o território. Antes de as séries do
+ * recorte chegarem, vale a cobertura do tipo de território (todos os que o ISP publica nele).
+ */
 export function getIndicatorsFor(territoryType: TerritoryType, territoryName?: string): Indicator[] {
   const name = resolveTerritoryName(territoryType, territoryName);
+  if (!isSeriesLoaded(DATA.indicators.map((indicator) => indicator.code), territoryType)) {
+    return DATA.indicators.filter((indicator) => Boolean(DATA.coverage.first_month_by_indicator[indicator.code]?.[territoryType]));
+  }
   return DATA.indicators.filter((indicator) => Boolean(sparseFor(indicator.code, territoryType, name)));
 }
 
@@ -195,8 +240,7 @@ export function getSummary(territoryType: TerritoryType = "state", territoryName
 
 export function getAnnualSeries(indicator: string, territoryType: TerritoryType = "state", territoryName?: string): AnnualPoint[] {
   const name = resolveTerritoryName(territoryType, territoryName);
-  const values = indicator === CRIME_GENERAL_CODE ? crimeGeneralValues(territoryType, name) : denseValues(indicator, territoryType, name);
-  return annualSeries(values, territoryType, name);
+  return annualSeries(denseValues(indicator, territoryType, name), territoryType, name);
 }
 
 export function getMonthlySeries(
@@ -207,7 +251,7 @@ export function getMonthlySeries(
   endYear = LATEST.year
 ): MonthlyPoint[] {
   const name = resolveTerritoryName(territoryType, territoryName);
-  const values = indicator === CRIME_GENERAL_CODE ? crimeGeneralValues(territoryType, name) : denseValues(indicator, territoryType, name);
+  const values = denseValues(indicator, territoryType, name);
   const points: MonthlyPoint[] = [];
   for (let index = 0; index <= LATEST_INDEX; index += 1) {
     const { year, month } = splitMonthKey(MONTHS[index]);
@@ -283,9 +327,10 @@ export function getRankings(
   if (cached) {
     return cached;
   }
+  const loaded = isSeriesLoaded([indicator], territoryType);
   const rows = getTerritories(territoryType).flatMap((territory): RankingRow[] => {
     const name = territory.name;
-    const values = indicator === CRIME_GENERAL_CODE ? crimeGeneralValues(territoryType, name) : denseValues(indicator, territoryType, name);
+    const values = denseValues(indicator, territoryType, name);
     const value = ytd(values, period.year, period.month);
     if (value === null) {
       return [];
@@ -310,11 +355,14 @@ export function getRankings(
   const visibleRows = rows.filter((row) => row.value > 0 || (row.rate_per_100k ?? 0) > 0 || (row.yoy_absolute_change ?? 0) !== 0);
   visibleRows.sort((a, b) => rankingValue(b, mode) - rankingValue(a, mode));
   const rankedRows = visibleRows.map((row, index) => ({ ...row, rank: index + 1 }));
-  rankingCache.set(cacheKey, rankedRows);
+  if (loaded) {
+    rankingCache.set(cacheKey, rankedRows);
+  }
   return rankedRows;
 }
 
-export function getLatestChanges(): LatestChangesResponse {
+export async function getLatestChanges(): Promise<LatestChangesResponse> {
+  await loadSeries([CRIME_GENERAL_CODE]);
   return {
     latest_period: LATEST,
     sections: [
@@ -329,7 +377,7 @@ export function getLatestChanges(): LatestChangesResponse {
 function changeSection(title: string, territoryType: Exclude<TerritoryType, "state">, direction: "increase" | "decrease"): ChangeSection {
   const rows = getTerritories(territoryType)
     .flatMap((territory): ChangeRow[] => {
-      const values = crimeGeneralValues(territoryType, territory.name);
+      const values = denseValues(CRIME_GENERAL_CODE, territoryType, territory.name);
       const currentValue = rollingSum(values, LATEST_INDEX, 12);
       const previousValue = rollingSum(values, LATEST_INDEX - 12, 12);
       if (currentValue === null || previousValue === null) {
@@ -375,8 +423,8 @@ export async function getMapData(
   if (cached) {
     return cached;
   }
-  const geo = await loadGeo();
   const territoryType: Exclude<TerritoryType, "state"> = view === "rio_city" ? "police_area" : "municipality";
+  const [geo] = await Promise.all([loadGeo(), loadSeries([indicator], territoryType)]);
   const rankings = getRankings(indicator, mode, territoryType, period.year, period.month);
   const byName = new Map(rankings.map((row) => [row.territory_name, row]));
   const base = view === "rio_city" ? geo.rio_neighborhood_geometries : geo.municipality_geometries;
@@ -450,7 +498,10 @@ export function resolveTerritoryName(territoryType: TerritoryType, territoryName
 }
 
 function sparseFor(indicator: string, territoryType: TerritoryType, name: string): SparseSeries | undefined {
-  return DATA.series[indicator]?.[territoryType]?.[name];
+  if (territoryType === "state") {
+    return DATA.series[indicator]?.state?.[name];
+  }
+  return detailCache.get(indicator)?.[territoryType]?.[name];
 }
 
 /** Série alinhada a `month_keys`; meses fora da cobertura ficam `null`. */
@@ -459,6 +510,10 @@ function denseValues(indicator: string, territoryType: TerritoryType, name: stri
   const cached = denseCache.get(cacheKey);
   if (cached) {
     return cached;
+  }
+  if (!isSeriesLoaded([indicator], territoryType)) {
+    // Ainda sem o arquivo do indicador: tudo "sem dado", e sem guardar em cache.
+    return new Array<number | null>(MONTHS.length).fill(null);
   }
   const dense: Array<number | null> = new Array(MONTHS.length).fill(null);
   const sparse = sparseFor(indicator, territoryType, name);
@@ -472,29 +527,6 @@ function denseValues(indicator: string, territoryType: TerritoryType, name: stri
       });
     }
   }
-  denseCache.set(cacheKey, dense);
-  return dense;
-}
-
-/** Soma dos indicadores de "crime geral"; um mês só existe quando todos têm dado. */
-function crimeGeneralValues(territoryType: TerritoryType, name: string): Array<number | null> {
-  const cacheKey = `${CRIME_GENERAL_CODE}:${territoryType}:${name}`;
-  const cached = denseCache.get(cacheKey);
-  if (cached) {
-    return cached;
-  }
-  const parts = CRIME_RATE_INDICATORS.map((indicator) => denseValues(indicator, territoryType, name));
-  const dense: Array<number | null> = MONTHS.map((_, index) => {
-    let total = 0;
-    for (const part of parts) {
-      const value = part[index];
-      if (value === null || value === undefined) {
-        return null;
-      }
-      total += value;
-    }
-    return round1(total);
-  });
   denseCache.set(cacheKey, dense);
   return dense;
 }
