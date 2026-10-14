@@ -1,0 +1,11 @@
+{
+  "msg": "Successfully returned states",
+  "msgCode": "success",
+  "code": 200,
+  "data": [
+    {"id": "00000000-0000-4000-8000-00000000rj01", "name": "Rio de Janeiro"},
+    {"id": "00000000-0000-4000-8000-00000000pe01", "name": "Pernambuco"},
+    {"id": "00000000-0000-4000-8000-00000000ba01", "name": "Bahia"},
+    {"id": "00000000-0000-4000-8000-00000000pa01", "name": "Pará"}
+  ]
+}

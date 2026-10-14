@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://rjviolencia:rjviolencia@localhost:5432/rjviolencia"
     redis_url: str | None = None
     isp_data_base_url: str = "https://www.ispdados.rj.gov.br/Arquivos"
+    fogocruzado_api_base_url: str = "https://api-service.fogocruzado.org.br/api/v2"
+    fogocruzado_email: str | None = None
+    fogocruzado_password: str | None = None
     fogocruzado_api_token: str | None = None
     enable_fogocruzado: bool = False
     data_dir: Path = Path("../data")

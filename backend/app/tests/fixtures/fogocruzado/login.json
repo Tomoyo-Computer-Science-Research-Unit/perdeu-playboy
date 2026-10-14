@@ -1,0 +1,9 @@
+{
+  "msg": "Successfully login",
+  "msgCode": "success",
+  "code": 201,
+  "data": {
+    "accessToken": "synthetic.jwt.token-1",
+    "expiresIn": 3600
+  }
+}

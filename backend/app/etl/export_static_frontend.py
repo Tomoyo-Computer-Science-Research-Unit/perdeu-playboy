@@ -30,7 +30,7 @@ from app.config import settings
 from app.constants import ANALYSIS_START_YEAR
 from app.etl.extract import checksum_file
 from app.etl.sources import default_isp_sources
-from app.services import isp_repository, population_repository
+from app.services import fogocruzado_repository, isp_repository, population_repository
 from app.services.analytics import latest_period, methodology
 from app.services.governor_performance import GOVERNOR_TERMS, MAYOR_TERMS, governor_performance
 from app.services.indicator_catalog import INDICATORS
@@ -122,6 +122,13 @@ def export_static_frontend(output_path: Path, geo_output_path: Path | None = Non
         "series": series,
         "coverage": coverage,
     }
+    if fogocruzado_repository.enabled():
+        # Fonte opcional: so entra com ENABLE_FOGOCRUZADO=true e credenciais. Desligada, o
+        # snapshot fica identico ao de sempre.
+        snapshot["fogo_cruzado"] = fogocruzado_repository.static_section(
+            isp_repository.territories("municipality"),
+            _rio_neighborhood_names(),
+        )
     geo = {
         "generated_at": generated_at,
         "municipality_geometries": _round_collection(_municipality_geometries()),
@@ -292,6 +299,8 @@ def _source_metadata() -> list[dict[str, object]]:
             "population",
         )
     )
+    if fogocruzado_repository.enabled():
+        rows.append(fogocruzado_repository.source_row())
     return rows
 
 
@@ -364,6 +373,20 @@ def _rio_neighborhood_geometries() -> dict[str, object]:
             }
         )
     return {"type": "FeatureCollection", "features": features}
+
+
+def _rio_neighborhood_names() -> list[str]:
+    """Nomes dos bairros do Rio como grafados na malha da Prefeitura (usados no mapa)."""
+
+    path = _ensure_file("rio_neighborhoods.geojson", RIO_NEIGHBORHOODS_GEOJSON_URL)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    names: list[str] = []
+    for feature in data.get("features", []):
+        properties = feature.get("properties") or {}
+        name = str(properties.get("nome") or "").strip()
+        if name and name not in names:
+            names.append(name)
+    return names
 
 
 def _round_collection(collection: dict[str, object]) -> dict[str, object]:

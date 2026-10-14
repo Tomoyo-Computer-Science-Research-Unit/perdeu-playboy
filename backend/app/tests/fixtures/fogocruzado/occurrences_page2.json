@@ -1,0 +1,82 @@
+{
+  "_synthetic": "Dados ficticios construidos a partir da documentacao da API v2; nao sao ocorrencias reais.",
+  "msg": "Success in filtering occurrences",
+  "msgCode": "success",
+  "code": 200,
+  "pageMeta": {
+    "page": 2,
+    "take": 3,
+    "itemCount": 5,
+    "pageCount": 2,
+    "hasPreviousPage": true,
+    "hasNextPage": false
+  },
+  "data": [
+    {
+      "id": "occ-0004",
+      "documentNumber": 4,
+      "address": "Rua Visconde do Rio Branco - Centro, Niterói - RJ, Brasil",
+      "state": {"id": "00000000-0000-4000-8000-00000000rj01", "name": "Rio de Janeiro"},
+      "region": {"id": "reg-se", "region": "Sudeste", "state": "Rio de Janeiro", "enabled": true},
+      "city": {"id": "city-nit", "name": "NITERÓI"},
+      "neighborhood": {"id": "nb-nit-centro", "name": "CENTRO"},
+      "subNeighborhood": null,
+      "locality": null,
+      "latitude": "-22.8960000000",
+      "longitude": "-43.1230000000",
+      "date": "2016-07-30T23:40:00.000-03:00",
+      "policeAction": false,
+      "agentPresence": false,
+      "relatedRecord": null,
+      "contextInfo": {
+        "mainReason": {"id": "reason-random", "name": "Tiros a esmo"},
+        "complementaryReasons": [],
+        "clippings": [],
+        "massacre": false,
+        "policeUnit": null
+      },
+      "transports": [],
+      "victims": [
+        {
+          "id": "vic-0004", "occurrenceId": "occ-0004", "type": "People", "situation": "Wounded",
+          "circumstances": [{"id": "circ-stray", "name": "Bala perdida", "type": "both"}],
+          "deathDate": null, "personType": "Civilian",
+          "age": 12, "ageGroup": {"id": "ag-child", "name": "Criança"}, "genre": {"id": "g-f", "name": "Feminino"},
+          "race": null, "place": {"id": "pl-home", "name": "Residência"},
+          "serviceStatus": {"id": "ss-na", "name": "Não se aplica", "type": "Servico"},
+          "qualifications": [], "politicalPosition": null, "politicalStatus": null, "partie": null,
+          "coorporation": {"id": "corp-na", "name": "Não se aplica"}, "agentPosition": null,
+          "agentStatus": {"id": "as-na", "name": "Não se aplica", "type": "Agente"}, "unit": ""
+        }
+      ],
+      "animalVictims": []
+    },
+    {
+      "id": "occ-0005",
+      "documentNumber": 5,
+      "address": "Rua Fonseca Teles - São Cristóvão, Rio de Janeiro - RJ, Brasil",
+      "state": {"id": "00000000-0000-4000-8000-00000000rj01", "name": "Rio de Janeiro"},
+      "region": {"id": "reg-se", "region": "Sudeste", "state": "Rio de Janeiro", "enabled": true},
+      "city": {"id": "city-rio", "name": "RIO DE JANEIRO"},
+      "neighborhood": {"id": "nb-scristovao", "name": "SAO CRISTOVAO"},
+      "subNeighborhood": {"id": "snb-mangueira", "name": "MANGUEIRA"},
+      "locality": null,
+      "latitude": "-22.8980000000",
+      "longitude": "-43.2230000000",
+      "date": "2016-08-01T02:30:00.000Z",
+      "policeAction": false,
+      "agentPresence": false,
+      "relatedRecord": null,
+      "contextInfo": {
+        "mainReason": {"id": "reason-dispute", "name": "Disputa"},
+        "complementaryReasons": [],
+        "clippings": [],
+        "massacre": false,
+        "policeUnit": null
+      },
+      "transports": [],
+      "victims": [],
+      "animalVictims": []
+    }
+  ]
+}
