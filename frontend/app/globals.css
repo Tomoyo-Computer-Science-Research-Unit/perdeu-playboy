@@ -824,3 +824,8 @@ html.fx[data-theme="dark"] .detail {
     cursor: var(--cur-grabbing);
   }
 }
+
+/* Painéis que preenchem a linha rolam por dentro: listas, menus e tabelas compridas. */
+.panel__body--fill {
+  overflow: auto;
+}

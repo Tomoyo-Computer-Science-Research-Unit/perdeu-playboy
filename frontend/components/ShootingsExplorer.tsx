@@ -190,7 +190,7 @@ export function ShootingsExplorer() {
         </div>
       </Panel>
 
-      <Panel title={<b>{view === "annual" ? "Por ano" : "Por mês"}</b>} fill foot="Ocorrências registradas pelo Fogo Cruzado, rede colaborativa; a cobertura é da região metropolitana e não substitui o registro oficial. Barras tracejadas: ano incompleto.">
+      <Panel title={<b>{view === "annual" ? "Por ano" : "Por mês"}</b>} fill>
         <HistoryChart points={chartPoints} kind={view} valueLabel={meta?.name ?? indicator} terms={terms} mayors={mayors} showTerms={showTerms} />
       </Panel>
 
