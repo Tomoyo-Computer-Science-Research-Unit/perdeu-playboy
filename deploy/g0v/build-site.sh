@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Roda no droplet, por cron, uma vez por dia: puxa main, baixa de novo os arquivos oficiais,
 # confere o contrato de cada um, regenera o snapshot e, se o código ou os dados mudaram desde o
-# último build, constrói o site, sincroniza a config do nginx e troca os arquivos servidos.
-# Cada rodada entra em runs.jsonl e no status.json servido pelo site; falhas avisam por e-mail.
+# último build, constrói o site e troca os arquivos em /root/g0v/site/perdeu-playboy. A landing,
+# o nginx e o cron são do repositório g0v. Cada rodada entra em runs.jsonl e no status.json
+# servido pelo site; falhas avisam por e-mail.
 #
 #   /root/g0v/build-site.sh               # só reconstrói se algo mudou
 #   FORCE=1 /root/g0v/build-site.sh       # reconstrói de qualquer jeito
@@ -20,6 +21,13 @@ BASE_PATH="/perdeu-playboy"
 STATUS_OUT="$DIR/site$BASE_PATH/status.json"
 ALERT_TO="${ALERT_TO:-arete@tomoyo.systems}"
 export ISP_DATA_BASE_URL="${ISP_DATA_BASE_URL:-http://www.ispdados.rj.gov.br/Arquivos}"
+# Credenciais de fontes opcionais (Fogo Cruzado): FOGOCRUZADO_EMAIL, FOGOCRUZADO_PASSWORD, ENABLE_FOGOCRUZADO.
+if [ -f "$DIR/.env-perdeu" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . "$DIR/.env-perdeu"
+  set +a
+fi
 export NEXT_TELEMETRY_DISABLED=1
 export NODE_OPTIONS="--max-old-space-size=2048"
 
@@ -127,19 +135,8 @@ fi
 log "construindo ($key)"
 (cd "$SRC/frontend" && npm ci --no-audit --no-fund --silent && rm -rf out .next && NEXT_PUBLIC_BASE_PATH="$BASE_PATH" npm run build --silent >/dev/null)
 
-stage="$(mktemp -d)"
-chmod 755 "$stage"
-cp -r "$SRC/deploy/g0v/site/." "$stage/"
-sed -i "s/VERSION/$rev/g" "$stage/index.html"
-# A landing fica na raiz de site/; cada projeto (perdeu-playboy, emendas, ...) tem o seu
-# subdiretório, publicado pelo seu próprio script. Os subdiretórios ficam fora do --delete.
-rsync -a --delete --exclude='/*/' --chmod=D755,F644 "$stage/" "$DIR/site/"
+mkdir -p "$DIR/site$BASE_PATH"
 rsync -a --delete --chmod=D755,F644 "$SRC/frontend/out/" "$DIR/site$BASE_PATH/"
-rm -rf "$stage"
-
-rsync -a --chmod=D755,F644 "$SRC/deploy/g0v/conf/" "$DIR/conf/"
-docker exec g0v-static nginx -t >/dev/null 2>&1
-docker exec g0v-static nginx -s reload 2>/dev/null
 echo "$key" > "$MARK"
 record "publicado" "$note"
 write_status

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Publica o site em g0v.tomoyo.systems/perdeu-playboy no servidor principal da Tomoyo.
-#
-# O droplet é resolvido pelo doctl (nome em DROPLET, padrão mail.tomoyo.systems); os arquivos
-# sobem por rsync/ssh como root e o nginx estático (docker compose, atrás do Traefik) é recarregado.
+# Publica um build local do site em g0v.tomoyo.systems/perdeu-playboy, sem passar pelo cron do
+# servidor (útil para testar mudanças ainda não commitadas). O fluxo normal é o
+# deploy/g0v/build-site.sh rodando no droplet; a landing e o nginx vivem no repositório g0v.
 #
 #   scripts/deploy-g0v.sh            # build + deploy
 #   SKIP_BUILD=1 scripts/deploy-g0v.sh
@@ -25,18 +24,5 @@ if [ "${SKIP_BUILD:-0}" != "1" ]; then
 fi
 
 ssh "root@$IP" "mkdir -p '$REMOTE_DIR/site$BASE_PATH'"
-rsync -az --delete "$ROOT/frontend/out/" "root@$IP:$REMOTE_DIR/site$BASE_PATH/"
-# A Cloudflare guarda css/js por 7 dias: o HTML referencia os assets com o hash do commit.
-STAGE="$(mktemp -d)"
-chmod 755 "$STAGE"  # mktemp cria 0700 e o rsync copiaria o modo: o nginx não leria a pasta
-cp -r "$ROOT/deploy/g0v/site/." "$STAGE/"
-sed -i "s/VERSION/$(git -C "$ROOT" rev-parse --short HEAD)/g" "$STAGE/index.html"
-rsync -az "$STAGE/" "root@$IP:$REMOTE_DIR/site/"
-rm -rf "$STAGE"
-rsync -az "$ROOT/deploy/g0v/conf/" "root@$IP:$REMOTE_DIR/conf/"
-rsync -az "$ROOT/deploy/g0v/docker-compose.yml" "root@$IP:$REMOTE_DIR/"
-# Sem recriar o container: um container novo some do Traefik por alguns segundos e a Cloudflare
-# guarda os 404 dos assets. Só recria quando o compose muda; senão recarrega o nginx.
-ssh "root@$IP" "cd '$REMOTE_DIR' && docker compose up -d --remove-orphans && docker exec g0v-static nginx -s reload"
-
+rsync -az --delete --chmod=D755,F644 "$ROOT/frontend/out/" "root@$IP:$REMOTE_DIR/site$BASE_PATH/"
 echo "✓ https://g0v.tomoyo.systems$BASE_PATH/"

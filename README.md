@@ -121,15 +121,15 @@ O CI (`.github/workflows/ci.yml`) roda os testes do backend e os testes visuais 
 
 O site vive em `g0v.tomoyo.systems/perdeu-playboy`, no servidor principal da Tomoyo (droplet
 `mail.tomoyo.systems` na DigitalOcean), como um nginx estático atrás do Traefik, ao lado dos outros
-serviços. O subdomínio `g0v` reúne as frentes políticas da Tomoyo inspiradas no g0v de Taiwan; a
-página raiz lista os projetos (`deploy/g0v/index.html`).
+serviços. A landing, a configuração do nginx e o cron de todos os projetos ficam no repositório
+[g0v](https://github.com/Tomoyo-Computer-Science-Research-Unit/g0v); aqui só o que publica este site.
 
 Fluxo normal, sem intervenção, todo dia às 06:23 de Brasília no próprio servidor: o cron
 (`/etc/cron.d/g0v-build-site`) roda `deploy/g0v/build-site.sh` (instalado em `/root/g0v/build-site.sh`,
 clone em `/root/g0v/src`, log em `/root/g0v/build-site.log`). O script puxa `main`, baixa de novo os
 arquivos do ISP e do IBGE, confere o contrato de cada um, regenera os snapshots e, se o commit ou os
-dados mudaram desde o último build (ignorando `generated_at`), constrói o site, sincroniza
-`deploy/g0v/conf` e recarrega o nginx. Cada rodada vira uma linha em `/root/g0v/runs.jsonl` e o
+dados mudaram desde o último build (ignorando `generated_at`), constrói o site e troca os arquivos
+em `/root/g0v/site/perdeu-playboy`. Cada rodada vira uma linha em `/root/g0v/runs.jsonl` e o
 `status.json` da página `/status`; contrato, ETL ou build quebrados mandam e-mail para
 `arete@tomoyo.systems` pelo mailserver da própria máquina. Para publicar na hora, depois de um push
 em `main`:
@@ -147,10 +147,12 @@ Deploy a partir desta máquina, com build local (serve para testar mudanças nã
 scripts/deploy-g0v.sh   # build com NEXT_PUBLIC_BASE_PATH=/perdeu-playboy, rsync e docker compose
 ```
 
-O script resolve o droplet pelo `doctl`, sobe `frontend/out` para `/root/g0v/site/perdeu-playboy`,
-sincroniza `deploy/g0v/conf` (o nginx; só o script manual leva mudanças de configuração) e recarrega o
-container `g0v-static` (`deploy/g0v/docker-compose.yml`). O certificado vem do Traefik (Let's Encrypt via
-DNS Cloudflare) e o DNS é o wildcard `*.tomoyo.systems`.
+O script resolve o droplet pelo `doctl` e sobe `frontend/out` para `/root/g0v/site/perdeu-playboy`.
+O certificado vem do Traefik (Let's Encrypt via DNS Cloudflare) e o DNS é o wildcard `*.tomoyo.systems`.
+
+Fogo Cruzado é opcional: com `FOGOCRUZADO_EMAIL`, `FOGOCRUZADO_PASSWORD` e `ENABLE_FOGOCRUZADO=true`
+no ambiente (no servidor, em `/root/g0v/.env-perdeu`), o ETL baixa as ocorrências e o snapshot ganha a
+seção `fogo_cruzado`; sem isso o export é idêntico.
 
 O projeto Vercel antigo (`perdeu-playboy.online`) só redireciona (`deploy/vercel-redirect`).
 
