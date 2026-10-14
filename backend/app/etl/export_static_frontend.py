@@ -137,14 +137,16 @@ def export_static_frontend(output_path: Path, geo_output_path: Path | None = Non
     if fogocruzado_repository.enabled():
         # Fonte opcional: so entra com ENABLE_FOGOCRUZADO=true e credenciais. Desligada, o
         # snapshot fica identico ao de sempre.
-        snapshot["fogo_cruzado"] = fogocruzado_repository.static_section(
+        section = fogocruzado_repository.static_section(
             isp_repository.territories("municipality"),
             _rio_neighborhood_names(),
         )
         # As series entram no mesmo esquema das do ISP, com o prefixo fc_: estado no snapshot
         # principal, municipios e bairros num arquivo por indicador.
-        for code, by_type in snapshot["fogo_cruzado"].pop("series").items():
+        fogo_series = cast(dict[str, dict[str, dict[str, Series]]], section.pop("series"))
+        for code, by_type in fogo_series.items():
             series[f"fc_{code}"] = by_type
+        snapshot["fogo_cruzado"] = section
         snapshot["series"] = {code: {"state": by_type.get("state", {})} for code, by_type in series.items()}
     geo = {
         "generated_at": generated_at,
