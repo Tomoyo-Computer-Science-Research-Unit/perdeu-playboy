@@ -128,13 +128,13 @@ export function RankingsExplorer() {
         </div>
       </Panel>
 
-      <Panel title={<b>Municípios</b>} aside={<span>{municipalityRows.length} · desde {coverage.municipality_start_year ?? "2014"}</span>} flush>
+      <Panel title={<b>Municípios</b>} aside={<span>{municipalityRows.length} · desde {coverage.municipality_start_year ?? "–"}</span>} flush>
         <RankingTable rows={municipalityRows} territoryType="municipality" indicator={indicator} sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} />
       </Panel>
 
       <Panel
         title={<b>{UF_CONFIG.policeAreaPlural}</b>}
-        aside={<span>{policeAreaRows.length} · desde {coverage.police_area_start_year ?? "2003"}</span>}
+        aside={<span>{policeAreaRows.length} · desde {coverage.police_area_start_year ?? "–"}</span>}
         flush
         foot={mode === "rate" ? UF_CONFIG.rateFootPoliceArea : undefined}
       >

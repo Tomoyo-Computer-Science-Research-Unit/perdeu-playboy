@@ -82,7 +82,8 @@ test("screens fit the viewport without page scroll", async ({ page }) => {
 test("hotkeys switch screens and indicators", async ({ page }) => {
   await page.goto("/");
   await page.keyboard.press("ArrowDown");
-  await expect(page.getByRole("option", { selected: true })).not.toHaveText(/Homicidio doloso/);
+  // O seletor de UF também tem opções; o menu de indicadores é o listbox.
+  await expect(page.getByRole("listbox").getByRole("option", { selected: true })).not.toHaveText(/Homic[ií]dio doloso/);
   await page.keyboard.press("2");
   await expect(page).toHaveURL(/\/series/);
 });
@@ -98,7 +99,7 @@ test("SP: state cards, municipal series and no shootings screen", async ({ page 
   test.skip(UF !== "SP", "só São Paulo");
   await page.goto("/");
   await expect(page.getByText("Estado de São Paulo").first()).toBeVisible();
-  await expect(page.getByRole("heading", { level: 3, name: "Homicídio doloso" }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { level: 3, name: "Letalidade violenta" }).first()).toBeVisible();
   await expect(page.getByRole("link", { name: /Tiroteios/ })).toHaveCount(0);
   await page.goto("/series?indicator=roubo_outros&type=municipality&name=Campinas&view=rolling");
   await expect(page.getByLabel("Município", { exact: true })).toHaveValue("Campinas");
