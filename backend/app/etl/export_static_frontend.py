@@ -1,6 +1,6 @@
-"""Exporta o snapshot estatico (somente Rio de Janeiro) consumido pelo frontend.
+"""Exporta o snapshot estatico de uma UF (RJ ou SP) consumido pelo frontend.
 
-Arquivos gerados em ``frontend/lib``:
+Arquivos gerados em ``frontend/data/<uf>`` (o build copia a pasta da UF para ``frontend/lib``):
 
 * ``static-data.generated.json``: metadados, series mensais do estado, populacao e mandatos.
 * ``static-series/<indicador>.generated.json``: series por municipio e por area integrada
@@ -8,8 +8,8 @@ Arquivos gerados em ``frontend/lib``:
 * ``static-geo.generated.json``: geometrias (municipios e bairros do Rio), carregadas
   pelo frontend apenas na pagina de mapa.
 
-``crime_geral`` e a soma de letalidade violenta, roubo de rua, de veiculo, de carga e estupro;
-um mes so existe quando todos os componentes tem dado.
+``crime_geral`` e a soma de letalidade violenta, roubo de rua (em SP, roubo outros), de veiculo, de
+carga e estupro; um mes so existe quando todos os componentes tem dado.
 
 As series mensais sao esparsas: cada territorio tem ``{"from": "AAAA-MM", "values": [...]}``,
 onde ``values`` comeca no primeiro mes com dado e pode conter ``null`` para meses em que o
@@ -34,24 +34,25 @@ import pandas as pd
 
 from app.config import settings
 from app.constants import ANALYSIS_START_YEAR
+from app.etl import ibge_http
 from app.etl.extract import checksum_file
 from app.etl.sources import default_isp_sources
-from app.services import fogocruzado_repository, isp_repository, population_repository
+from app.services import fogocruzado_repository, isp_repository, population_repository, sinesp_repository, ssp_repository
 from app.services.analytics import latest_period, methodology
-from app.services.governor_performance import GOVERNOR_TERMS, MAYOR_TERMS, governor_performance
-from app.services.indicator_catalog import INDICATORS
+from app.services.governor_performance import governor_performance, governor_terms, mayor_terms
+from app.services.indicator_catalog import indicators_for
 from app.services.territory_repository import ISP_TERRITORIAL_DIVISION_URL, territorial_units
+from app.uf import current, repository, set_current
 
 TERRITORY_TYPES = ("state", "municipality", "police_area")
-UF = "RJ"
-UF_NAME = "Rio de Janeiro"
-STATE_TERRITORY_NAME = "Estado do Rio de Janeiro"
 GEO_PRECISION = 5  # ~1 m; o bastante para mapas coropleticos
+FRONTEND_DIR = Path(__file__).resolve().parents[3] / "frontend"
 
-IBGE_RJ_MUNICIPALITIES_GEOJSON_URL = (
-    "https://servicodados.ibge.gov.br/api/v3/malhas/estados/33"
+IBGE_MUNICIPALITIES_GEOJSON_URL = (
+    "https://servicodados.ibge.gov.br/api/v3/malhas/estados/{uf}"
     "?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=municipio"
 )
+IBGE_RJ_MUNICIPALITIES_GEOJSON_URL = IBGE_MUNICIPALITIES_GEOJSON_URL.format(uf=33)
 RIO_NEIGHBORHOODS_GEOJSON_URL = (
     "https://pgeo3.rio.rj.gov.br/arcgis/rest/services/Cartografia/"
     "Limites_administrativos/FeatureServer/4/query"
@@ -66,12 +67,30 @@ Series = dict[str, object]
 SeriesStore = dict[str, dict[str, dict[str, Series]]]
 
 CRIME_GENERAL_CODE = "crime_geral"
-CRIME_GENERAL_COMPONENTS = ("letalidade_violenta", "roubo_rua", "roubo_veiculo", "roubo_carga", "estupro")
+# Componentes do crime geral por fonte. O ISP tem roubo de rua; a SSP-SP tem roubo (outros); o Sinesp
+# VDE nao tem nenhum roubo de pessoa, entao o crime geral dessas UFs fica sem esse componente.
+CRIME_GENERAL_COMPONENTS_BY_SOURCE = {
+    "isp": ("letalidade_violenta", "roubo_rua", "roubo_veiculo", "roubo_carga", "estupro"),
+    "ssp": ("letalidade_violenta", "roubo_outros", "roubo_veiculo", "roubo_carga", "estupro"),
+    "sinesp": ("letalidade_violenta", "roubo_veiculo", "roubo_carga", "estupro"),
+}
+CRIME_GENERAL_COMPONENTS = CRIME_GENERAL_COMPONENTS_BY_SOURCE["isp"]
+
+
+def crime_general_components() -> tuple[str, ...]:
+    return CRIME_GENERAL_COMPONENTS_BY_SOURCE[current().source]
+
+
+def default_output(uf: str) -> Path:
+    return FRONTEND_DIR / "data" / uf.lower() / "static-data.generated.json"
 
 
 def export_static_frontend(output_path: Path, geo_output_path: Path | None = None) -> None:
+    uf = current()
+    repo = repository()
+    indicators = indicators_for(uf.source)
     latest = latest_period()
-    month_keys = _month_keys(ANALYSIS_START_YEAR, latest.year, latest.month)
+    month_keys = _month_keys(current().start_year, latest.year, latest.month)
     month_index = {key: index for index, key in enumerate(month_keys)}
     series, coverage = _series(month_keys, month_index)
     series[CRIME_GENERAL_CODE] = _crime_general(series, month_keys, month_index)
@@ -79,29 +98,30 @@ def export_static_frontend(output_path: Path, geo_output_path: Path | None = Non
 
     snapshot = {
         "generated_at": generated_at,
-        "analysis_start_year": ANALYSIS_START_YEAR,
-        "uf": UF,
-        "name": UF_NAME,
+        "analysis_start_year": current().start_year,
+        "uf": uf.code,
+        "name": uf.name,
         "latest_period": latest.model_dump(mode="json"),
         "month_keys": month_keys,
-        "indicators": [indicator.model_dump(mode="json") for indicator in INDICATORS],
+        "indicators": [indicator.model_dump(mode="json") for indicator in indicators],
+        "crime_general_components": list(crime_general_components()),
         "territories": {
             territory_type: [
                 {"territory_type": territory_type, "name": name}
-                for name in isp_repository.territories(territory_type)
+                for name in repo.territories(territory_type)
             ]
             for territory_type in TERRITORY_TYPES
         },
-        "territorial_units": territorial_units("Rio de Janeiro"),
+        "territorial_units": _territorial_units(),
         "population_by_municipality": _population_by_municipality(),
         "population_history": {
             "state": _population_history_payload(
-                population_repository.state_population_history(ANALYSIS_START_YEAR, latest.year)
+                population_repository.state_population_history(current().start_year, latest.year)
             ),
             "municipality": {
                 name: _population_history_payload(history)
                 for name, history in population_repository.municipality_population_history(
-                    ANALYSIS_START_YEAR, latest.year
+                    current().start_year, latest.year
                 ).items()
             },
         },
@@ -112,7 +132,7 @@ def export_static_frontend(output_path: Path, geo_output_path: Path | None = Non
                 "term_start": term.start.isoformat(),
                 "term_end": term.end.isoformat() if term.end else None,
             }
-            for term in GOVERNOR_TERMS
+            for term in governor_terms()
         ],
         "mayor_terms": {
             municipality: [
@@ -124,7 +144,7 @@ def export_static_frontend(output_path: Path, geo_output_path: Path | None = Non
                 }
                 for term in terms
             ]
-            for municipality, terms in MAYOR_TERMS.items()
+            for municipality, terms in mayor_terms().items()
         },
         "governor_performance": governor_performance().model_dump(mode="json"),
         "sources": _source_metadata(),
@@ -134,7 +154,7 @@ def export_static_frontend(output_path: Path, geo_output_path: Path | None = Non
         "series": {code: {"state": by_type.get("state", {})} for code, by_type in series.items()},
         "coverage": coverage,
     }
-    if fogocruzado_repository.enabled():
+    if uf.source == "isp" and fogocruzado_repository.enabled():
         # Fonte opcional: so entra com ENABLE_FOGOCRUZADO=true e credenciais. Desligada, o
         # snapshot fica identico ao de sempre.
         section = fogocruzado_repository.static_section(
@@ -151,7 +171,10 @@ def export_static_frontend(output_path: Path, geo_output_path: Path | None = Non
     geo = {
         "generated_at": generated_at,
         "municipality_geometries": _round_collection(_municipality_geometries()),
-        "rio_neighborhood_geometries": _round_collection(_rio_neighborhood_geometries()),
+        # O drill-down de bairros so existe no Rio; em SP nao ha geometria oficial das areas dos DPs.
+        "rio_neighborhood_geometries": _round_collection(_rio_neighborhood_geometries())
+        if uf.source == "isp"
+        else {"type": "FeatureCollection", "features": []},
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -193,25 +216,29 @@ def _series(month_keys: list[str], month_index: dict[str, int]) -> tuple[SeriesS
     first_month: dict[str, dict[str, str | None]] = {}
     latest_by_type: dict[str, str | None] = {}
 
-    for indicator in INDICATORS:
+    for indicator in indicators_for(current().source):
         result[indicator.code] = {}
         first_month[indicator.code] = {}
         for territory_type in TERRITORY_TYPES:
-            frame = isp_repository.rows(indicator.code, territory_type, start_year=ANALYSIS_START_YEAR)
+            frame = repository().rows(indicator.code, territory_type, start_year=current().start_year)
             result[indicator.code][territory_type] = _series_for_frame(frame, month_keys, month_index)
             first_month[indicator.code][territory_type] = _first_key(frame)
             last_key = _last_key(frame)
             if last_key and (latest_by_type.get(territory_type) or "") < last_key:
                 latest_by_type[territory_type] = last_key
 
+    # Ano inicial de municipios e areas: o da letalidade violenta (Rio); onde ela so existe para o
+    # estado (SP, Sinesp), o do homicidio doloso.
     reference = first_month.get("letalidade_violenta", {})
+    if not reference.get("municipality"):
+        reference = first_month.get("homicidio_doloso", {})
     coverage: dict[str, object] = {
-        "state_start_year": ANALYSIS_START_YEAR,
+        "state_start_year": current().start_year,
         "municipality_start_year": _year_of(reference.get("municipality")),
         "police_area_start_year": _year_of(reference.get("police_area")),
         "latest_by_type": latest_by_type,
         "first_month_by_indicator": first_month,
-        "map_drilldown": "rio_city",
+        "map_drilldown": "rio_city" if current().source == "isp" else None,
     }
     return result, coverage
 
@@ -246,7 +273,7 @@ def _crime_general(series: SeriesStore, month_keys: list[str], month_index: dict
 
     output: dict[str, dict[str, Series]] = {}
     for territory_type in TERRITORY_TYPES:
-        components = [series.get(code, {}).get(territory_type, {}) for code in CRIME_GENERAL_COMPONENTS]
+        components = [series.get(code, {}).get(territory_type, {}) for code in crime_general_components()]
         names = set(components[0])
         for component in components[1:]:
             names &= set(component)
@@ -301,7 +328,7 @@ def _year_of(key: str | None) -> int | None:
 
 def _population_by_municipality() -> dict[str, float]:
     populations: dict[str, float] = {}
-    for name in isp_repository.territories("municipality"):
+    for name in repository().territories("municipality"):
         value = population_repository.population_for_municipality(municipality_name=name)
         if value is not None:
             populations[name] = float(value)
@@ -315,7 +342,33 @@ def _population_history_payload(history: population_repository.PopulationHistory
 # --- Fontes ---------------------------------------------------------------------------------
 
 
+def _territorial_units() -> list[dict[str, object]]:
+    if current().source == "isp":
+        return [dict(unit) for unit in territorial_units("Rio de Janeiro")]
+    if current().source != "ssp":
+        return []
+    # SP: os distritos policiais numerados da capital, no mesmo formato das CISPs do Rio.
+    units: list[dict[str, object]] = []
+    for name in ssp_repository.territories("police_area"):
+        head = name.split("º", 1)[0]
+        units.append(
+            {
+                "name": name,
+                "territorial_unit": name,
+                "municipality": "São Paulo",
+                "cisp": int(head) if head.isdigit() else 0,
+                "police_area_name": name,
+                "source_name": "SSP-SP - Distritos policiais",
+            }
+        )
+    return sorted(units, key=lambda unit: int(str(unit["cisp"])))
+
+
 def _source_metadata() -> list[dict[str, object]]:
+    if current().source == "ssp":
+        return _source_metadata_sp()
+    if current().source == "sinesp":
+        return _source_metadata_sinesp()
     raw_isp_dir = settings.data_dir / "raw" / "isp"
     raw_ibge_dir = settings.data_dir / "raw" / "ibge"
     rows: list[dict[str, object]] = []
@@ -370,6 +423,62 @@ def _source_metadata() -> list[dict[str, object]]:
     return rows
 
 
+def _source_metadata_sp() -> list[dict[str, object]]:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    raw_ssp_dir = ssp_repository.raw_dir()
+    rows = [
+        _file_source_row("ssp_sp_monthly", ssp_repository.SSP_MONTHLY_URL, ssp_repository.consolidated_path(), "crime_stats"),
+        _file_source_row("ssp_sp_municipalities", ssp_repository.SSP_MUNICIPALITIES_URL, raw_ssp_dir / "municipios.json", "territory"),
+        _file_source_row("ssp_sp_police_districts", ssp_repository.SSP_DISTRICTS_URL, raw_ssp_dir / "distritos.json", "territory"),
+    ]
+    rows.append(_file_source_row("sinesp_vde_sp", sinesp_repository.VDE_PAGE_URL, sinesp_repository.extract_path("SP"), "crime_stats"))
+    rows.append(
+        _file_source_row(
+            "ibge_population_municipalities_sp",
+            "https://sidra.ibge.gov.br/tabela/6579",
+            raw_ibge_dir / "population_municipalities_sp_latest.json",
+            "population",
+        )
+    )
+    for path in sorted(raw_ibge_dir.glob("population_*_sp_t*.json")):
+        rows.append(_file_source_row(path.stem, "https://sidra.ibge.gov.br/", path, "population"))
+    rows.append(
+        _file_source_row(
+            "ibge_municipality_geometries_sp",
+            IBGE_MUNICIPALITIES_GEOJSON_URL.format(uf=35),
+            raw_ibge_dir / "sp_municipalities_min.geojson",
+            "geometry",
+        )
+    )
+    return rows
+
+
+def _source_metadata_sinesp() -> list[dict[str, object]]:
+    uf = current()
+    tag = uf.code.lower()
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    rows = [_file_source_row(f"sinesp_vde_{tag}", sinesp_repository.VDE_PAGE_URL, sinesp_repository.extract_path(uf.code), "crime_stats")]
+    rows.append(
+        _file_source_row(
+            f"ibge_population_municipalities_{tag}",
+            "https://sidra.ibge.gov.br/tabela/6579",
+            raw_ibge_dir / f"population_municipalities_{tag}_latest.json",
+            "population",
+        )
+    )
+    for path in sorted(raw_ibge_dir.glob(f"population_*_{tag}_t*.json")):
+        rows.append(_file_source_row(path.stem, "https://sidra.ibge.gov.br/", path, "population"))
+    rows.append(
+        _file_source_row(
+            f"ibge_municipality_geometries_{tag}",
+            IBGE_MUNICIPALITIES_GEOJSON_URL.format(uf=uf.ibge_code),
+            raw_ibge_dir / f"{tag}_municipalities_min.geojson",
+            "geometry",
+        )
+    )
+    return rows
+
+
 def _file_source_row(name: str, url: str, path: Path, category: str) -> dict[str, object]:
     exists = path.exists()
     return {
@@ -387,7 +496,8 @@ def _file_source_row(name: str, url: str, path: Path, category: str) -> dict[str
 
 
 def _municipality_geometries() -> dict[str, object]:
-    path = _ensure_file("rj_municipalities_min.geojson", IBGE_RJ_MUNICIPALITIES_GEOJSON_URL)
+    uf = current()
+    path = _ensure_file(f"{uf.code.lower()}_municipalities_min.geojson", IBGE_MUNICIPALITIES_GEOJSON_URL.format(uf=uf.ibge_code))
     data = json.loads(path.read_text(encoding="utf-8"))
     code_to_name = _municipality_code_to_name()
     features = []
@@ -505,6 +615,11 @@ def _split_territorial_unit(value: str) -> list[str]:
 
 
 def _municipality_code_to_name() -> dict[str, str]:
+    if current().source == "sinesp":
+        return {code: name for code, name in sinesp_repository.municipality_official_names(current().code).values()}
+    if current().source == "ssp":
+        names = set(ssp_repository.territories("municipality"))
+        return {code: name for name, code in ssp_repository.municipality_ibge_codes().items() if name in names}
     frame = isp_repository.rows("letalidade_violenta", "municipality", start_year=ANALYSIS_START_YEAR)
     if frame.empty or "ibge_code" not in frame.columns:
         return {}
@@ -522,7 +637,7 @@ def _ensure_file(file_name: str, url: str) -> Path:
     path = raw_ibge_dir / file_name
     if path.exists() and path.stat().st_size > 0:
         return path
-    response = httpx.get(url, timeout=90, follow_redirects=True)
+    response = ibge_http.get(url, timeout=90) if "ibge.gov.br" in url else httpx.get(url, timeout=90, follow_redirects=True)
     response.raise_for_status()
     path.write_bytes(response.content)
     return path
@@ -539,15 +654,14 @@ def period_date(year: int, month: int) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Exporta o snapshot estatico do RJ para o frontend.")
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=Path(__file__).resolve().parents[3] / "frontend" / "lib" / "static-data.generated.json",
-    )
+    parser = argparse.ArgumentParser(description="Exporta o snapshot estatico de uma UF para o frontend.")
+    parser.add_argument("--uf", default="RJ", help="sigla da UF (frontend/lib/ufs.json)")
+    parser.add_argument("--output", type=Path, help="padrao: frontend/data/<uf>/static-data.generated.json")
     args = parser.parse_args()
-    export_static_frontend(args.output)
-    print(args.output)
+    set_current(args.uf)
+    output = args.output or default_output(args.uf)
+    export_static_frontend(output)
+    print(output)
 
 
 if __name__ == "__main__":

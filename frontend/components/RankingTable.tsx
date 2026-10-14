@@ -63,7 +63,7 @@ export function RankingTable({
         {rows.map((row) => (
           <tr key={`${row.rank}-${row.territory_name}`}>
             <td className="num faint">{row.rank}</td>
-            <td className="max-w-[260px] truncate">
+            <td className="max-w-[260px] [overflow-wrap:anywhere]">
               <Link href={`/series?type=${territoryType}&name=${encodeURIComponent(row.territory_name)}`} className="text-ink hover:underline hover:underline-offset-4" title={row.territory_name}>
                 {row.territory_name}
               </Link>

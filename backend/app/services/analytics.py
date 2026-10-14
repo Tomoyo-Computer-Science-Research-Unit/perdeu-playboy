@@ -6,16 +6,18 @@ from app.constants import ANALYSIS_START_YEAR
 from app.schemas import LatestPeriodOut, MapOut, RankingRow, SummaryCard, SummaryOut, TimeSeriesPoint
 from app.services.indicator_catalog import INDICATORS
 from app.services import isp_repository, population_repository
+from app.uf import current, repository
 
 
 def latest_period() -> LatestPeriodOut:
-    year, month = isp_repository.latest_period()
+    repo = repository()
+    year, month = repo.latest_period()
     period_date = pd.Timestamp(year, month, 1) + pd.offsets.MonthEnd(0)
     return LatestPeriodOut(
         year=year,
         month=month,
         period_date=period_date.date(),
-        source_name=isp_repository.OFFICIAL_SOURCE_NAME,
+        source_name=repo.OFFICIAL_SOURCE_NAME,
     )
 
 
@@ -172,6 +174,10 @@ def get_territories(territory_type: str) -> list[str]:
 
 
 def methodology() -> dict:
+    if current().source == "ssp":
+        return _methodology_sp()
+    if current().source == "sinesp":
+        return _methodology_sinesp()
     return {
         "title": "Metodologia",
         "source_summary": (
@@ -292,3 +298,73 @@ def _rate_per_100k(value: float, population: float | None) -> float | None:
     if population is None or population <= 0:
         return None
     return round(value / population * 100_000, 1)
+
+
+def _methodology_sp() -> dict:
+    return {
+        "title": "Metodologia",
+        "source_summary": (
+            "O painel usa as estatísticas mensais da Secretaria da Segurança Pública de São Paulo (SSP-SP), "
+            "portal Números sem Mistério: estado, 645 municípios e distritos policiais da capital desde janeiro "
+            "de 2001. Morte por intervenção de agente do Estado vem do Sinesp VDE (Ministério da Justiça), só "
+            "para o estado, desde 2015. Taxas por 100 mil habitantes usam a população anual do IBGE/SIDRA."
+        ),
+        "update_frequency": "A SSP-SP publica os dados do mês anterior por volta do dia 25; o app baixa e guarda as respostas localmente.",
+        "limitations": [
+            "Os dados da SSP-SP são registros policiais (boletins de ocorrência) e podem não representar todos os eventos reais.",
+            "Homicídio doloso e latrocínio contam vítimas; as demais naturezas contam ocorrências.",
+            "Lesão corporal seguida de morte só é publicada em separado desde setembro de 2016; antes, o mês fica sem dado.",
+            "Morte por intervenção de agente do Estado não consta das tabelas mensais da SSP-SP; vem do Sinesp VDE, só com o total estadual, desde 2015. Por isso letalidade violenta e crime geral só existem para o estado.",
+            "Roubo (outros) é o total de roubos da SSP-SP menos roubo de carga e roubo a banco; não equivale ao roubo de rua do ISP.",
+            "Feminicídio vem da tabela de violência contra a mulher da SSP-SP, estadual, desde 2018.",
+            "Taxas por 100 mil existem para estado e municípios; distritos policiais não têm população oficial.",
+            "A SSP-SP não publica os limites dos distritos policiais; o mapa de São Paulo é só por município.",
+        ],
+        "definitions": {
+            "homicidio_doloso": "Vítimas de homicídio doloso registradas pela SSP-SP.",
+            "letalidade_violenta": "Soma de homicídio doloso, latrocínio, lesão corporal seguida de morte e morte por intervenção de agente do Estado.",
+            "morte_interv_policial": "Mortes decorrentes de intervenção de agentes do Estado (Sinesp VDE).",
+            "latrocinio": "Vítimas de roubo seguido de morte.",
+            "lesao_corp_morte": "Lesão corporal seguida de morte.",
+            "feminicidio": "Homicídio de mulher por razões da condição de sexo feminino (Lei 13.104/2015).",
+            "roubo_outros": "Roubos fora das naturezas de veículo, carga e banco.",
+            "apreensao_armas": "Armas de fogo apreendidas (produtividade policial da SSP-SP).",
+        },
+        "ethical_notes": [
+            "O painel não identifica vítimas nem publica endereços.",
+            "Os indicadores são informação cívica para transparência, pesquisa e controle social.",
+        ],
+    }
+
+
+def _methodology_sinesp() -> dict:
+    uf = current()
+    return {
+        "title": "Metodologia",
+        "source_summary": (
+            f"O painel usa o Sinesp VDE, base nacional do Ministério da Justiça e Segurança Pública alimentada pela "
+            f"secretaria de segurança de cada estado: {uf.state_name}, mensal, desde janeiro de 2015. Homicídio doloso, "
+            "latrocínio, lesão corporal seguida de morte e feminicídio vêm por município; os demais eventos só com o total "
+            "estadual. Taxas por 100 mil habitantes usam a população anual do IBGE/SIDRA."
+        ),
+        "update_frequency": "O MJSP republica o arquivo do ano corrente sem calendário fixo; o app baixa e guarda os arquivos localmente.",
+        "limitations": [
+            "Os dados são registros policiais enviados pelos estados ao Sinesp e podem não representar todos os eventos reais.",
+            "Homicídio doloso, latrocínio, lesão corporal seguida de morte, feminicídio, morte por intervenção e estupro contam vítimas; roubos e armas contam ocorrências.",
+            "Morte por intervenção de agente do Estado, estupro, roubo de veículo, roubo de carga e armas apreendidas só existem com o total estadual; letalidade violenta e crime geral também.",
+            "O Sinesp não publica roubo a pessoa; o crime geral destas UFs soma letalidade violenta, roubo de veículo, roubo de carga e estupro.",
+            "Não há recorte por delegacia ou área policial.",
+        ],
+        "definitions": {
+            "homicidio_doloso": "Vítimas de homicídio doloso (Sinesp VDE).",
+            "letalidade_violenta": "Soma de homicídio doloso, latrocínio, lesão corporal seguida de morte e morte por intervenção de agente do Estado.",
+            "morte_interv_policial": "Mortes por intervenção de agente do Estado (Sinesp VDE).",
+            "latrocinio": "Vítimas de roubo seguido de morte.",
+            "estupro": "Vítimas de estupro e de estupro de vulnerável.",
+            "apreensao_armas": "Armas de fogo apreendidas.",
+        },
+        "ethical_notes": [
+            "O painel não identifica vítimas nem publica endereços.",
+            "Os indicadores são informação cívica para transparência, pesquisa e controle social.",
+        ],
+    }

@@ -4,7 +4,8 @@ import type { Geometry } from "geojson";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useScreenHotkeys } from "@/components/Hotkeys";
 import { Panel, Screen, Segmented, Stat } from "@/components/ui";
-import { CRIME_GENERAL_CODE, getIndicator, getIndicators, getLatestPeriod, getMapData, getSnapshotMeta } from "@/lib/api";
+import { CRIME_GENERAL_CODE, LOCAL_INDICATOR, RIO_MUNICIPALITY, getIndicator, getLatestPeriod, getLocalIndicators, getMapData, getSnapshotMeta } from "@/lib/api";
+import { UF_CONFIG } from "@/lib/uf";
 import { deltaClass, formatMonthYear, formatNumber, formatPercent, formatRate } from "@/lib/format";
 import { noteFor } from "@/lib/notes";
 import type { GeoFeatureCollection, RankingMode } from "@/types/api";
@@ -84,12 +85,9 @@ function metricLabel(indicator: string, mode: RankingMode) {
 export function MunicipalityChoroplethPanel() {
   const latest = getLatestPeriod();
   const coverage = getSnapshotMeta().coverage;
-  const indicators = useMemo(() => {
-    const general = getIndicator(CRIME_GENERAL_CODE);
-    return general ? [general, ...getIndicators()] : getIndicators();
-  }, []);
+  const indicators = useMemo(() => getLocalIndicators(), []);
 
-  const [indicator, setIndicator] = useState(CRIME_GENERAL_CODE);
+  const [indicator, setIndicator] = useState(LOCAL_INDICATOR);
   const [mode, setMode] = useState<RankingMode>("rate");
   const [view, setView] = useState<MapView>("state");
   const [periodKey, setPeriodKey] = useState(formatMonthYear(latest.year, latest.month));
@@ -120,7 +118,7 @@ export function MunicipalityChoroplethPanel() {
     if (nextMode === "rate" || nextMode === "count" || nextMode === "yoy") {
       setMode(nextMode);
     }
-    if (params.get("view") === "rio_city") {
+    if (params.get("view") === "rio_city" && UF_CONFIG.mapDrilldown) {
       setView("rio_city");
     }
     const [year, month] = (params.get("period") ?? "").split("-").map(Number);
@@ -226,7 +224,7 @@ export function MunicipalityChoroplethPanel() {
       ArrowDown: () => setIndicator(indicators[(activeIndex + 1) % indicators.length].code),
       ArrowLeft: () => stepPeriod(-1),
       ArrowRight: () => stepPeriod(1),
-      r: () => changeView(view === "state" ? "rio_city" : "state"),
+      r: () => changeView(view === "state" && UF_CONFIG.mapDrilldown ? "rio_city" : "state"),
       m: () => setMode((current) => (current === "rate" ? "count" : current === "count" ? "yoy" : "rate"))
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -254,7 +252,7 @@ export function MunicipalityChoroplethPanel() {
             onChange={changeView}
             options={[
               { value: "state", label: "Estado" },
-              { value: "rio_city", label: "Cidade do Rio" }
+              ...(UF_CONFIG.mapDrilldown ? [{ value: "rio_city" as MapView, label: UF_CONFIG.cityMapLabel }] : [])
             ]}
           />
           <Segmented
@@ -330,23 +328,25 @@ export function MunicipalityChoroplethPanel() {
             viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
             preserveAspectRatio="xMidYMid meet"
             role="img"
-            aria-label={view === "rio_city" ? "Mapa da cidade do Rio de Janeiro por bairros" : "Mapa do estado do Rio de Janeiro por municípios"}
+            aria-label={view === "rio_city" ? `Mapa da cidade do ${UF_CONFIG.capital} por bairros` : `Mapa do ${UF_CONFIG.stateName.replace(/^Estado/, "estado")} por municípios`}
             className="block h-full w-full"
           >
             {data.features.map((feature) => {
               const name = String(feature.properties.territory_name ?? "");
               const sourceName = String(feature.properties.source_territory_name ?? "");
               const hasData = Boolean(feature.properties.has_data);
-              const canOpenRio = view === "state" && name === "Rio de Janeiro";
+              const canOpenRio = UF_CONFIG.mapDrilldown && view === "state" && name === RIO_MUNICIPALITY;
               const isSelected = selected?.territory_name === name;
               return (
                 <path
                   key={`${name}-${sourceName}`}
                   d={geometryPath(feature.geometry, bbox)}
-                  fill={hasData ? "var(--ink)" : "var(--haze)"}
-                  fillOpacity={hasData ? opacityFor(Number(feature.properties.metric_value ?? 0)) : 1}
-                  stroke={isSelected ? "var(--ink)" : "var(--paper)"}
-                  strokeWidth={isSelected ? 2.4 : canOpenRio ? 2 : 0.8}
+                  // Sem dado e selecionado: papel com contorno tracejado; com dado: tinta pela posição.
+                  fill={hasData && !isSelected ? "var(--ink)" : "var(--paper)"}
+                  fillOpacity={hasData && !isSelected ? opacityFor(Number(feature.properties.metric_value ?? 0)) : 1}
+                  stroke={isSelected ? "var(--ink)" : hasData ? "var(--paper)" : "var(--ash)"}
+                  strokeDasharray={isSelected || !hasData ? "3 2" : undefined}
+                  strokeWidth={isSelected ? 1.6 : canOpenRio ? 2 : 0.8}
                   className={canOpenRio ? "map-shape cursor-pointer" : "map-shape"}
                   onMouseEnter={() => setSelected(feature.properties)}
                   onFocus={() => setSelected(feature.properties)}

@@ -1,7 +1,8 @@
 name: Update static data
 
-# Todo dia: baixa de novo os arquivos oficiais, regenera o snapshot e commita em main quando algum
-# dado mudou (ignorando generated_at). Mantém o snapshot do repositório em dia para quem desenvolve;
+# Todo dia: baixa de novo os arquivos oficiais do Rio, regenera o snapshot e commita em main quando algum
+# dado mudou (ignorando generated_at). As demais UFs (SSP-SP, Sinesp) são atualizadas só no servidor,
+# pelo deploy/g0v/build-site.sh, que guarda o cache das respostas entre rodadas. Mantém o snapshot do repositório em dia para quem desenvolve;
 # o site em produção é construído no próprio servidor (deploy/g0v/build-site.sh).
 
 on:
@@ -38,9 +39,9 @@ jobs:
       - name: Download official files and export the snapshot
         working-directory: backend
         run: |
-          python -m app.etl.export_static_frontend || {
+          python -m app.etl.export_static_frontend --uf RJ || {
             status=$?
-            if [ -s ../frontend/lib/static-data.generated.json ]; then
+            if [ -s ../frontend/data/rj/static-data.generated.json ]; then
               echo "Data export failed; keeping the committed static snapshot."
               exit 0
             fi
@@ -52,7 +53,7 @@ jobs:
           python3 - <<'EOF'
           # generated_at muda a cada execução; só conta como mudança o resto do snapshot.
           import json, pathlib, subprocess
-          files = ["frontend/lib/static-data.generated.json", "frontend/lib/static-geo.generated.json"]
+          files = ["frontend/data/rj/static-data.generated.json", "frontend/data/rj/static-geo.generated.json"]
           def body(text):
               data = json.loads(text)
               data.pop("generated_at", None)
@@ -67,10 +68,10 @@ jobs:
                   subprocess.run(["git", "checkout", "--", f], check=True)
           print("changed:", changed or "nothing")
           EOF
-          if [ "$(git status --porcelain -- frontend/lib)" != "" ]; then
+          if [ "$(git status --porcelain -- frontend/data/rj)" != "" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add frontend/lib/static-data.generated.json frontend/lib/static-geo.generated.json
+            git add frontend/data/rj/static-data.generated.json frontend/data/rj/static-geo.generated.json
             git commit -m "Update static official-data snapshot"
             git push
           fi

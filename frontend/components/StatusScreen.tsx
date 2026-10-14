@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { UF_CONFIG } from "@/lib/uf";
 import { EmptyState, Panel, Screen, Stat } from "@/components/ui";
 import { formatBytes, formatDateTime, formatMonthYear } from "@/lib/format";
 import type { DataSource, LatestPeriod } from "@/types/api";
@@ -45,7 +46,7 @@ export function StatusScreen({ generatedAt, latest, sources }: { generatedAt: st
     };
   }, []);
 
-  const files = (status?.sources.length ? status.sources : sources).filter((source) => source.file_name.endsWith(".csv"));
+  const files = (status?.sources.length ? status.sources : sources).filter((source) => /\.csv(\.gz)?$/.test(source.file_name));
   const checks = new Map((status?.check?.files ?? []).map((file) => [file.file_name, file]));
   const period = status?.snapshot?.latest_period ?? latest;
   const lastRun = status?.last_run ?? null;
@@ -88,13 +89,13 @@ export function StatusScreen({ generatedAt, latest, sources }: { generatedAt: st
         )}
       </Panel>
 
-      <Panel title={<b>Arquivos do ISP</b>} flush fill>
+      <Panel title={<b>{UF_CONFIG.statusFilesTitle}</b>} flush fill>
         <table className="ruled">
           <thead>
             <tr>
               <th>Arquivo</th>
               <th>Último mês</th>
-              <th>Modificado no ISP</th>
+              <th>{UF_CONFIG.statusModifiedLabel}</th>
               <th className="right">Tamanho</th>
               <th>SHA-256</th>
               <th>Contrato</th>

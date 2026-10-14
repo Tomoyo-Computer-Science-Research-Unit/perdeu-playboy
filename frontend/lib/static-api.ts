@@ -1,12 +1,13 @@
 /**
  * Camada de dados do site. Tudo é calculado a partir do snapshot estático gerado pelo ETL
- * (`static-data.generated.json`), somente Rio de Janeiro.
+ * (`static-data.generated.json`) de uma UF; o build copia o snapshot da UF para lib/.
  *
  * As séries do snapshot são esparsas: `{ from: "AAAA-MM", values: [...] }`. Meses sem dado
  * são `null` e nunca entram em somas, mínimos ou variações — "sem dado" não é zero.
  */
 
 import snapshot from "@/lib/static-data.generated.json";
+import { UF_CONFIG } from "@/lib/uf";
 import type {
   AnnualPoint,
   ChangeRow,
@@ -41,6 +42,7 @@ type Snapshot = {
   latest_period: LatestPeriod;
   month_keys: string[];
   indicators: Indicator[];
+  crime_general_components?: string[];
   territories: Record<TerritoryType, Territory[]>;
   territorial_units: TerritorialUnit[];
   population_by_municipality: Record<string, number>;
@@ -70,11 +72,14 @@ const MONTH_INDEX = new Map(MONTHS.map((key, index) => [key, index]));
 const LATEST = DATA.latest_period;
 const LATEST_INDEX = monthIndex(LATEST.year, LATEST.month);
 
-export const STATE_NAME = DATA.territories.state[0]?.name ?? "Estado do Rio de Janeiro";
-export const RIO_MUNICIPALITY = "Rio de Janeiro";
+export const STATE_NAME = DATA.territories.state[0]?.name ?? UF_CONFIG.stateName;
+/** Capital da UF (cidade do Rio ou de São Paulo): município padrão dos seletores e das faixas de prefeito. */
+export const RIO_MUNICIPALITY = UF_CONFIG.capital;
 /** Indicadores somados no agregado "crime geral" (rankings, mudanças e mapa); a soma vem pronta do ETL. */
-export const CRIME_RATE_INDICATORS = ["letalidade_violenta", "roubo_rua", "roubo_veiculo", "roubo_carga", "estupro"];
+export const CRIME_RATE_INDICATORS = DATA.crime_general_components ?? ["letalidade_violenta", "roubo_rua", "roubo_veiculo", "roubo_carga", "estupro"];
 export const CRIME_GENERAL_CODE = "crime_geral";
+/** Indicador padrão de rankings, mapa e mudanças (crime geral no Rio, homicídio doloso em SP). */
+export const LOCAL_INDICATOR = UF_CONFIG.localIndicator;
 
 const denseCache = new Map<string, Array<number | null>>();
 const rankingCache = new Map<string, RankingRow[]>();
@@ -155,6 +160,19 @@ export function getIndicatorsFor(territoryType: TerritoryType, territoryName?: s
     return DATA.indicators.filter((indicator) => Boolean(DATA.coverage.first_month_by_indicator[indicator.code]?.[territoryType]));
   }
   return DATA.indicators.filter((indicator) => Boolean(sparseFor(indicator.code, territoryType, name)));
+}
+
+/**
+ * Indicadores com dado por município ou área policial, para rankings e mapa. O crime geral entra
+ * primeiro quando existe nesses recortes (no Rio); os que só têm série estadual ficam de fora.
+ */
+export function getLocalIndicators(): Indicator[] {
+  const local = DATA.indicators.filter((indicator) => {
+    const coverage = DATA.coverage.first_month_by_indicator[indicator.code];
+    return Boolean(coverage?.municipality || coverage?.police_area);
+  });
+  const general = getIndicator(CRIME_GENERAL_CODE);
+  return LOCAL_INDICATOR === CRIME_GENERAL_CODE && general ? [general, ...local] : local;
 }
 
 export function getTerritories(territoryType: TerritoryType): Territory[] {
@@ -379,14 +397,14 @@ export function getRankings(
 }
 
 export async function getLatestChanges(): Promise<LatestChangesResponse> {
-  await loadSeries([CRIME_GENERAL_CODE]);
+  await loadSeries([LOCAL_INDICATOR]);
   return {
     latest_period: LATEST,
     sections: [
       changeSection("Municípios com maior alta", "municipality", "increase"),
       changeSection("Municípios com maior queda", "municipality", "decrease"),
-      changeSection("Áreas integradas (CISP) com maior alta", "police_area", "increase"),
-      changeSection("Áreas integradas (CISP) com maior queda", "police_area", "decrease")
+      changeSection(`${UF_CONFIG.policeAreaChangesLabel} com maior alta`, "police_area", "increase"),
+      changeSection(`${UF_CONFIG.policeAreaChangesLabel} com maior queda`, "police_area", "decrease")
     ]
   };
 }
@@ -394,7 +412,7 @@ export async function getLatestChanges(): Promise<LatestChangesResponse> {
 function changeSection(title: string, territoryType: Exclude<TerritoryType, "state">, direction: "increase" | "decrease"): ChangeSection {
   const rows = getTerritories(territoryType)
     .flatMap((territory): ChangeRow[] => {
-      const values = denseValues(CRIME_GENERAL_CODE, territoryType, territory.name);
+      const values = denseValues(LOCAL_INDICATOR, territoryType, territory.name);
       const currentValue = rollingSum(values, LATEST_INDEX, 12);
       const previousValue = rollingSum(values, LATEST_INDEX - 12, 12);
       if (currentValue === null || previousValue === null) {

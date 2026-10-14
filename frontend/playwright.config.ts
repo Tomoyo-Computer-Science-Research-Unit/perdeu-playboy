@@ -1,5 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Um run por UF: NEXT_PUBLIC_UF=SP npx playwright test. Cada UF tem porta própria para que um
+// servidor reaproveitado nunca sirva o build de outra UF.
+const UF = (process.env.NEXT_PUBLIC_UF ?? "RJ").toUpperCase();
+const PORT = UF === "RJ" ? 4173 : 4173 + [...UF].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 800 + 1;
+
 export default defineConfig({
   testDir: "./tests",
   timeout: 30_000,
@@ -9,13 +14,13 @@ export default defineConfig({
   fullyParallel: true,
   reporter: "list",
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL: `http://127.0.0.1:${PORT}`,
     trace: "retain-on-failure"
   },
   webServer: {
     // Os testes rodam na raiz; o deploy em g0v.tomoyo.systems usa NEXT_PUBLIC_BASE_PATH=/perdeu-playboy.
-    command: "NEXT_PUBLIC_BASE_PATH= npm run build && npx serve out -l 4173",
-    url: "http://127.0.0.1:4173",
+    command: `NEXT_PUBLIC_UF=${UF} NEXT_PUBLIC_BASE_PATH= npm run build && npx serve out -l ${PORT}`,
+    url: `http://127.0.0.1:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000
   },

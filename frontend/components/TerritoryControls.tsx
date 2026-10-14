@@ -1,6 +1,7 @@
 "use client";
 
 import { Field, Segmented } from "@/components/ui";
+import { UF_CONFIG } from "@/lib/uf";
 import type { Territory, TerritorialUnit, TerritoryType } from "@/types/api";
 
 export type TerritorySelection = { type: TerritoryType; name: string };
@@ -20,8 +21,8 @@ export function nextSelection(type: TerritoryType, current: TerritorySelection, 
   if (type === current.type) {
     return current;
   }
-  if (type === "state") {
-    return { type, name: "" };
+  if (type === "state" || (type === "police_area" && policeAreas.length === 0)) {
+    return { type: "state", name: "" };
   }
   if (type === "municipality") {
     return { type, name: defaultMunicipality };
@@ -29,7 +30,7 @@ export function nextSelection(type: TerritoryType, current: TerritorySelection, 
   return { type, name: rioUnits[0]?.territorial_unit ?? policeAreas[0]?.name ?? "" };
 }
 
-/** Seletor de recorte compacto: estado inteiro, um município ou uma área integrada (CISP). */
+/** Seletor de recorte compacto: estado inteiro, um município ou uma área policial (CISP no Rio, DP em SP). */
 export function TerritoryControls({ value, onChange, municipalities, policeAreas, rioUnits, defaultMunicipality, compact = false }: Props) {
   const rioUnitNames = new Set(rioUnits.map((unit) => unit.territorial_unit));
   const otherAreas = policeAreas.filter((area) => !rioUnitNames.has(area.name));
@@ -43,7 +44,8 @@ export function TerritoryControls({ value, onChange, municipalities, policeAreas
         options={[
           { value: "state", label: "Estado" },
           { value: "municipality", label: "Município" },
-          { value: "police_area", label: "CISP" }
+          // UFs sem dado por área policial (Sinesp) ficam sem a opção.
+          ...(policeAreas.length > 0 ? [{ value: "police_area" as TerritoryType, label: UF_CONFIG.policeAreaShort }] : [])
         ]}
       />
       {value.type === "municipality" ? (
@@ -58,22 +60,24 @@ export function TerritoryControls({ value, onChange, municipalities, policeAreas
         </Field>
       ) : null}
       {value.type === "police_area" ? (
-        <Field label="Área integrada" className={compact ? "" : "min-w-[280px]"}>
+        <Field label={UF_CONFIG.policeAreaField} className={compact ? "" : "min-w-[280px]"}>
           <select value={value.name} onChange={(event) => onChange({ type: "police_area", name: event.target.value })}>
-            <optgroup label="Cidade do Rio de Janeiro">
+            <optgroup label={UF_CONFIG.capitalLabel}>
               {rioUnits.map((unit) => (
                 <option key={unit.police_area_name} value={unit.territorial_unit}>
                   {unit.name}
                 </option>
               ))}
             </optgroup>
-            <optgroup label="Demais áreas do estado">
-              {otherAreas.map((area) => (
-                <option key={area.name} value={area.name}>
-                  {area.name}
-                </option>
-              ))}
-            </optgroup>
+            {otherAreas.length > 0 ? (
+              <optgroup label={UF_CONFIG.otherPoliceAreasLabel}>
+                {otherAreas.map((area) => (
+                  <option key={area.name} value={area.name}>
+                    {area.name}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
           </select>
         </Field>
       ) : null}

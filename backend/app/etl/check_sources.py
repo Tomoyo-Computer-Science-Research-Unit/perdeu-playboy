@@ -1,6 +1,6 @@
-"""Contratos dos arquivos oficiais do ISP: colunas, chaves, intervalos e atraso de publicacao.
+"""Contratos dos arquivos oficiais de cada UF: colunas, chaves, intervalos e atraso de publicacao.
 
-``python -m app.etl.check_sources [--json saida.json]`` baixa o que faltar, valida cada arquivo
+``python -m app.etl.check_sources [--uf RJ] [--json saida.json]`` baixa o que faltar, valida cada arquivo
 e sai com codigo 1 quando algum contrato falha. Se o ISP mudar uma coluna ou publicar um
 arquivo truncado, a falha aparece aqui antes de o snapshot ser regenerado. Atraso de
 publicacao (ultimo mes apurado ha mais de quatro meses) e aviso, nao falha.
@@ -20,7 +20,8 @@ import pandas as pd
 from app.config import settings
 from app.etl.sources import default_isp_sources
 from app.etl.transform import normalize_column_name, read_isp_csv
-from app.services import isp_repository
+from app.services import isp_repository, sinesp_repository, ssp_repository
+from app.uf import current, set_current
 
 STALE_AFTER_MONTHS = 4
 MAX_UNKEYED_SHARE = 0.01
@@ -33,6 +34,10 @@ class Contract:
     min_rows: int
     first_year: int | None = None
     counts: tuple[str, ...] = ()
+    # Arquivos do ISP: CSV com ";" e colunas ano/mes. Consolidados de SP e do Sinesp: CSV comum (gzip).
+    reader: str = "isp"
+    year_column: str = "ano"
+    month_column: str = "mes"
 
 
 INDICATOR_COLUMNS = (
@@ -85,6 +90,29 @@ CONTRACTS: dict[str, Contract] = {
     ),
 }
 
+# Consolidado da SSP-SP (ssp_repository): uma linha por chamada, territorio, indicador e mes.
+SSP_CONTRACT = Contract(
+    columns=("source", "territory_type", "territory_id", "territory_name", "indicator", "year", "month", "value"),
+    key=("source", "territory_type", "territory_id", "indicator", "year", "month"),
+    min_rows=1_000,
+    first_year=2001,
+    counts=("value",),
+    reader="csv",
+    year_column="year",
+    month_column="month",
+)
+# Extrato do Sinesp VDE de uma UF (sinesp_repository).
+SINESP_CONTRACT = Contract(
+    columns=("municipio", "indicator", "year", "month", "value"),
+    key=("municipio", "indicator", "year", "month"),
+    min_rows=500,
+    first_year=2015,
+    counts=("value",),
+    reader="csv",
+    year_column="year",
+    month_column="month",
+)
+
 
 @dataclass
 class FileReport:
@@ -109,12 +137,19 @@ def check_file(path: Path, contract: Contract, today: date | None = None) -> Fil
         report.problems.append("arquivo ausente ou vazio")
         return report
     try:
-        frame = read_isp_csv(path)
+        if contract.reader == "csv":
+            frame = pd.read_csv(path)
+            if "indicator" in frame.columns:
+                # Linhas-marcador do consolidado de SP (chamada feita, sem valor) nao entram no contrato.
+                frame = frame[frame["indicator"] != "_coleta"]
+        else:
+            frame = read_isp_csv(path)
     except Exception as exc:  # noqa: BLE001 - qualquer falha de leitura e quebra de contrato
         report.problems.append(f"nao foi possivel ler o CSV: {exc}")
         return report
 
-    frame = frame.rename(columns={column: normalize_column_name(column) for column in frame.columns})
+    if contract.reader != "csv":
+        frame = frame.rename(columns={column: normalize_column_name(column) for column in frame.columns})
     report.rows = int(len(frame))
     missing = [column for column in contract.columns if column not in frame.columns]
     if missing:
@@ -132,8 +167,8 @@ def check_file(path: Path, contract: Contract, today: date | None = None) -> Fil
         report.problems.append(f"{duplicates} chaves repetidas ({', '.join(contract.key)})")
 
     if contract.first_year is not None:
-        years = pd.to_numeric(keyed["ano"], errors="coerce")
-        months = pd.to_numeric(keyed["mes"], errors="coerce")
+        years = pd.to_numeric(keyed[contract.year_column], errors="coerce")
+        months = pd.to_numeric(keyed[contract.month_column], errors="coerce")
         bad_years = int(((years < contract.first_year) | (years > today.year) | years.isna()).sum())
         bad_months = int(((months < 1) | (months > 12) | months.isna()).sum())
         if bad_years:
@@ -142,7 +177,7 @@ def check_file(path: Path, contract: Contract, today: date | None = None) -> Fil
             report.problems.append(f"{bad_months} linhas com mes fora de 1–12")
         valid = keyed[years.notna() & months.notna()]
         if not valid.empty:
-            ordinal = pd.to_numeric(valid["ano"]).astype(int) * 12 + pd.to_numeric(valid["mes"]).astype(int) - 1
+            ordinal = pd.to_numeric(valid[contract.year_column]).astype(int) * 12 + pd.to_numeric(valid[contract.month_column]).astype(int) - 1
             latest = int(ordinal.max())
             latest_year, latest_month = divmod(latest, 12)
             report.latest_month = f"{latest_year:04d}-{latest_month + 1:02d}"
@@ -165,7 +200,24 @@ def check_file(path: Path, contract: Contract, today: date | None = None) -> Fil
 
 
 def check_all(download: bool = True) -> list[FileReport]:
-    """Check every official file; downloads the ISP CSVs that are missing when ``download``."""
+    """Check every official file of the current UF; downloads what is missing when ``download``."""
+
+    uf_source = current().source
+    if uf_source == "ssp":
+        if download:
+            ssp_repository.download()
+            sinesp_repository.download()
+            sinesp_repository.extract_uf("SP")
+            ssp_repository.consolidate()
+        return [
+            check_file(ssp_repository.consolidated_path(), SSP_CONTRACT),
+            check_file(sinesp_repository.extract_path("SP"), SINESP_CONTRACT),
+        ]
+    if uf_source == "sinesp":
+        if download:
+            sinesp_repository.download()
+            sinesp_repository.extract_uf(current().code)
+        return [check_file(sinesp_repository.extract_path(current().code), SINESP_CONTRACT)]
 
     raw_dir = settings.data_dir / "raw" / "isp"
     reports: list[FileReport] = []
@@ -180,10 +232,12 @@ def check_all(download: bool = True) -> list[FileReport]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--uf", default="RJ", help="sigla da UF (frontend/lib/ufs.json)")
     parser.add_argument("--json", type=Path, help="grava o relatorio em JSON neste caminho")
     parser.add_argument("--no-download", action="store_true", help="nao baixa arquivos ausentes")
     args = parser.parse_args(argv)
 
+    set_current(args.uf)
     reports = check_all(download=not args.no_download)
     for report in reports:
         status = "OK " if report.ok else "ERRO"
@@ -197,6 +251,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         payload = {
             "checked_at": date.today().isoformat(),
+            "uf": current().code,
             "ok": all(report.ok for report in reports),
             "files": [{**asdict(report), "ok": report.ok} for report in reports],
         }

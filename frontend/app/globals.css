@@ -279,6 +279,27 @@ dd {
   opacity: 0.4;
 }
 
+/* Seletor de UF do cabeçalho: um select só, à esquerda do botão de tema. */
+.yearselect {
+  height: 32px;
+  padding: 0 24px 0 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: var(--paper);
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%);
+  background-position: calc(100% - 13px) 50%, calc(100% - 8px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
 .segmented {
   display: inline-flex;
   border: 1px solid var(--line-strong);
@@ -505,16 +526,18 @@ input[type="range"]::-moz-range-thumb {
 
 .app {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-height: 100vh;
   min-height: 100dvh;
 }
 
 .app__header {
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   height: 48px;
   padding: 0 var(--gutter);
   border-bottom: 1px solid var(--line-strong);
@@ -733,6 +756,7 @@ html.fx .ruled,
 html.fx .table-line,
 html.fx .statusbar,
 html.fx .app__header nav,
+html.fx .yearselect,
 html.fx .toggle,
 html.fx .segmented,
 html.fx .btn,
@@ -748,6 +772,7 @@ html.fx[data-theme="dark"] .ruled,
 html.fx[data-theme="dark"] .table-line,
 html.fx[data-theme="dark"] .statusbar,
 html.fx[data-theme="dark"] .app__header nav,
+html.fx[data-theme="dark"] .yearselect,
 html.fx[data-theme="dark"] .toggle,
 html.fx[data-theme="dark"] .segmented,
 html.fx[data-theme="dark"] .btn,

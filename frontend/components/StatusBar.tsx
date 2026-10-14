@@ -1,6 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { NAV_ITEMS } from "@/components/SiteNav";
+import { PUBLISHED_UFS, UF_CONFIG } from "@/lib/uf";
 
 const HINTS: Record<string, Array<[string, string]>> = {
   "/": [
@@ -19,7 +21,7 @@ const HINTS: Record<string, Array<[string, string]>> = {
   "/mapa": [
     ["↑↓", "indicador"],
     ["←→", "mês"],
-    ["r", "rio / estado"],
+    ...(UF_CONFIG.mapDrilldown ? ([["r", `${UF_CONFIG.capital.split(" ")[0].toLowerCase()} / estado`]] as Array<[string, string]>) : []),
     ["m", "métrica"]
   ],
   "/rankings": [
@@ -55,8 +57,13 @@ export function StatusBar({ latestLabel }: { latestLabel: string }) {
           </span>
         ))}
         <span>
-          <span className="kbd">1–8</span>telas
+          <span className="kbd">1–{NAV_ITEMS.length}</span>telas
         </span>
+        {PUBLISHED_UFS.length > 1 ? (
+          <span>
+            <span className="kbd">u</span>uf
+          </span>
+        ) : null}
         <span>
           <span className="kbd">t</span>tema
         </span>

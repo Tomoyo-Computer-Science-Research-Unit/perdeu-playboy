@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { UF_CONFIG } from "@/lib/uf";
 
+// Tiroteios só existe onde há fonte (Fogo Cruzado cobre o Rio); as teclas seguem a ordem da lista.
 export const NAV_ITEMS = [
-  { href: "/", label: "Panorama", key: "1" },
-  { href: "/series", label: "Séries", key: "2" },
-  { href: "/mapa", label: "Mapa", key: "3" },
-  { href: "/rankings", label: "Rankings", key: "4" },
-  { href: "/mudancas", label: "Mudanças", key: "5" },
-  { href: "/mandatos", label: "Mandatos", key: "6" },
-  { href: "/tiroteios", label: "Tiroteios", key: "7" },
-  { href: "/metodologia", label: "Método", key: "8" }
-];
+  { href: "/", label: "Panorama" },
+  { href: "/series", label: "Séries" },
+  { href: "/mapa", label: "Mapa" },
+  { href: "/rankings", label: "Rankings" },
+  { href: "/mudancas", label: "Mudanças" },
+  { href: "/mandatos", label: "Mandatos" },
+  ...(UF_CONFIG.hasShootings ? [{ href: "/tiroteios", label: "Tiroteios" }] : []),
+  { href: "/metodologia", label: "Método" }
+].map((item, index) => ({ ...item, key: String(index + 1) }));
 
 export function isActivePath(pathname: string, href: string) {
   if (href === "/") {
@@ -37,7 +39,7 @@ export function SiteNav() {
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex h-12 items-center gap-1.5 px-2.5 text-[10.5px] font-medium uppercase tracking-[0.14em] transition-colors xl:px-3 xl:text-[11px] ${
+                className={`flex h-12 items-center gap-1.5 px-[7px] text-[10.5px] font-medium uppercase tracking-[0.06em] transition-colors ${
                   active ? "text-ink shadow-[inset_0_-1px_0_var(--ink)]" : "text-slate hover:text-ink"
                 }`}
               >

@@ -9,6 +9,7 @@ import { Field, Panel, Screen, Segmented } from "@/components/ui";
 import {
   CRIME_GENERAL_CODE,
   RIO_MUNICIPALITY,
+  STATE_NAME,
   getAnnualSeries,
   getGovernorTerms,
   getMayorTerms,
@@ -164,7 +165,7 @@ export function TrendsExplorer() {
   );
   useScreenHotkeys(hotkeys);
 
-  const territoryLabel = selection.type === "state" ? "Estado do Rio de Janeiro" : territoryName;
+  const territoryLabel = selection.type === "state" ? STATE_NAME : territoryName;
   const valueLabel = effectiveMetric === "rate" ? "Por 100 mil hab." : indicatorMeta?.unit === "armas" ? "Armas" : "Ocorrências";
 
   return (

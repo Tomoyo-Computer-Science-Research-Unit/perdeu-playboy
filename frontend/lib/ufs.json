@@ -1,0 +1,272 @@
+[
+ {
+  "code": "RJ",
+  "ibge_code": 33,
+  "name": "Rio de Janeiro",
+  "state_name": "Estado do Rio de Janeiro",
+  "capital": "Rio de Janeiro",
+  "source": "isp",
+  "start_year": 1991,
+  "published": true
+ },
+ {
+  "code": "SP",
+  "ibge_code": 35,
+  "name": "São Paulo",
+  "state_name": "Estado de São Paulo",
+  "capital": "São Paulo",
+  "source": "ssp",
+  "start_year": 2001,
+  "published": true
+ },
+ {
+  "code": "AC",
+  "ibge_code": 12,
+  "name": "Acre",
+  "state_name": "Estado do Acre",
+  "capital": "Rio Branco",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "AL",
+  "ibge_code": 27,
+  "name": "Alagoas",
+  "state_name": "Estado de Alagoas",
+  "capital": "Maceió",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "AP",
+  "ibge_code": 16,
+  "name": "Amapá",
+  "state_name": "Estado do Amapá",
+  "capital": "Macapá",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "AM",
+  "ibge_code": 13,
+  "name": "Amazonas",
+  "state_name": "Estado do Amazonas",
+  "capital": "Manaus",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "BA",
+  "ibge_code": 29,
+  "name": "Bahia",
+  "state_name": "Estado da Bahia",
+  "capital": "Salvador",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "CE",
+  "ibge_code": 23,
+  "name": "Ceará",
+  "state_name": "Estado do Ceará",
+  "capital": "Fortaleza",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "DF",
+  "ibge_code": 53,
+  "name": "Distrito Federal",
+  "state_name": "Distrito Federal",
+  "capital": "Brasília",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "ES",
+  "ibge_code": 32,
+  "name": "Espírito Santo",
+  "state_name": "Estado do Espírito Santo",
+  "capital": "Vitória",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "GO",
+  "ibge_code": 52,
+  "name": "Goiás",
+  "state_name": "Estado de Goiás",
+  "capital": "Goiânia",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "MA",
+  "ibge_code": 21,
+  "name": "Maranhão",
+  "state_name": "Estado do Maranhão",
+  "capital": "São Luís",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "MT",
+  "ibge_code": 51,
+  "name": "Mato Grosso",
+  "state_name": "Estado de Mato Grosso",
+  "capital": "Cuiabá",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "MS",
+  "ibge_code": 50,
+  "name": "Mato Grosso do Sul",
+  "state_name": "Estado de Mato Grosso do Sul",
+  "capital": "Campo Grande",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "MG",
+  "ibge_code": 31,
+  "name": "Minas Gerais",
+  "state_name": "Estado de Minas Gerais",
+  "capital": "Belo Horizonte",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": true
+ },
+ {
+  "code": "PR",
+  "ibge_code": 41,
+  "name": "Paraná",
+  "state_name": "Estado do Paraná",
+  "capital": "Curitiba",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "PB",
+  "ibge_code": 25,
+  "name": "Paraíba",
+  "state_name": "Estado da Paraíba",
+  "capital": "João Pessoa",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "PA",
+  "ibge_code": 15,
+  "name": "Pará",
+  "state_name": "Estado do Pará",
+  "capital": "Belém",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "PE",
+  "ibge_code": 26,
+  "name": "Pernambuco",
+  "state_name": "Estado de Pernambuco",
+  "capital": "Recife",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "PI",
+  "ibge_code": 22,
+  "name": "Piauí",
+  "state_name": "Estado do Piauí",
+  "capital": "Teresina",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "RN",
+  "ibge_code": 24,
+  "name": "Rio Grande do Norte",
+  "state_name": "Estado do Rio Grande do Norte",
+  "capital": "Natal",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "RS",
+  "ibge_code": 43,
+  "name": "Rio Grande do Sul",
+  "state_name": "Estado do Rio Grande do Sul",
+  "capital": "Porto Alegre",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "RO",
+  "ibge_code": 11,
+  "name": "Rondônia",
+  "state_name": "Estado de Rondônia",
+  "capital": "Porto Velho",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "RR",
+  "ibge_code": 14,
+  "name": "Roraima",
+  "state_name": "Estado de Roraima",
+  "capital": "Boa Vista",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "SC",
+  "ibge_code": 42,
+  "name": "Santa Catarina",
+  "state_name": "Estado de Santa Catarina",
+  "capital": "Florianópolis",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "SE",
+  "ibge_code": 28,
+  "name": "Sergipe",
+  "state_name": "Estado de Sergipe",
+  "capital": "Aracaju",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ },
+ {
+  "code": "TO",
+  "ibge_code": 17,
+  "name": "Tocantins",
+  "state_name": "Estado do Tocantins",
+  "capital": "Palmas",
+  "source": "sinesp",
+  "start_year": 2015,
+  "published": false
+ }
+]

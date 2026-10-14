@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { useScreenHotkeys } from "@/components/Hotkeys";
 import { RankingTable, type SortDirection, type SortKey } from "@/components/RankingTable";
 import { Field, Panel, Screen, Segmented } from "@/components/ui";
-import { CRIME_GENERAL_CODE, getIndicator, getIndicators, getLatestPeriod, getRankings, getSnapshotMeta } from "@/lib/api";
+import { LOCAL_INDICATOR, getLatestPeriod, getLocalIndicators, getRankings, getSnapshotMeta } from "@/lib/api";
+import { UF_CONFIG } from "@/lib/uf";
 import { formatPeriodRange, monthLong } from "@/lib/format";
 import { useSeries } from "@/lib/use-series";
 import type { RankingMode, RankingRow } from "@/types/api";
@@ -14,16 +15,13 @@ const MODES: RankingMode[] = ["rate", "count", "yoy"];
 export function RankingsExplorer() {
   const latest = getLatestPeriod();
   const coverage = getSnapshotMeta().coverage;
-  const [indicator, setIndicator] = useState(CRIME_GENERAL_CODE);
+  const [indicator, setIndicator] = useState(LOCAL_INDICATOR);
   const [mode, setMode] = useState<RankingMode>("rate");
   const [year, setYear] = useState(latest.year);
   const [month, setMonth] = useState(latest.month);
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection } | null>(null);
 
-  const indicators = useMemo(() => {
-    const general = getIndicator(CRIME_GENERAL_CODE);
-    return general ? [general, ...getIndicators()] : getIndicators();
-  }, []);
+  const indicators = useMemo(() => getLocalIndicators(), []);
   const activeIndex = Math.max(0, indicators.findIndex((item) => item.code === indicator));
   const maxMonth = year === latest.year ? latest.month : 12;
   const effectiveMonth = Math.min(month, maxMonth);
@@ -135,10 +133,10 @@ export function RankingsExplorer() {
       </Panel>
 
       <Panel
-        title={<b>Áreas integradas (CISP)</b>}
+        title={<b>{UF_CONFIG.policeAreaPlural}</b>}
         aside={<span>{policeAreaRows.length} · desde {coverage.police_area_start_year ?? "2003"}</span>}
         flush
-        foot={mode === "rate" ? "Sem população oficial por CISP: ordenado por ocorrências." : undefined}
+        foot={mode === "rate" ? UF_CONFIG.rateFootPoliceArea : undefined}
       >
         <RankingTable rows={policeAreaRows} territoryType="police_area" indicator={indicator} sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} />
       </Panel>

@@ -1,6 +1,8 @@
 export {
   CRIME_GENERAL_CODE,
   CRIME_RATE_INDICATORS,
+  LOCAL_INDICATOR,
+  getLocalIndicators,
   RIO_MUNICIPALITY,
   STATE_NAME,
   getAnnualSeries,

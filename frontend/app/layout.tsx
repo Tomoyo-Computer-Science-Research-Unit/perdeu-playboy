@@ -6,16 +6,17 @@ import { Hotkeys } from "@/components/Hotkeys";
 import { SiteNav } from "@/components/SiteNav";
 import { StatusBar } from "@/components/StatusBar";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { UfSelector } from "@/components/UfSelector";
 import { getSnapshotMeta } from "@/lib/api";
 import { monthShort } from "@/lib/format";
 import { cursorVars } from "@/lib/cursors";
+import { UF_CONFIG } from "@/lib/uf";
 import "./globals.css";
 
 const mincho = Shippori_Mincho_B1({ weight: ["500", "700"], subsets: ["latin"], variable: "--font-mincho", display: "swap" });
 const archivo = Archivo({ subsets: ["latin"], weight: "variable", axes: ["wdth"], variable: "--font-archivo", display: "swap" });
 
-const DESCRIPTION =
-  "Painel público de indicadores oficiais de violência e segurança pública no Estado do Rio de Janeiro: séries históricas desde 1991, municípios, áreas policiais, mapas e comparações por mandato.";
+const DESCRIPTION = UF_CONFIG.description;
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const SITE_URL = `https://g0v.tomoyo.systems${BASE_PATH}`;
@@ -28,7 +29,7 @@ export const metadata: Metadata = {
   authors: [{ name: "Tomoyo", url: "https://tomoyo.systems" }],
   creator: "Tomoyo",
   publisher: "Tomoyo",
-  keywords: ["Rio de Janeiro", "segurança pública", "violência", "ISP Dados Abertos", "letalidade violenta", "dados públicos", "série histórica"],
+  keywords: UF_CONFIG.keywords,
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
@@ -82,10 +83,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               </Link>
             </span>
             <SiteNav />
-            <ThemeToggle />
+            <span className="flex shrink-0 items-center gap-2">
+              <UfSelector />
+              <ThemeToggle />
+            </span>
           </header>
           <main className="app__main">{children}</main>
-          <StatusBar latestLabel={`ISP ${monthShort(latest.month)} ${latest.year}`} />
+          <StatusBar latestLabel={`${UF_CONFIG.sourceShort} ${monthShort(latest.month)} ${latest.year}`} />
         </div>
         <Hotkeys />
         <Fx />

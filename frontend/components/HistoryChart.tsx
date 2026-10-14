@@ -181,6 +181,10 @@ function shortName(governor: string): string {
   const parts = governor.split(" ");
   const last = parts[parts.length - 1];
   // "Rosinha" e "Anthony Garotinho" dividem o sobrenome, e "Silva" diz pouco: usa o primeiro nome.
+  // Em SP, Tarcísio e Marta são conhecidos pelo primeiro nome.
+  if (["Tarcísio", "Marta"].includes(parts[0])) {
+    return parts[0];
+  }
   if (["Garotinho", "Silva", "Maia", "Conde"].includes(last)) {
     return parts[0] === "Luiz" ? "Conde" : parts[0];
   }

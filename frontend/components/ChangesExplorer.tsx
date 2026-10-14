@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { EmptyState, Panel, Screen } from "@/components/ui";
+import { LOCAL_INDICATOR } from "@/lib/api";
+import { UF_CONFIG } from "@/lib/uf";
 import { deltaClass, formatMonthYear, formatNumber, formatPercent, formatSigned } from "@/lib/format";
 import type { ChangeRow, ChangeSection, LatestPeriod, TerritoryType } from "@/types/api";
 
@@ -23,9 +25,9 @@ function ChangeTable({ rows, territoryType }: { rows: ChangeRow[]; territoryType
         {rows.map((row) => (
           <tr key={row.territory_name}>
             <td className="num faint">{row.rank}</td>
-            <td className="max-w-[240px] truncate">
+            <td className="max-w-[240px] [overflow-wrap:anywhere]">
               <Link
-                href={`/series?indicator=crime_geral&type=${territoryType}&name=${encodeURIComponent(row.territory_name)}&view=rolling`}
+                href={`/series?indicator=${LOCAL_INDICATOR}&type=${territoryType}&name=${encodeURIComponent(row.territory_name)}&view=rolling`}
                 className="text-ink hover:underline hover:underline-offset-4"
                 title={row.territory_name}
               >
@@ -50,7 +52,11 @@ export function ChangesExplorer({ sections, latest }: { sections: ChangeSection[
         <Panel
           key={section.title}
           title={<b>{section.title}</b>}
-          aside={<span>12 meses até {formatMonthYear(latest.year, latest.month)}</span>}
+          aside={
+            <span>
+              {UF_CONFIG.changesIndicatorLabel ? `${UF_CONFIG.changesIndicatorLabel} · ` : ""}12 meses até {formatMonthYear(latest.year, latest.month)}
+            </span>
+          }
           flush
         >
           <ChangeTable rows={section.rows} territoryType={section.territory_type} />

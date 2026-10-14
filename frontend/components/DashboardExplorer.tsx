@@ -10,6 +10,7 @@ import { TERRITORY_TYPES, TerritoryControls, nextSelection, type TerritorySelect
 import { Panel, Screen, Segmented, Stat } from "@/components/ui";
 import {
   RIO_MUNICIPALITY,
+  STATE_NAME,
   getAnnualSeries,
   getGovernorTerms,
   getMayorTerms,
@@ -65,7 +66,7 @@ export function DashboardExplorer() {
   const chartPoints = useMemo(() => toChartPoints(annual, effectiveMetric, latest.month), [annual, effectiveMetric, latest.month]);
   const indicatorMeta = getIndicator(activeIndicator);
   const firstYear = annual[0]?.year ?? latest.year;
-  const territoryLabel = selection.type === "state" ? "Estado do Rio de Janeiro" : territoryName;
+  const territoryLabel = selection.type === "state" ? STATE_NAME : territoryName;
   const trendsHref = `/series?indicator=${activeIndicator}&type=${selection.type}&name=${encodeURIComponent(territoryName)}`;
 
   const hotkeys = useMemo(

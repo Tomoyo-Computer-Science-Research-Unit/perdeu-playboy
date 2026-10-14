@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Roda no droplet, por cron, uma vez por dia: puxa main, baixa de novo os arquivos oficiais,
-# confere o contrato de cada um, regenera o snapshot e, se o código ou os dados mudaram desde o
-# último build, constrói o site e troca os arquivos em /root/g0v/site/perdeu-playboy. A landing,
-# o nginx e o cron são do repositório g0v. Cada rodada entra em runs.jsonl e no status.json
-# servido pelo site; falhas avisam por e-mail.
+# Roda no droplet, por cron, uma vez por dia: puxa main e, para cada UF publicada em
+# frontend/lib/ufs.json, baixa de novo os arquivos oficiais, confere o contrato de cada um e regenera
+# o snapshot (frontend/data/<uf>/). Se o código ou os dados mudaram desde o último build, constrói um
+# site por UF e troca os arquivos: o Rio em /root/g0v/site/perdeu-playboy, as demais em
+# /root/g0v/site/perdeu-playboy/<uf>/. Falha no ETL de uma UF não derruba as outras: aquela UF segue
+# com o snapshot commitado. A landing, o nginx e o cron são do repositório g0v. Cada rodada entra em
+# runs.jsonl e no status.json de cada UF; falhas avisam por e-mail.
 #
 #   /root/g0v/build-site.sh               # só reconstrói se algo mudou
 #   FORCE=1 /root/g0v/build-site.sh       # reconstrói de qualquer jeito
@@ -16,9 +18,8 @@ DIR="${DIR:-/root/g0v}"
 SRC="$DIR/src"
 MARK="$DIR/.site-built"
 RUNS="$DIR/runs.jsonl"
-CHECK="$DIR/check.json"
 BASE_PATH="/perdeu-playboy"
-STATUS_OUT="$DIR/site$BASE_PATH/status.json"
+ROOT_UF="RJ"
 ALERT_TO="${ALERT_TO:-arete@tomoyo.systems}"
 export ISP_DATA_BASE_URL="${ISP_DATA_BASE_URL:-http://www.ispdados.rj.gov.br/Arquivos}"
 # Credenciais de fontes opcionais (Fogo Cruzado): FOGOCRUZADO_EMAIL, FOGOCRUZADO_PASSWORD, ENABLE_FOGOCRUZADO.
@@ -57,11 +58,22 @@ notify() {
     | docker exec -i mailserver sendmail -t || log "aviso por e-mail falhou"
 }
 
+# base_path UF: /perdeu-playboy para o Rio, /perdeu-playboy/<uf> para as demais.
+base_path() {
+  if [ "$1" = "$ROOT_UF" ]; then echo "$BASE_PATH"; else echo "$BASE_PATH/$(echo "$1" | tr '[:upper:]' '[:lower:]')"; fi
+}
+
+# Um status.json por UF, servido em <base>/status.json.
 write_status() {
-  if [ -x "${PY:-}" ] && [ -f "$SRC/frontend/lib/static-data.generated.json" ]; then
-    (cd "$SRC/backend" && "$PY" -m app.etl.write_status --snapshot ../frontend/lib/static-data.generated.json \
-      --runs "$RUNS" --check "$CHECK" --out "$STATUS_OUT") || log "status.json falhou"
-  fi
+  [ -x "${PY:-}" ] || return 0
+  for uf in ${UFS:-}; do
+    lower="$(echo "$uf" | tr '[:upper:]' '[:lower:]')"
+    snapshot="$SRC/frontend/data/$lower/static-data.generated.json"
+    [ -f "$snapshot" ] || continue
+    mkdir -p "$DIR/site$(base_path "$uf")"
+    (cd "$SRC/backend" && "$PY" -m app.etl.write_status --snapshot "$snapshot" \
+      --runs "$RUNS" --check "$DIR/check-$lower.json" --out "$DIR/site$(base_path "$uf")/status.json") || log "status.json de $uf falhou"
+  done
 }
 
 on_error() {
@@ -90,38 +102,49 @@ PY="$SRC/backend/.venv/bin/python"
 [ -x "$PY" ] || uv venv -q --python 3.12 "$SRC/backend/.venv"
 uv pip install -q --python "$PY" -e "$SRC/backend"
 
+UFS="$(cd "$SRC/backend" && "$PY" -m app.uf)"
+log "UFs publicadas: $(echo $UFS)"
+
 if [ "${SKIP_DATA:-0}" != "1" ]; then
-  # Sem cache dos arquivos brutos: baixar de novo é a checagem de arquivo novo.
+  # Sem cache dos arquivos do ISP e do IBGE: baixar de novo é a checagem de arquivo novo. As respostas da
+  # SSP-SP e os arquivos do Sinesp ficam: anos fechados não mudam, e o ano corrente é baixado de novo.
   rm -rf "$SRC/data/raw/isp" "$SRC/data/raw/ibge"
-  if check_output="$(cd "$SRC/backend" && "$PY" -m app.etl.check_sources --json "$CHECK" 2>&1)"; then
-    log "contrato ok"
-    if etl_output="$(cd "$SRC/backend" && "$PY" -m app.etl.export_static_frontend 2>&1)"; then
-      log "ETL ok"
+  for uf in $UFS; do
+    lower="$(echo "$uf" | tr '[:upper:]' '[:lower:]')"
+    if check_output="$(cd "$SRC/backend" && "$PY" -m app.etl.check_sources --uf "$uf" --json "$DIR/check-$lower.json" 2>&1)"; then
+      log "$uf: contrato ok"
+      if etl_output="$(cd "$SRC/backend" && "$PY" -m app.etl.export_static_frontend --uf "$uf" 2>&1)"; then
+        log "$uf: ETL ok"
+      else
+        log "$uf: ETL falhou; usando o snapshot commitado em main"
+        note="${note:+$note; }$uf: ETL falhou"
+        notify "[perdeu-playboy] ETL de $uf falhou" "$(printf '%s\n\n%s' "O export de $uf falhou; essa UF segue com o snapshot de main." "$etl_output" | tail -c 6000)"
+        git -C "$SRC" checkout -q -- "frontend/data/$lower"
+      fi
     else
-      log "ETL falhou; usando o snapshot commitado em main"
-      note="ETL falhou"
-      notify "[perdeu-playboy] ETL falhou" "$(printf '%s\n\n%s' "O export falhou; o site segue com o snapshot de main." "$etl_output" | tail -c 6000)"
-      git -C "$SRC" checkout -q -- frontend/lib
+      log "$uf: contrato falhou; usando o snapshot commitado em main"
+      note="${note:+$note; }$uf: contrato falhou"
+      notify "[perdeu-playboy] contrato dos arquivos de $uf falhou" "$(printf '%s\n\n%s' "Algum arquivo oficial de $uf mudou de forma. Essa UF segue com o snapshot de main." "$check_output" | tail -c 6000)"
+      git -C "$SRC" checkout -q -- "frontend/data/$lower"
     fi
-  else
-    log "contrato falhou; usando o snapshot commitado em main"
-    note="contrato falhou"
-    notify "[perdeu-playboy] contrato dos arquivos do ISP falhou" "$(printf '%s\n\n%s' "Algum arquivo oficial mudou de forma. O site segue com o snapshot de main." "$check_output" | tail -c 6000)"
-    git -C "$SRC" checkout -q -- frontend/lib
-  fi
+  done
 fi
 
 # Chave do build: commit + conteúdo do snapshot sem o generated_at, que muda a cada execução.
-key="$rev $(cd "$SRC" && "$PY" - <<'EOF'
-import hashlib, json, pathlib
+key="$rev $(cd "$SRC" && "$PY" - $UFS <<'EOF'
+import hashlib, json, pathlib, sys
 h = hashlib.sha256()
-for name in ["frontend/lib/static-data.generated.json", *sorted(str(p) for p in pathlib.Path("frontend/lib/static-series").glob("*.generated.json")), "frontend/lib/static-geo.generated.json"]:
-    data = json.loads(pathlib.Path(name).read_text(encoding="utf-8"))
-    if isinstance(data, dict):
-        data.pop("generated_at", None)
-    h.update(json.dumps(data, sort_keys=True, separators=(",", ":")).encode())
-latest = json.loads(pathlib.Path("frontend/lib/static-data.generated.json").read_text(encoding="utf-8"))["latest_period"]
-print(f"{h.hexdigest()[:16]} ate={latest['year']}-{latest['month']:02d}")
+latest = []
+for uf in sys.argv[1:]:
+    base = pathlib.Path("frontend/data") / uf.lower()
+    for path in [base / "static-data.generated.json", *sorted((base / "static-series").glob("*.generated.json")), base / "static-geo.generated.json"]:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            data.pop("generated_at", None)
+        h.update(json.dumps(data, sort_keys=True, separators=(",", ":")).encode())
+    period = json.loads((base / "static-data.generated.json").read_text(encoding="utf-8"))["latest_period"]
+    latest.append(f"{uf}={period['year']}-{period['month']:02d}")
+print(f"{h.hexdigest()[:16]} {' '.join(latest)}")
 EOF
 )"
 
@@ -133,10 +156,26 @@ if [ "${FORCE:-0}" != "1" ] && [ -f "$MARK" ] && [ "$(cat "$MARK")" = "$key" ]; 
 fi
 
 log "construindo ($key)"
-(cd "$SRC/frontend" && npm ci --no-audit --no-fund --silent && rm -rf out .next && NEXT_PUBLIC_BASE_PATH="$BASE_PATH" npm run build --silent >/dev/null)
-
-mkdir -p "$DIR/site$BASE_PATH"
-rsync -a --delete --chmod=D755,F644 "$SRC/frontend/out/" "$DIR/site$BASE_PATH/"
+(cd "$SRC/frontend" && npm ci --no-audit --no-fund --silent)
+# A raiz (Rio) não pode apagar as pastas das outras UFs no rsync --delete.
+excludes=""
+for uf in $UFS; do
+  [ "$uf" = "$ROOT_UF" ] || excludes="$excludes --exclude=/$(echo "$uf" | tr '[:upper:]' '[:lower:]')/"
+done
+for uf in $UFS; do
+  base="$(base_path "$uf")"
+  log "build $uf em $base"
+  (cd "$SRC/frontend" && rm -rf out .next && NEXT_PUBLIC_UF="$uf" NEXT_PUBLIC_BASE_PATH="$base" npm run build --silent >/dev/null)
+  mkdir -p "$DIR/site$base"
+  if [ "$uf" = "$ROOT_UF" ]; then
+    # shellcheck disable=SC2086
+    rsync -a --delete $excludes --exclude=/status.json --chmod=D755,F644 "$SRC/frontend/out/" "$DIR/site$base/"
+  else
+    rsync -a --delete --exclude=/status.json --chmod=D755,F644 "$SRC/frontend/out/" "$DIR/site$base/"
+  fi
+done
+# Deixa lib/ com o Rio, como no repositório.
+(cd "$SRC/frontend" && sh ../scripts/use-uf.sh "$ROOT_UF" >/dev/null)
 echo "$key" > "$MARK"
 record "publicado" "$note"
 write_status

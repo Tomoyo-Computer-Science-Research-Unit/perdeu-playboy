@@ -12,16 +12,23 @@ import httpx
 import pandas as pd
 
 from app.config import settings
+from app.etl import ibge_http
+from app.uf import current
 
 logger = logging.getLogger(__name__)
 
 IBGE_POPULATION_SOURCE_NAME = "IBGE SIDRA - Populacao residente estimada"
-IBGE_ESTIMATED_POPULATION_URL = (
-    "https://apisidra.ibge.gov.br/values/t/6579/n6/in%20n3%2033/v/9324/p/last"
-)
-IBGE_CENSUS_POPULATION_URL = (
-    "https://apisidra.ibge.gov.br/values/t/4714/n6/in%20n3%2033/v/93/p/2022"
-)
+# As URLs levam o codigo IBGE da UF corrente (33 = RJ, 35 = SP) no lugar de {uf}.
+IBGE_ESTIMATED_POPULATION_URL = "https://apisidra.ibge.gov.br/values/t/6579/n6/in%20n3%20{uf}/v/9324/p/last"
+IBGE_CENSUS_POPULATION_URL = "https://apisidra.ibge.gov.br/values/t/4714/n6/in%20n3%20{uf}/v/93/p/2022"
+
+
+def _url(template: str) -> str:
+    return template.format(uf=current().ibge_code)
+
+
+def _uf_tag() -> str:
+    return current().code.lower()
 
 
 def population_for_municipality(ibge_code: object = None, municipality_name: str | None = None) -> float | None:
@@ -39,8 +46,12 @@ def population_for_municipality(ibge_code: object = None, municipality_name: str
     return None
 
 
-@lru_cache(maxsize=1)
 def municipality_populations() -> dict[str, dict[str, dict[str, float | str | int]]]:
+    return _municipality_populations(current().code)
+
+
+@lru_cache(maxsize=4)
+def _municipality_populations(uf: str) -> dict[str, dict[str, dict[str, float | str | int]]]:
     rows = _load_or_download_population_rows()
     parsed = _parse_sidra_rows(rows)
     return {
@@ -57,7 +68,7 @@ def _load_or_download_population_rows() -> list[dict[str, Any]]:
         except json.JSONDecodeError:
             logger.warning("Ignoring invalid IBGE population cache at %s", cache_path)
 
-    for url in (IBGE_ESTIMATED_POPULATION_URL, IBGE_CENSUS_POPULATION_URL):
+    for url in (_url(IBGE_ESTIMATED_POPULATION_URL), _url(IBGE_CENSUS_POPULATION_URL)):
         try:
             rows = _download_population_rows(url)
         except httpx.HTTPError as exc:
@@ -74,10 +85,9 @@ def _load_or_download_population_rows() -> list[dict[str, Any]]:
 
 
 def _download_population_rows(url: str) -> list[dict[str, Any]]:
-    with httpx.Client(timeout=60, follow_redirects=True) as client:
-        response = client.get(url)
-        response.raise_for_status()
-        data = response.json()
+    response = ibge_http.get(url, timeout=60)
+    response.raise_for_status()
+    data = response.json()
     if not isinstance(data, list):
         return []
     return [row for row in data if isinstance(row, dict)]
@@ -105,7 +115,7 @@ def _parse_sidra_rows(rows: list[dict[str, Any]]) -> list[dict[str, float | str 
 
 
 def _cache_path() -> Path:
-    return (settings.data_dir / "raw" / "ibge" / "population_municipalities_rj_latest.json").resolve()
+    return (settings.data_dir / "raw" / "ibge" / f"population_municipalities_{_uf_tag()}_latest.json").resolve()
 
 
 def _clean_code(value: object) -> str:
@@ -122,7 +132,7 @@ def _clean_code(value: object) -> str:
 def _clean_municipality_name(value: object) -> str:
     if value is None or pd.isna(value):
         return ""
-    return re.sub(r"\s+-\s+RJ$", "", str(value).strip(), flags=re.IGNORECASE)
+    return re.sub(r"\s+-\s+[A-Z]{2}$", "", str(value).strip(), flags=re.IGNORECASE)
 
 
 def _normalize_name(value: str) -> str:
@@ -152,21 +162,25 @@ def _numeric_population(value: object) -> float | None:
 # publicacao (1992-1999, 2023) sao interpolados linearmente entre os pontos vizinhos e
 # marcados como `interpolated` no snapshot.
 
-IBGE_STATE_ESTIMATES_URL = "https://apisidra.ibge.gov.br/values/t/6579/n3/33/v/9324/p/all"
-IBGE_STATE_CENSUS_URL = "https://apisidra.ibge.gov.br/values/t/200/n3/33/v/93/p/1991,2000,2010"
-IBGE_STATE_COUNT_2007_URL = "https://apisidra.ibge.gov.br/values/t/793/n3/33/v/93/p/2007"
-IBGE_STATE_CENSUS_2022_URL = "https://apisidra.ibge.gov.br/values/t/4714/n3/33/v/93/p/2022"
-IBGE_MUNICIPALITY_ESTIMATES_URL = "https://apisidra.ibge.gov.br/values/t/6579/n6/in%20n3%2033/v/9324/p/all"
+IBGE_STATE_ESTIMATES_URL = "https://apisidra.ibge.gov.br/values/t/6579/n3/{uf}/v/9324/p/all"
+IBGE_STATE_CENSUS_URL = "https://apisidra.ibge.gov.br/values/t/200/n3/{uf}/v/93/p/1991,2000,2010"
+IBGE_STATE_COUNT_2007_URL = "https://apisidra.ibge.gov.br/values/t/793/n3/{uf}/v/93/p/2007"
+IBGE_STATE_CENSUS_2022_URL = "https://apisidra.ibge.gov.br/values/t/4714/n3/{uf}/v/93/p/2022"
+IBGE_MUNICIPALITY_ESTIMATES_URL = "https://apisidra.ibge.gov.br/values/t/6579/n6/in%20n3%20{uf}/v/9324/p/all"
 IBGE_MUNICIPALITY_CENSUS_2022_URL = IBGE_CENSUS_POPULATION_URL
-IBGE_MUNICIPALITY_CENSUS_2010_URL = "https://apisidra.ibge.gov.br/values/t/200/n6/in%20n3%2033/v/93/p/2010"
+IBGE_MUNICIPALITY_CENSUS_2010_URL = "https://apisidra.ibge.gov.br/values/t/200/n6/in%20n3%20{uf}/v/93/p/2010"
 
 PopulationHistory = dict[int, dict[str, float | bool]]
 
 
-@lru_cache(maxsize=1)
 def state_population_history(start_year: int, end_year: int) -> PopulationHistory:
-    """Return the RJ state population per year, interpolating years without an IBGE figure."""
+    """Return the state population per year, interpolating years without an IBGE figure."""
 
+    return _state_population_history(current().code, start_year, end_year)
+
+
+@lru_cache(maxsize=4)
+def _state_population_history(uf: str, start_year: int, end_year: int) -> PopulationHistory:
     observed: dict[int, float] = {}
     for url in (
         IBGE_STATE_CENSUS_URL,
@@ -174,6 +188,7 @@ def state_population_history(start_year: int, end_year: int) -> PopulationHistor
         IBGE_STATE_CENSUS_2022_URL,
         IBGE_STATE_ESTIMATES_URL,
     ):
+        url = _url(url)
         for row in _load_or_download_rows(url, _history_cache_path("state", url)):
             year = _row_year(row)
             value = _numeric_population(row.get("V"))
@@ -182,16 +197,21 @@ def state_population_history(start_year: int, end_year: int) -> PopulationHistor
     return _interpolate_years(observed, start_year, end_year)
 
 
-@lru_cache(maxsize=1)
 def municipality_population_history(start_year: int, end_year: int) -> dict[str, PopulationHistory]:
-    """Return population per year for every RJ municipality, keyed by municipality name."""
+    """Return population per year for every municipality of the current UF, keyed by name."""
 
+    return _municipality_population_history(current().code, start_year, end_year)
+
+
+@lru_cache(maxsize=4)
+def _municipality_population_history(uf: str, start_year: int, end_year: int) -> dict[str, PopulationHistory]:
     observed: dict[str, dict[int, float]] = {}
     for url in (
         IBGE_MUNICIPALITY_CENSUS_2010_URL,
         IBGE_MUNICIPALITY_CENSUS_2022_URL,
         IBGE_MUNICIPALITY_ESTIMATES_URL,
     ):
+        url = _url(url)
         for row in _load_or_download_rows(url, _history_cache_path("municipalities", url)):
             name = _clean_municipality_name(row.get("D1N"))
             year = _row_year(row)
@@ -242,7 +262,7 @@ def _history_cache_path(scope: str, url: str) -> Path:
     table = re.search(r"/t/(\d+)/", url)
     period = re.search(r"/p/([^/]+)$", url)
     suffix = f"t{table.group(1) if table else 'x'}_{(period.group(1) if period else 'all').replace(',', '_')}"
-    return (settings.data_dir / "raw" / "ibge" / f"population_{scope}_rj_{suffix}.json").resolve()
+    return (settings.data_dir / "raw" / "ibge" / f"population_{scope}_{_uf_tag()}_{suffix}.json").resolve()
 
 
 def _load_or_download_rows(url: str, cache_path: Path) -> list[dict[str, Any]]:
