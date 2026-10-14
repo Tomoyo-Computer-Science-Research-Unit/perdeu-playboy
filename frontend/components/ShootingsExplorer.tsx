@@ -24,7 +24,7 @@ type View = "annual" | "monthly";
 const SCOPES: Array<{ value: Scope; label: string }> = [
   { value: "state", label: "Estado" },
   { value: "municipality", label: "Município" },
-  { value: "neighborhood", label: "Bairro do Rio" }
+  { value: "neighborhood", label: "Bairro" }
 ];
 
 function toChartPoints(points: AnnualPoint[], latestMonth: number): ChartPoint[] {

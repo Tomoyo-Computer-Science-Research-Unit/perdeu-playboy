@@ -53,6 +53,9 @@ por tela. A mira e os elementos quebráveis são os do tomoyo.systems; o mon com
   tabela ano a ano; CSV. Permalinks em `?indicator=&type=&name=&view=&metric=&from=&to=`.
 - `/mapa` Mapa: coropleto de municípios e, ao clicar no Rio, de bairros agregados por CISP. Escala por posição.
 - `/rankings`, `/mudancas`, `/mandatos`, `/metodologia`, `/glossario`, `/fontes`.
+- `/tiroteios` Tiroteios: ocorrências, mortos e feridos registrados pelo Instituto Fogo Cruzado desde julho
+  de 2016, por estado, município e bairro do Rio, com ranking do recorte. Fonte colaborativa, separada do ISP;
+  entra no build só com credenciais (ver Deploy).
 - `/status` Status: última checagem e último build no servidor, mês mais recente, cada arquivo do ISP
   (data de modificação no servidor deles, tamanho, SHA-256, contrato) e as últimas rodadas. Lê o
   `status.json` que o `build-site.sh` escreve a cada rodada.
@@ -159,4 +162,4 @@ O projeto Vercel antigo (`perdeu-playboy.online`) só redireciona (`deploy/verce
 ## Roadmap
 
 - Geometrias oficiais das CISPs, quando o ISP publicar.
-- Fogo Cruzado como fonte separada, com credenciais autorizadas.
+- Mapa de tiroteios por bairro, com as geometrias já usadas no mapa do ISP.
