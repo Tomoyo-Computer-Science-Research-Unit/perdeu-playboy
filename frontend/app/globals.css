@@ -854,3 +854,8 @@ html.fx[data-theme="dark"] .detail {
 .panel__body--fill {
   overflow: auto;
 }
+
+/* Discord flutuante do g0v: acima da barra de status. */
+:root {
+  --g0v-discord-bottom: 34px;
+}
