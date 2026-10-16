@@ -9,7 +9,7 @@
 #
 #   /root/g0v/build-site.sh               # só reconstrói se algo mudou
 #   FORCE=1 /root/g0v/build-site.sh       # reconstrói de qualquer jeito
-#   SKIP_DATA=1 /root/g0v/build-site.sh   # pula download, contrato e ETL; usa o snapshot de main
+#   SKIP_DATA=1 /root/g0v/build-site.sh   # pula download, contrato e ETL; usa o último snapshot bom do servidor
 set -euo pipefail
 export PATH=/usr/local/bin:/usr/bin:/bin
 
@@ -105,6 +105,17 @@ uv pip install -q --python "$PY" -e "$SRC/backend"
 UFS="$(cd "$SRC/backend" && "$PY" -m app.uf)"
 log "UFs publicadas: $(echo $UFS)"
 
+if [ "${SKIP_DATA:-0}" = "1" ]; then
+  # Sem ETL: o último snapshot bom de cada UF (se houver) no lugar do commitado em main.
+  for uf in $UFS; do
+    lower="$(echo "$uf" | tr '[:upper:]' '[:lower:]')"
+    if [ -s "$DIR/data-ok/$lower/static-data.generated.json" ]; then
+      rsync -a --delete "$DIR/data-ok/$lower/" "$SRC/frontend/data/$lower/"
+      log "$uf: snapshot do último ETL bom"
+    fi
+  done
+fi
+
 if [ "${SKIP_DATA:-0}" != "1" ]; then
   # Sem cache dos arquivos do ISP e do IBGE: baixar de novo é a checagem de arquivo novo. As respostas da
   # SSP-SP e os arquivos do Sinesp ficam: anos fechados não mudam, e o ano corrente é baixado de novo.
@@ -115,6 +126,10 @@ if [ "${SKIP_DATA:-0}" != "1" ]; then
       log "$uf: contrato ok"
       if etl_output="$(cd "$SRC/backend" && "$PY" -m app.etl.export_static_frontend --uf "$uf" 2>&1)"; then
         log "$uf: ETL ok"
+        # Guarda o último snapshot bom fora do clone: um build com SKIP_DATA=1 usa este, não o de main,
+        # que não tem as fontes que só o servidor alcança (Fogo Cruzado, com credenciais).
+        mkdir -p "$DIR/data-ok/$lower"
+        rsync -a --delete "$SRC/frontend/data/$lower/" "$DIR/data-ok/$lower/"
       else
         log "$uf: ETL falhou; usando o snapshot commitado em main"
         note="${note:+$note; }$uf: ETL falhou"
