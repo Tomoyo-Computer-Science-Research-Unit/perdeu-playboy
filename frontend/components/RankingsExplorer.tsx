@@ -4,13 +4,15 @@ import { useMemo, useState } from "react";
 import { useScreenHotkeys } from "@/components/Hotkeys";
 import { RankingTable, type SortDirection, type SortKey } from "@/components/RankingTable";
 import { Field, Panel, Screen, Segmented } from "@/components/ui";
-import { localIndicator, getLatestPeriod, getLocalIndicators, getRankings, getSnapshotMeta } from "@/lib/api";
+import { localIndicator, getLatestPeriod, getLocalIndicators, getRankings, getSnapshotMeta, getTerritories } from "@/lib/api";
 import { ufConfig } from "@/lib/uf";
 import { formatPeriodRange, monthLong } from "@/lib/format";
 import { useSeries } from "@/lib/use-series";
 import type { RankingMode, RankingRow } from "@/types/api";
 
 const MODES: RankingMode[] = ["rate", "count", "yoy"];
+/** Até quantas linhas a lista de municípios (ou UFs) se divide em duas colunas quando não há áreas policiais. */
+const SPLIT_LIMIT = 30;
 
 export function RankingsExplorer() {
   const latest = getLatestPeriod();
@@ -22,6 +24,7 @@ export function RankingsExplorer() {
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection } | null>(null);
 
   const indicators = useMemo(() => getLocalIndicators(), []);
+  const hasPoliceAreas = useMemo(() => getTerritories("police_area").length > 0, []);
   const activeIndex = Math.max(0, indicators.findIndex((item) => item.code === indicator));
   const maxMonth = year === latest.year ? latest.month : 12;
   const effectiveMonth = Math.min(month, maxMonth);
@@ -128,18 +131,43 @@ export function RankingsExplorer() {
         </div>
       </Panel>
 
-      <Panel title={<b>Municípios</b>} aside={<span>{municipalityRows.length} · desde {coverage.municipality_start_year ?? "–"}</span>} flush>
-        <RankingTable rows={municipalityRows} territoryType="municipality" indicator={indicator} sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} />
-      </Panel>
+      {hasPoliceAreas ? (
+        <>
+          <Panel title={<b>{ufConfig().unitPlural}</b>} aside={<span>{municipalityRows.length} · desde {coverage.municipality_start_year ?? "–"}</span>} flush>
+            <RankingTable rows={municipalityRows} territoryType="municipality" indicator={indicator} sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} />
+          </Panel>
 
-      <Panel
-        title={<b>{ufConfig().policeAreaPlural}</b>}
-        aside={<span>{policeAreaRows.length} · desde {coverage.police_area_start_year ?? "–"}</span>}
-        flush
-        foot={mode === "rate" ? ufConfig().rateFootPoliceArea : undefined}
-      >
-        <RankingTable rows={policeAreaRows} territoryType="police_area" indicator={indicator} sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} />
-      </Panel>
+          <Panel
+            title={<b>{ufConfig().policeAreaPlural}</b>}
+            aside={<span>{policeAreaRows.length} · desde {coverage.police_area_start_year ?? "–"}</span>}
+            flush
+            foot={mode === "rate" ? ufConfig().rateFootPoliceArea : undefined}
+          >
+            <RankingTable rows={policeAreaRows} territoryType="police_area" indicator={indicator} sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} />
+          </Panel>
+        </>
+      ) : municipalityRows.length <= SPLIT_LIMIT ? (
+        // Sem áreas policiais e com lista curta (as 27 UFs no Brasil): a lista em duas colunas, inteira na tela.
+        [municipalityRows.slice(0, Math.ceil(municipalityRows.length / 2)), municipalityRows.slice(Math.ceil(municipalityRows.length / 2))].map((rows, index) => (
+          <Panel
+            key={index}
+            title={<b>{ufConfig().unitPlural}</b>}
+            aside={<span>{rows.length ? `${rows[0].rank}–${rows[rows.length - 1].rank} de ${municipalityRows.length}` : ""}{index === 0 ? ` · desde ${coverage.municipality_start_year ?? "–"}` : ""}</span>}
+            flush
+          >
+            <RankingTable rows={rows} territoryType="municipality" indicator={indicator} sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} />
+          </Panel>
+        ))
+      ) : (
+        <Panel
+          title={<b>{ufConfig().unitPlural}</b>}
+          aside={<span>{municipalityRows.length} · desde {coverage.municipality_start_year ?? "–"}</span>}
+          flush
+          style={{ gridColumn: "1 / span 2" }}
+        >
+          <RankingTable rows={municipalityRows} territoryType="municipality" indicator={indicator} sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} />
+        </Panel>
+      )}
     </Screen>
   );
 }

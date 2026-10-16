@@ -280,3 +280,34 @@ def _load_or_download_rows(url: str, cache_path: Path) -> list[dict[str, Any]]:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
     return rows
+
+
+# --- Brasil e UFs (nivel nacional) --------------------------------------------------------
+#
+# As mesmas tabelas, com o pais (n1) e todas as UFs (n3) numa chamada por tabela. O ano de 2023,
+# sem publicacao, e interpolado entre o Censo 2022 e a estimativa de 2024, como nas UFs.
+
+IBGE_COUNTRY_URLS = (
+    "https://apisidra.ibge.gov.br/values/t/200/{level}/all/v/93/p/2010",
+    "https://apisidra.ibge.gov.br/values/t/4714/{level}/all/v/93/p/2022",
+    "https://apisidra.ibge.gov.br/values/t/6579/{level}/all/v/9324/p/all",
+)
+
+
+@lru_cache(maxsize=2)
+def country_population_history(start_year: int, end_year: int) -> dict[str, PopulationHistory]:
+    """Populacao por ano do Brasil (codigo "1") e de cada UF (codigo IBGE da UF, "33"), interpolada onde falta."""
+
+    observed: dict[str, dict[int, float]] = {}
+    for level in ("n1", "n3"):
+        for template in IBGE_COUNTRY_URLS:
+            url = template.format(level=level)
+            table = re.search(r"/t/(\d+)/", url)
+            cache = settings.data_dir / "raw" / "ibge" / f"population_country_{level}_t{table.group(1) if table else 'x'}.json"
+            for row in _load_or_download_rows(url, cache.resolve()):
+                code = _clean_code(row.get("D1C"))
+                year = _row_year(row)
+                value = _numeric_population(row.get("V"))
+                if code and year and value is not None:
+                    observed.setdefault(code, {}).setdefault(year, value)
+    return {code: _interpolate_years(years, start_year, end_year) for code, years in sorted(observed.items())}

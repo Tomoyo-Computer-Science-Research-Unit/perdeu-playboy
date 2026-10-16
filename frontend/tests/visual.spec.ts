@@ -1,9 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
 // Um build serve todas as UFs: o Rio na raiz, as demais em /<uf>/. O conjunto comum roda no Rio, em
-// São Paulo e em quatro UFs do Sinesp (Minas, Distrito Federal, Amazonas, Bahia); os testes que
-// dependem de dados de uma UF ficam nela.
-const UFS = ["RJ", "SP", "MG", "DF", "AM", "BA"];
+// São Paulo, em quatro UFs do Sinesp (Minas, Distrito Federal, Amazonas, Bahia) e no Brasil (/br/,
+// o país no lugar do estado e as UFs no dos municípios); os testes que dependem de dados de uma UF ficam nela.
+const UFS = ["RJ", "SP", "MG", "DF", "AM", "BA", "BR"];
 const prefix = (uf: string) => (uf === "RJ" ? "" : `/${uf.toLowerCase()}`);
 const screensFor = (uf: string) => ["/", "/series", "/mapa", "/rankings", "/mudancas", "/mandatos", "/metodologia", "/status", ...(uf === "RJ" ? ["/tiroteios"] : [])];
 
@@ -55,7 +55,9 @@ for (const uf of UFS) {
     await open(page, `${prefix(uf)}/`);
     const selector = page.getByLabel("Unidade da federação");
     await expect(selector).toHaveValue(uf);
-    expect(await selector.locator("option").count()).toBe(27);
+    // As 27 UFs e o Brasil, no topo.
+    expect(await selector.locator("option").count()).toBe(28);
+    await expect(selector.locator("option").first()).toHaveText("Brasil");
   });
 }
 
@@ -146,4 +148,38 @@ test("AM: Manaus series and governors since 2014", async ({ page }) => {
   await expect.poll(async () => page.locator(".recharts-bar-rectangle, .recharts-line-curve").count(), { timeout: 15_000 }).toBeGreaterThan(0);
   await open(page, "/am/mandatos");
   await expect(page.getByText("Amazonino Mendes").first()).toBeVisible();
+});
+
+test("BR: national total, UFs as units and presidents", async ({ page }) => {
+  await open(page, "/br/");
+  await expect(page.getByLabel("Unidade da federação")).toHaveValue("BR");
+  await expect(page.getByRole("heading", { level: 3, name: "Homicídio doloso" }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Brasil", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "UF", exact: true })).toBeVisible();
+
+  await open(page, "/br/mapa");
+  // A malha do país com divisão por UF: 27 formas, todas com dado de homicídio doloso.
+  await expect(page.locator("svg[role=img] path")).toHaveCount(27);
+  await expect(page.locator("main").getByText("UFs").first()).toBeVisible();
+
+  await open(page, "/br/rankings");
+  await expect(page.getByText("UFs", { exact: true }).first()).toBeVisible();
+  await expect.poll(async () => page.locator("table.ruled tbody tr").count(), { timeout: 15_000 }).toBe(27);
+  await expect(page.locator("table.ruled tbody").getByText("Rio de Janeiro")).toBeVisible();
+
+  await open(page, "/br/mandatos");
+  await expect(page.getByText("Presidentes").first()).toBeVisible();
+  for (const name of ["Luiz Inácio Lula da Silva", "Jair Bolsonaro", "Michel Temer", "Dilma Rousseff"]) {
+    await expect(page.getByText(name).first()).toBeVisible();
+  }
+  await expect(page.getByText("Ricardo Couto")).toHaveCount(0);
+});
+
+test("BR: series of one UF and the U key cycles back to Brasil", async ({ page }) => {
+  await open(page, "/br/series?indicator=homicidio_doloso&type=municipality&name=Bahia");
+  await expect(page.getByLabel("UF", { exact: true })).toHaveValue("Bahia");
+  await expect.poll(async () => page.locator(".recharts-bar-rectangle, .recharts-line-curve").count(), { timeout: 15_000 }).toBeGreaterThan(0);
+  await open(page, "/to/");
+  await page.keyboard.press("u");
+  await expect(page).toHaveURL(/\/br\/?$/);
 });

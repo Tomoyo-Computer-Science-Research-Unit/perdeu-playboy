@@ -24,9 +24,9 @@ export function GlossaryScreen() {
           <thead>
             <tr>
               <th>Indicador</th>
-              <th className="right">Estado</th>
+              <th className="right">{ufConfig().stateLabel}</th>
               <th className="right">{ufConfig().policeAreaShort}</th>
-              <th className="right">Município</th>
+              <th className="right">{ufConfig().unitLabel}</th>
               <th>Código</th>
             </tr>
           </thead>

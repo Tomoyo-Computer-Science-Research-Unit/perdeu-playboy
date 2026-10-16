@@ -47,7 +47,7 @@ function ChangeTable({ rows, territoryType }: { rows: ChangeRow[]; territoryType
 
 export function ChangesExplorer({ sections, latest }: { sections: ChangeSection[]; latest: LatestPeriod }) {
   return (
-    <Screen columns="minmax(0, 1fr) minmax(0, 1fr)" rows="minmax(0, 1fr) minmax(0, 1fr)">
+    <Screen columns="minmax(0, 1fr) minmax(0, 1fr)" rows={sections.length > 2 ? "minmax(0, 1fr) minmax(0, 1fr)" : "minmax(0, 1fr)"}>
       {sections.map((section) => (
         <Panel
           key={section.title}

@@ -42,14 +42,14 @@ export function TerritoryControls({ value, onChange, municipalities, policeAreas
         value={value.type}
         onChange={(type) => onChange(nextSelection(type, value, rioUnits, policeAreas, defaultMunicipality))}
         options={[
-          { value: "state", label: "Estado" },
-          { value: "municipality", label: "Município" },
+          { value: "state", label: ufConfig().stateLabel },
+          { value: "municipality", label: ufConfig().unitLabel },
           // UFs sem dado por área policial (Sinesp) ficam sem a opção.
           ...(policeAreas.length > 0 ? [{ value: "police_area" as TerritoryType, label: ufConfig().policeAreaShort }] : [])
         ]}
       />
       {value.type === "municipality" ? (
-        <Field label="Município" className={compact ? "" : "min-w-[220px]"}>
+        <Field label={ufConfig().unitLabel} className={compact ? "" : "min-w-[220px]"}>
           <select value={value.name} onChange={(event) => onChange({ type: "municipality", name: event.target.value })}>
             {municipalities.map((item) => (
               <option key={item.name} value={item.name}>

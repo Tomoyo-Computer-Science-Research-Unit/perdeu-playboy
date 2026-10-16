@@ -455,18 +455,25 @@ export function getRankings(
 
 export async function getLatestChanges(): Promise<LatestChangesResponse> {
   await loadSeries([localIndicator()]);
+  // Sem áreas policiais (Sinesp, Brasil), só as duas seções de municípios ou UFs.
+  const hasPoliceAreas = getTerritories("police_area").length > 0;
   return {
     latest_period: LATEST,
     sections: [
-      changeSection("Municípios com maior alta", "municipality", "increase"),
-      changeSection("Municípios com maior queda", "municipality", "decrease"),
-      changeSection(`${ufConfig().policeAreaChangesLabel} com maior alta`, "police_area", "increase"),
-      changeSection(`${ufConfig().policeAreaChangesLabel} com maior queda`, "police_area", "decrease")
+      // Painéis de altura inteira quando estão só os dois: cabem mais linhas.
+      changeSection(`${ufConfig().unitPlural} com maior alta`, "municipality", "increase", hasPoliceAreas ? 12 : 17),
+      changeSection(`${ufConfig().unitPlural} com maior queda`, "municipality", "decrease", hasPoliceAreas ? 12 : 17),
+      ...(hasPoliceAreas
+        ? [
+            changeSection(`${ufConfig().policeAreaChangesLabel} com maior alta`, "police_area", "increase"),
+            changeSection(`${ufConfig().policeAreaChangesLabel} com maior queda`, "police_area", "decrease")
+          ]
+        : [])
     ]
   };
 }
 
-function changeSection(title: string, territoryType: Exclude<TerritoryType, "state">, direction: "increase" | "decrease"): ChangeSection {
+function changeSection(title: string, territoryType: Exclude<TerritoryType, "state">, direction: "increase" | "decrease", limit = 12): ChangeSection {
   const rows = getTerritories(territoryType)
     .flatMap((territory): ChangeRow[] => {
       const values = denseValues(localIndicator(), territoryType, territory.name);
@@ -490,7 +497,7 @@ function changeSection(title: string, territoryType: Exclude<TerritoryType, "sta
     })
     .filter((row) => (direction === "increase" ? row.absolute_change > 0 : row.absolute_change < 0))
     .sort((a, b) => (direction === "increase" ? b.absolute_change - a.absolute_change : a.absolute_change - b.absolute_change))
-    .slice(0, 12)
+    .slice(0, limit)
     .map((row, index) => ({ ...row, rank: index + 1 }));
   return { title, territory_type: territoryType, direction, rows };
 }
@@ -540,7 +547,7 @@ export async function getMapData(
       ...feature,
       properties: {
         ...feature.properties,
-        map_unit_type: view === "rio_city" ? "Bairro/CISP" : "Município",
+        map_unit_type: view === "rio_city" ? "Bairro/CISP" : ufConfig().unitLabel,
         rank: null as number | null,
         value: row?.value ?? null,
         rate_per_100k: rate,

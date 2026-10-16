@@ -1,4 +1,7 @@
-"""Exporta o snapshot estatico de uma UF (RJ ou SP) consumido pelo frontend.
+"""Exporta o snapshot estatico de uma UF (ou do Brasil, ``--uf BR``) consumido pelo frontend.
+
+No Brasil o pais ocupa o lugar do estado e as 27 UFs o dos municipios (``brasil_repository``):
+populacao do pais e das UFs, malha das UFs, mandatos presidenciais.
 
 Arquivos gerados em ``frontend/data/<uf>`` (o build copia a pasta da UF para ``frontend/lib``):
 
@@ -37,12 +40,19 @@ from app.constants import ANALYSIS_START_YEAR
 from app.etl import ibge_http
 from app.etl.extract import checksum_file
 from app.etl.sources import default_isp_sources
-from app.services import fogocruzado_repository, isp_repository, population_repository, sinesp_repository, ssp_repository
+from app.services import (
+    brasil_repository,
+    fogocruzado_repository,
+    isp_repository,
+    population_repository,
+    sinesp_repository,
+    ssp_repository,
+)
 from app.services.analytics import latest_period, methodology
 from app.services.governor_performance import governor_performance, governor_terms, mayor_terms
 from app.services.indicator_catalog import indicators_for
 from app.services.territory_repository import ISP_TERRITORIAL_DIVISION_URL, territorial_units
-from app.uf import current, repository, set_current
+from app.uf import all_ufs, current, repository, set_current
 
 TERRITORY_TYPES = ("state", "municipality", "police_area")
 GEO_PRECISION = 5  # ~1 m; o bastante para mapas coropleticos
@@ -53,6 +63,10 @@ IBGE_MUNICIPALITIES_GEOJSON_URL = (
     "?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=municipio"
 )
 IBGE_RJ_MUNICIPALITIES_GEOJSON_URL = IBGE_MUNICIPALITIES_GEOJSON_URL.format(uf=33)
+IBGE_UF_GEOJSON_URL = (
+    "https://servicodados.ibge.gov.br/api/v3/malhas/paises/BR"
+    "?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=UF"
+)
 RIO_NEIGHBORHOODS_GEOJSON_URL = (
     "https://pgeo3.rio.rj.gov.br/arcgis/rest/services/Cartografia/"
     "Limites_administrativos/FeatureServer/4/query"
@@ -73,6 +87,7 @@ CRIME_GENERAL_COMPONENTS_BY_SOURCE = {
     "isp": ("letalidade_violenta", "roubo_rua", "roubo_veiculo", "roubo_carga", "estupro"),
     "ssp": ("letalidade_violenta", "roubo_outros", "roubo_veiculo", "roubo_carga", "estupro"),
     "sinesp": ("letalidade_violenta", "roubo_veiculo", "roubo_carga", "estupro"),
+    "brasil": ("letalidade_violenta", "roubo_veiculo", "roubo_carga", "estupro"),
 }
 CRIME_GENERAL_COMPONENTS = CRIME_GENERAL_COMPONENTS_BY_SOURCE["isp"]
 
@@ -114,17 +129,7 @@ def export_static_frontend(output_path: Path, geo_output_path: Path | None = Non
         },
         "territorial_units": _territorial_units(),
         "population_by_municipality": _population_by_municipality(),
-        "population_history": {
-            "state": _population_history_payload(
-                population_repository.state_population_history(current().start_year, latest.year)
-            ),
-            "municipality": {
-                name: _population_history_payload(history)
-                for name, history in population_repository.municipality_population_history(
-                    current().start_year, latest.year
-                ).items()
-            },
-        },
+        "population_history": _population_history(latest.year),
         "governor_terms": [
             {
                 "governor": term.governor,
@@ -146,7 +151,7 @@ def export_static_frontend(output_path: Path, geo_output_path: Path | None = Non
             ]
             for municipality, terms in mayor_terms().items()
         },
-        "governor_performance": governor_performance().model_dump(mode="json"),
+        "governor_performance": _governor_performance_payload(),
         "sources": _source_metadata(),
         "methodology": methodology(),
         # So o estado fica no snapshot principal; municipios e CISPs vao para um arquivo por
@@ -182,6 +187,16 @@ def export_static_frontend(output_path: Path, geo_output_path: Path | None = Non
     geo_path = geo_output_path or output_path.with_name("static-geo.generated.json")
     geo_path.write_text(_dumps(geo), encoding="utf-8")
     _write_series_files(series, output_path.with_name("static-series"))
+
+
+def _governor_performance_payload() -> dict[str, object]:
+    payload = governor_performance().model_dump(mode="json")
+    if current().source == "brasil":
+        # O texto do calculo fala de governador e de dados estaduais; no Brasil sao presidentes e o total do pais.
+        text = str(payload.get("methodology") or "")
+        text = text.replace("dados mensais estaduais", "dados mensais nacionais").replace("governador", "presidente")
+        payload["methodology"] = text.replace("do Sinesp VDE", "do Sinesp VDE (soma das 27 UFs)")
+    return payload
 
 
 def _write_series_files(series: SeriesStore, directory: Path) -> None:
@@ -326,7 +341,36 @@ def _year_of(key: str | None) -> int | None:
 # --- Populacao -----------------------------------------------------------------------------
 
 
+def _population_history(latest_year: int) -> dict[str, object]:
+    start_year = current().start_year
+    if current().source == "brasil":
+        histories = population_repository.country_population_history(start_year, latest_year)
+        return {
+            "state": _population_history_payload(histories.get(str(current().ibge_code), {})),
+            "municipality": {
+                name: _population_history_payload(histories.get(str(all_ufs()[code].ibge_code), {}))
+                for code, name in brasil_repository.uf_names().items()
+            },
+        }
+    return {
+        "state": _population_history_payload(population_repository.state_population_history(start_year, latest_year)),
+        "municipality": {
+            name: _population_history_payload(history)
+            for name, history in population_repository.municipality_population_history(start_year, latest_year).items()
+        },
+    }
+
+
 def _population_by_municipality() -> dict[str, float]:
+    if current().source == "brasil":
+        # Populacao de cada UF no ultimo ano com numero do IBGE (estimativa ou censo).
+        histories = population_repository.country_population_history(current().start_year, date.today().year)
+        output: dict[str, float] = {}
+        for code, name in brasil_repository.uf_names().items():
+            years = [year for year, row in histories.get(str(all_ufs()[code].ibge_code), {}).items() if not row["interpolated"]]
+            if years:
+                output[name] = float(histories[str(all_ufs()[code].ibge_code)][max(years)]["value"])
+        return output
     populations: dict[str, float] = {}
     for name in repository().territories("municipality"):
         value = population_repository.population_for_municipality(municipality_name=name)
@@ -369,6 +413,8 @@ def _source_metadata() -> list[dict[str, object]]:
         return _source_metadata_sp()
     if current().source == "sinesp":
         return _source_metadata_sinesp()
+    if current().source == "brasil":
+        return _source_metadata_brasil()
     raw_isp_dir = settings.data_dir / "raw" / "isp"
     raw_ibge_dir = settings.data_dir / "raw" / "ibge"
     rows: list[dict[str, object]] = []
@@ -479,6 +525,18 @@ def _source_metadata_sinesp() -> list[dict[str, object]]:
     return rows
 
 
+def _source_metadata_brasil() -> list[dict[str, object]]:
+    raw_ibge_dir = settings.data_dir / "raw" / "ibge"
+    rows = [
+        _file_source_row(f"sinesp_vde_{code.lower()}", sinesp_repository.VDE_PAGE_URL, sinesp_repository.extract_path(code), "crime_stats")
+        for code in brasil_repository.uf_codes()
+    ]
+    for path in sorted(raw_ibge_dir.glob("population_country_*.json")):
+        rows.append(_file_source_row(path.stem, "https://sidra.ibge.gov.br/", path, "population"))
+    rows.append(_file_source_row("ibge_uf_geometries", IBGE_UF_GEOJSON_URL, raw_ibge_dir / "br_ufs_min.geojson", "geometry"))
+    return rows
+
+
 def _file_source_row(name: str, url: str, path: Path, category: str) -> dict[str, object]:
     exists = path.exists()
     return {
@@ -497,7 +555,11 @@ def _file_source_row(name: str, url: str, path: Path, category: str) -> dict[str
 
 def _municipality_geometries() -> dict[str, object]:
     uf = current()
-    path = _ensure_file(f"{uf.code.lower()}_municipalities_min.geojson", IBGE_MUNICIPALITIES_GEOJSON_URL.format(uf=uf.ibge_code))
+    if uf.source == "brasil":
+        # Brasil: a malha das UFs (codarea = codigo IBGE da UF) no lugar da malha de municipios.
+        path = _ensure_file("br_ufs_min.geojson", IBGE_UF_GEOJSON_URL)
+    else:
+        path = _ensure_file(f"{uf.code.lower()}_municipalities_min.geojson", IBGE_MUNICIPALITIES_GEOJSON_URL.format(uf=uf.ibge_code))
     data = json.loads(path.read_text(encoding="utf-8"))
     code_to_name = _municipality_code_to_name()
     features = []
@@ -615,6 +677,8 @@ def _split_territorial_unit(value: str) -> list[str]:
 
 
 def _municipality_code_to_name() -> dict[str, str]:
+    if current().source == "brasil":
+        return {str(all_ufs()[code].ibge_code): name for code, name in brasil_repository.uf_names().items()}
     if current().source == "sinesp":
         return {code: name for code, name in sinesp_repository.municipality_official_names(current().code).values()}
     if current().source == "ssp":

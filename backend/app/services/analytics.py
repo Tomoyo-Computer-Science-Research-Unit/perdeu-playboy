@@ -178,6 +178,8 @@ def methodology() -> dict:
         return _methodology_sp()
     if current().source == "sinesp":
         return _methodology_sinesp()
+    if current().source == "brasil":
+        return _methodology_brasil()
     return {
         "title": "Metodologia",
         "source_summary": (
@@ -358,6 +360,39 @@ def _methodology_sinesp() -> dict:
         ],
         "definitions": {
             "homicidio_doloso": "Vítimas de homicídio doloso (Sinesp VDE).",
+            "letalidade_violenta": "Soma de homicídio doloso, latrocínio, lesão corporal seguida de morte e morte por intervenção de agente do Estado.",
+            "morte_interv_policial": "Mortes por intervenção de agente do Estado (Sinesp VDE).",
+            "latrocinio": "Vítimas de roubo seguido de morte.",
+            "estupro": "Vítimas de estupro e de estupro de vulnerável.",
+            "apreensao_armas": "Armas de fogo apreendidas.",
+        },
+        "ethical_notes": [
+            "O painel não identifica vítimas nem publica endereços.",
+            "Os indicadores são informação cívica para transparência, pesquisa e controle social.",
+        ],
+    }
+
+
+def _methodology_brasil() -> dict:
+    return {
+        "title": "Metodologia",
+        "source_summary": (
+            "O total do Brasil é a soma das 27 UFs no Sinesp VDE, base nacional do Ministério da Justiça e Segurança "
+            "Pública alimentada pela secretaria de segurança de cada estado, mensal, desde janeiro de 2015. Rio de "
+            "Janeiro e São Paulo entram pelo Sinesp, não pelo ISP e pela SSP-SP, para que as 27 UFs contem do mesmo "
+            "jeito. Taxas por 100 mil habitantes usam a população anual do IBGE/SIDRA."
+        ),
+        "update_frequency": "O MJSP republica o arquivo do ano corrente sem calendário fixo; o total nacional é refeito depois das UFs.",
+        "limitations": [
+            "Um indicador num mês só tem total nacional quando as 27 UFs mandaram o dado; se falta uma, o mês fica sem dado, nunca com a soma das outras 26.",
+            "Por essa regra o total de homicídio doloso começa em 2016-01 (o Espírito Santo não mandou 2015), e roubo de veículo e armas apreendidas em 2021-01.",
+            "Roubo de carga começa em 2021-01 (Sergipe) e Mato Grosso do Sul não mandou 2023, 2024 nem fevereiro e março de 2025; nesses meses o total nacional fica sem dado, e o crime geral também.",
+            "Os números do Rio e de São Paulo aqui são os do Sinesp e diferem dos do ISP e da SSP-SP nas páginas desses estados.",
+            "Homicídio doloso, latrocínio, lesão corporal seguida de morte, feminicídio, morte por intervenção e estupro contam vítimas; roubos e armas contam ocorrências.",
+            "O Sinesp não publica roubo a pessoa; o crime geral soma letalidade violenta, roubo de veículo, roubo de carga e estupro.",
+        ],
+        "definitions": {
+            "homicidio_doloso": "Vítimas de homicídio doloso (Sinesp VDE), soma das UFs.",
             "letalidade_violenta": "Soma de homicídio doloso, latrocínio, lesão corporal seguida de morte e morte por intervenção de agente do Estado.",
             "morte_interv_policial": "Mortes por intervenção de agente do Estado (Sinesp VDE).",
             "latrocinio": "Vítimas de roubo seguido de morte.",
