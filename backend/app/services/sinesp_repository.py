@@ -65,6 +65,10 @@ UNKNOWN_MUNICIPALITY = "NAO INFORMADO"
 # Grafias do VDE que diferem do IBGE (chave sem acento -> chave do IBGE), por UF.
 MUNICIPALITY_ALIASES: dict[str, dict[str, str]] = {
     "MG": {"barao de monte alto": "barao do monte alto"},
+    "MT": {"santo antonio do leverger": "santo antonio de leverger"},
+    "RN": {"ares": "arez", "acu": "assu"},
+    "RR": {"sao luiz": "sao luiz do anaua"},
+    "SE": {"gracho cardoso": "graccho cardoso"},
 }
 COLUMNS = ["municipio", "indicator", "year", "month", "value"]
 STATS_COLUMNS = [

@@ -27,7 +27,7 @@
   "capital": "Rio Branco",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "AL",
@@ -37,7 +37,7 @@
   "capital": "Maceió",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "AP",
@@ -47,7 +47,7 @@
   "capital": "Macapá",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "AM",
@@ -57,7 +57,7 @@
   "capital": "Manaus",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "BA",
@@ -67,7 +67,7 @@
   "capital": "Salvador",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "CE",
@@ -77,7 +77,7 @@
   "capital": "Fortaleza",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "DF",
@@ -87,7 +87,7 @@
   "capital": "Brasília",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "ES",
@@ -97,7 +97,7 @@
   "capital": "Vitória",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "GO",
@@ -107,7 +107,7 @@
   "capital": "Goiânia",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "MA",
@@ -117,7 +117,7 @@
   "capital": "São Luís",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "MT",
@@ -127,7 +127,7 @@
   "capital": "Cuiabá",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "MS",
@@ -137,7 +137,7 @@
   "capital": "Campo Grande",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "MG",
@@ -157,7 +157,7 @@
   "capital": "Curitiba",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "PB",
@@ -167,7 +167,7 @@
   "capital": "João Pessoa",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "PA",
@@ -177,7 +177,7 @@
   "capital": "Belém",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "PE",
@@ -187,7 +187,7 @@
   "capital": "Recife",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "PI",
@@ -197,7 +197,7 @@
   "capital": "Teresina",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "RN",
@@ -207,7 +207,7 @@
   "capital": "Natal",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "RS",
@@ -217,7 +217,7 @@
   "capital": "Porto Alegre",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "RO",
@@ -227,7 +227,7 @@
   "capital": "Porto Velho",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "RR",
@@ -237,7 +237,7 @@
   "capital": "Boa Vista",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "SC",
@@ -247,7 +247,7 @@
   "capital": "Florianópolis",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "SE",
@@ -257,7 +257,7 @@
   "capital": "Aracaju",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  },
  {
   "code": "TO",
@@ -267,6 +267,6 @@
   "capital": "Palmas",
   "source": "sinesp",
   "start_year": 2015,
-  "published": false
+  "published": true
  }
 ]
