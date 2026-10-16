@@ -179,7 +179,7 @@ const RJ: UfConfig = {
     ["Sem dado", "Um mês em que o ISP ainda não apurava o indicador fica vazio e não entra em soma, mínimo ou variação. Vazio não é zero."],
     ["Acumulados", "Resumo e rankings somam de janeiro até o último mês publicado e comparam com os mesmos meses do ano anterior."],
     ["Taxas", "Ocorrências ÷ população do ano × 100 mil, só para anos completos. Áreas policiais não têm população oficial; bairros do Rio usam o Censo 2022."],
-    ["Mandatos", "Média mensal de cada indicador durante o governo contra a média dos 12 meses anteriores à posse. Comparação descritiva."],
+    ["Mandatos", "Total mensal dos indicadores durante o governo contra o dos 12 meses anteriores à posse (variação do agregado, ponderada pelo volume da base); indicadores com menos de 30 ocorrências por ano na base ficam de fora. Comparação descritiva."],
     [
       "Registro",
       "A série conta registros, não crimes. Tipos novos (feminicídio, publicado pelo ISP desde 2024), mudanças na lei (estupro, 2009) e variação na disposição de denunciar movem a série. Os indicadores afetados trazem o aviso no rodapé."
@@ -269,7 +269,7 @@ const SP: UfConfig = {
     ["Sem dado", "Mês ainda não publicado, ou natureza que a SSP-SP não separava (lesão corporal seguida de morte antes de setembro de 2016), fica vazio. Vazio não é zero."],
     ["Acumulados", "Resumo e rankings somam de janeiro até o último mês publicado e comparam com os mesmos meses do ano anterior."],
     ["Taxas", "Ocorrências ÷ população do ano × 100 mil, só para anos completos. Distritos policiais não têm população oficial."],
-    ["Mandatos", "Média mensal de cada indicador durante o governo contra a média dos 12 meses anteriores à posse. Comparação descritiva; Covas tomou posse antes do início da série."],
+    ["Mandatos", "Total mensal dos indicadores durante o governo contra o dos 12 meses anteriores à posse (variação do agregado, ponderada pelo volume da base); indicadores com menos de 30 ocorrências por ano na base ficam de fora. Comparação descritiva; Covas tomou posse antes do início da série."],
     [
       "Registro",
       "A série conta boletins de ocorrência, não crimes. Mudanças na lei (estupro, 2009), naturezas novas (feminicídio, 2018) e variação na disposição de denunciar movem a série."
@@ -358,7 +358,7 @@ function sinespConfig(entry: UfEntry): UfConfig {
       ["Sem dado", "Meses depois do último publicado vêm zerados no arquivo e ficam vazios. Vazio não é zero."],
       ["Acumulados", "Resumo e rankings somam de janeiro até o último mês publicado e comparam com os mesmos meses do ano anterior."],
       ["Taxas", "Ocorrências ÷ população do ano × 100 mil, só para anos completos."],
-      ["Mandatos", "Média mensal de cada indicador durante o governo contra a média dos 12 meses anteriores à posse. Comparação descritiva."],
+      ["Mandatos", "Total mensal dos indicadores durante o governo contra o dos 12 meses anteriores à posse (variação do agregado, ponderada pelo volume da base); indicadores com menos de 30 ocorrências por ano na base ficam de fora. Comparação descritiva."],
       ["Registro", "A série conta registros policiais, não crimes. O Sinesp começa em 2015; a qualidade do envio varia entre estados e anos."]
     ],
     terms: [

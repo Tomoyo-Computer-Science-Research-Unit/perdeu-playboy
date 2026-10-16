@@ -15,7 +15,7 @@ export function GovernorsPerformanceTable({ rows }: { rows: GovernorPerformanceR
           <th className="right">Meses</th>
           <th className="right">Base anualizada</th>
           <th className="right">Mandato anualizado</th>
-          <th className="right">Variação média</th>
+          <th className="right">Variação do total</th>
           <th className="right">Posição</th>
           <th>Maior queda</th>
           <th>Maior alta</th>

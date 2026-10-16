@@ -11,7 +11,7 @@ export function GovernorsScreen() {
     <Screen columns="minmax(0, 1fr)" rows="minmax(0, 1fr)">
       <Panel
         title={<b>{ufConfig().governorsTitle}</b>}
-        aside={<span>média mensal no mandato vs 12 meses antes da posse · {performance.indicators.length} indicadores</span>}
+        aside={<span>total mensal no mandato vs 12 meses antes da posse · até {performance.indicators.length} indicadores</span>}
         flush
       >
         <GovernorsPerformanceTable rows={performance.rows} />

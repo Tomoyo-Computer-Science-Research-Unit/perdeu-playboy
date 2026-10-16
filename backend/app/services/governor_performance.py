@@ -23,6 +23,11 @@ SCORE_INDICATORS = [
 ]
 
 
+# Indicadores com menos de 30 ocorrencias por ano na base (12 meses antes da posse) ficam fora do
+# ranking: uma alta de 748% sobre 3 casos nao diz nada sobre o governo.
+MIN_BASELINE_ANNUAL = 30.0
+
+
 class GovernorTerm(BaseModel):
     """Validated governor term used by the performance calculator."""
 
@@ -573,7 +578,7 @@ def governor_performance() -> GovernorPerformanceOut:
     rows = [_term_performance(term, latest_date.date()) for term in governor_terms()]
 
     ranked = [row for row in rows if row.average_reduction_percent is not None]
-    ranked.sort(key=lambda row: row.average_reduction_percent or float("-inf"), reverse=True)
+    ranked.sort(key=lambda row: row.average_reduction_percent if row.average_reduction_percent is not None else float("-inf"), reverse=True)
     # A mesma pessoa pode ter mais de uma passagem (afastamentos, volta por liminar): chave com a posse.
     rank_by_term = {(row.governor, row.term_start): index for index, row in enumerate(ranked, start=1)}
     for row in rows:
@@ -590,6 +595,8 @@ def governor_performance() -> GovernorPerformanceOut:
         methodology=(
             f"Ranking calculado com dados mensais estaduais {SOURCE_PHRASE.get(current_uf().source, 'do Sinesp VDE')}. Para cada governador, compara a média mensal "
             "dos indicadores durante o período de governo com a média mensal dos 12 meses anteriores à posse. "
+            "A variação é a do total de ocorrências dos indicadores somados (equivale à média das variações ponderada pelo volume da base); "
+            f"indicadores com menos de {MIN_BASELINE_ANNUAL:.0f} ocorrências por ano na base ficam de fora. "
             "Percentual positivo significa redução média; mandatos curtos entram proporcionalmente pelo número de meses disponíveis."
         ),
         indicators=[_indicator_name(indicator) for indicator in score_indicators()],
@@ -622,7 +629,7 @@ def _term_performance(term: GovernorTerm, latest_date: date) -> GovernorPerforma
 
         current_avg = float(current["value"].mean())
         baseline_avg = float(baseline["value"].mean())
-        if baseline_avg <= 0:
+        if baseline_avg * 12 < MIN_BASELINE_ANNUAL:
             continue
 
         months_count = max(months_count, len(current))
@@ -632,7 +639,7 @@ def _term_performance(term: GovernorTerm, latest_date: date) -> GovernorPerforma
         indicator_changes[indicator] = (baseline_avg - current_avg) / baseline_avg * 100
 
     if not indicator_changes:
-        return _empty_row(term, term_end, "Sem linha de base suficiente nos dados oficiais.")
+        return _empty_row(term, term_end, "Sem indicador com base suficiente nos dados oficiais.")
 
     best_indicator, best_value = max(indicator_changes.items(), key=lambda item: item[1])
     worst_indicator, worst_value = min(indicator_changes.items(), key=lambda item: item[1])
@@ -651,7 +658,7 @@ def _term_performance(term: GovernorTerm, latest_date: date) -> GovernorPerforma
         term_end=term.end,
         months_count=months_count,
         baseline_months_count=baseline_months_count,
-        average_reduction_percent=round(sum(indicator_changes.values()) / len(indicator_changes), 1),
+        average_reduction_percent=round((sum(baseline_values) - sum(current_values)) / sum(baseline_values) * 100, 1),
         annualized_current_value=round(sum(current_values) * 12, 1),
         annualized_baseline_value=round(sum(baseline_values) * 12, 1),
         best_indicator=_indicator_name(best_indicator),
