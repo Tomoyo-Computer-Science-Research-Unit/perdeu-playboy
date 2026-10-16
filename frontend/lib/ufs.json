@@ -1,5 +1,15 @@
 [
  {
+  "code": "BR",
+  "ibge_code": 1,
+  "name": "Brasil",
+  "state_name": "Brasil",
+  "capital": "Distrito Federal",
+  "source": "brasil",
+  "start_year": 2015,
+  "published": true
+ },
+ {
   "code": "RJ",
   "ibge_code": 33,
   "name": "Rio de Janeiro",

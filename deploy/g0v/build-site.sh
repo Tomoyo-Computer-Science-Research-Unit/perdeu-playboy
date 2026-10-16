@@ -4,8 +4,10 @@
 # o snapshot (frontend/data/<uf>/). Se o código ou os dados mudaram desde o último build, constrói o
 # site (um build só para todas as UFs) e troca os arquivos em /root/g0v/site/perdeu-playboy: o Rio na
 # raiz, as demais em /<uf>/. Falha no ETL de uma UF não derruba as outras: aquela UF segue
-# com o snapshot commitado. A landing, o nginx e o cron são do repositório g0v. Cada rodada entra em
-# runs.jsonl e no status.json de cada UF; falhas avisam por e-mail.
+# com o snapshot commitado. O Brasil (/br/, soma das 27 UFs no Sinesp) vem por último, porque lê os
+# extratos que as rodadas das UFs acabaram de refazer; tem contrato, snapshot e data-ok como uma UF.
+# A landing, o nginx e o cron são do repositório g0v. Cada rodada entra em runs.jsonl e no
+# status.json de cada UF; falhas avisam por e-mail.
 #
 #   /root/g0v/build-site.sh               # só reconstrói se algo mudou
 #   FORCE=1 /root/g0v/build-site.sh       # reconstrói de qualquer jeito
@@ -102,6 +104,7 @@ PY="$SRC/backend/.venv/bin/python"
 [ -x "$PY" ] || uv venv -q --python 3.12 "$SRC/backend/.venv"
 uv pip install -q --python "$PY" -e "$SRC/backend"
 
+# As 27 UFs na ordem de ufs.json e o Brasil (BR) por último: o total nacional depende dos extratos delas.
 UFS="$(cd "$SRC/backend" && "$PY" -m app.uf)"
 log "UFs publicadas: $(echo $UFS)"
 

@@ -3,11 +3,12 @@
  * indicador. Um build só serve todas as UFs publicadas: o Rio na raiz, as demais em /<uf>/; a UF
  * de uma página vem do caminho (`ufFromPath`). A lista de UFs é a de lib/ufs.json, a mesma que o
  * ETL e o build-site.sh leem. Os textos dependem da fonte: ISP (Rio), SSP-SP (São Paulo) ou Sinesp
- * VDE (qualquer outra UF), com o nome da UF no lugar certo.
+ * VDE (qualquer outra UF), com o nome da UF no lugar certo. O Brasil (/br/) usa as mesmas telas: o
+ * país no lugar do estado, as 27 UFs no lugar dos municípios, presidentes no lugar de governadores.
  */
 import ufs from "@/lib/ufs.json";
 
-export type UfSource = "isp" | "ssp" | "sinesp";
+export type UfSource = "isp" | "ssp" | "sinesp" | "brasil";
 export type UfEntry = {
   code: string;
   ibge_code: number;
@@ -88,6 +89,12 @@ export type UfConfig = {
   singleMunicipality: boolean;
   /** Nome curto do estado, como em "Governadores de São Paulo". */
   name: string;
+  /** Rótulo do recorte inteiro nos seletores ("Estado"; "Brasil" no nível nacional). */
+  stateLabel: string;
+  /** O território de baixo: "Município" nas UFs, "UF" no Brasil, e o plural ("Municípios", "UFs"). */
+  unitLabel: string;
+  unitPlural: string;
+  unitPluralLower: string;
   stateName: string;
   capital: string;
   capitalLabel: string;
@@ -129,10 +136,13 @@ const SHARED_TERMS: Term[] = [
   { title: "Taxa por 100 mil", body: "Ocorrências ÷ população residente do ano × 100 mil. Só para anos completos." }
 ];
 
+const STATE_UNITS = { stateLabel: "Estado", unitLabel: "Município", unitPlural: "Municípios", unitPluralLower: "municípios" };
+
 const RJ: UfConfig = {
   code: "RJ",
   singleMunicipality: false,
   name: "Rio",
+  ...STATE_UNITS,
   stateName: "Estado do Rio de Janeiro",
   capital: "Rio de Janeiro",
   capitalLabel: "Cidade do Rio de Janeiro",
@@ -216,6 +226,7 @@ const SP: UfConfig = {
   code: "SP",
   singleMunicipality: false,
   name: "São Paulo",
+  ...STATE_UNITS,
   stateName: "Estado de São Paulo",
   capital: "São Paulo",
   capitalLabel: "Cidade de São Paulo",
@@ -318,6 +329,7 @@ function sinespConfig(entry: UfEntry): UfConfig {
     code: entry.code,
     singleMunicipality: entry.code === "DF",
     name: entry.name,
+    ...STATE_UNITS,
     stateName: entry.state_name,
     capital: entry.capital,
     capitalLabel: `Capital (${entry.capital})`,
@@ -388,6 +400,102 @@ function sinespConfig(entry: UfEntry): UfConfig {
   };
 }
 
+const SINESP_HREF =
+  "https://www.gov.br/mj/pt-br/assuntos/sua-seguranca/seguranca-publica/estatistica/dados-nacionais-1/base-de-dados-e-notas-metodologicas-dos-gestores-estaduais-sinesp-vde-2022-e-2023";
+
+/** Brasil: o país no papel do estado, as 27 UFs no dos municípios, presidentes no dos governadores. */
+function brasilConfig(entry: UfEntry): UfConfig {
+  return {
+    code: entry.code,
+    singleMunicipality: false,
+    name: entry.name,
+    stateLabel: "Brasil",
+    unitLabel: "UF",
+    unitPlural: "UFs",
+    unitPluralLower: "UFs",
+    stateName: entry.state_name,
+    capital: entry.capital,
+    capitalLabel: entry.capital,
+    sourceShort: "Sinesp",
+    policeAreaShort: "Área",
+    policeAreaField: "Área policial",
+    policeAreaPlural: "Áreas policiais",
+    otherPoliceAreasLabel: "Demais áreas",
+    mapDrilldown: false,
+    cityMapLabel: entry.capital,
+    hasShootings: false,
+    localIndicator: "homicidio_doloso",
+    changesIndicatorLabel: "homicídio doloso",
+    policeAreaChangesLabel: "Áreas policiais",
+    governorsTitle: "Presidentes",
+    description:
+      "Painel público de indicadores oficiais de violência e segurança pública no Brasil: soma das 27 UFs no Sinesp VDE (Ministério da Justiça) desde 2015, comparação entre estados, mapa e comparação entre presidentes.",
+    keywords: ["Brasil", "segurança pública", "violência", "Sinesp", "homicídios por estado", "dados públicos", "série histórica"],
+    sources: [
+      {
+        label: "Sinesp VDE / MJSP",
+        description:
+          "Arquivos anuais do Ministério da Justiça e Segurança Pública com os registros enviados pelas 27 secretarias de segurança, mensais, desde janeiro de 2015. Rio de Janeiro e São Paulo entram por aqui, não pelo ISP e pela SSP-SP.",
+        href: SINESP_HREF
+      },
+      {
+        label: "IBGE / SIDRA",
+        description: "População residente do Brasil e das UFs por ano: censos de 2010 e 2022, estimativas anuais da tabela 6579. O ano de 2023, sem publicação, é interpolado.",
+        href: "https://sidra.ibge.gov.br/tabela/6579"
+      },
+      {
+        label: "IBGE Malhas",
+        description: "Limites das 27 UFs (malha do país com divisão por UF), resolução mínima.",
+        href: "https://servicodados.ibge.gov.br/api/docs/malhas?versao=3"
+      }
+    ],
+    steps: [
+      ["Coleta", "Os arquivos anuais do Sinesp VDE são os mesmos das páginas de cada UF; o total do país é refeito depois delas, todo dia."],
+      [
+        "Soma",
+        "Um indicador num mês só tem total nacional se as 27 UFs mandaram o dado. Faltando uma, o mês fica vazio: nunca a soma das outras 26. Zero enviado é zero."
+      ],
+      [
+        "Cobertura",
+        "Pela regra da soma, homicídio, latrocínio, lesão seguida de morte e feminicídio começam em 2016-01 (o Espírito Santo não mandou 2015); roubo de veículo e armas apreendidas, em 2021-01. Roubo de carga começa em 2021-01 e tem meses vazios entre 2023 e 2025."
+      ],
+      [
+        "Rio e São Paulo",
+        "Entram pelo Sinesp, como as outras 25 UFs. O ISP soma roubo de rua e a SSP-SP conta ocorrências onde o Sinesp conta vítimas; somar fontes diferentes não daria uma série nacional. Os números diferem dos das páginas desses dois estados."
+      ],
+      ["Taxas", "Ocorrências ÷ população do ano × 100 mil, só para anos completos."],
+      [
+        "Mandatos",
+        "Presidentes: média mensal de cada indicador no mandato contra a média dos 12 meses anteriores à posse. Dilma tomou posse em 2011, antes da série, e fica sem base; Temer aparece duas vezes, interino (12/5 a 30/8/2016) e titular."
+      ],
+      ["Registro", "A série conta registros policiais, não crimes. A qualidade do envio varia entre estados e anos."]
+    ],
+    terms: [
+      { title: "Total nacional", body: "Soma das 27 UFs no Sinesp VDE. Existe num mês só quando todas mandaram o dado." },
+      { title: "Letalidade violenta", body: "Soma de homicídio doloso, latrocínio, lesão corporal seguida de morte e morte por intervenção de agente do Estado." },
+      { title: "Homicídio doloso", body: "Vítimas de homicídio doloso no Sinesp VDE." },
+      { title: "Latrocínio", body: "Vítimas de roubo seguido de morte." },
+      { title: "Morte por intervenção de agente do Estado", body: "Morte causada por agente estatal, conforme o registro policial." },
+      { title: "Feminicídio", body: "Homicídio de mulher por razões da condição de sexo feminino (Lei 13.104/2015)." },
+      { title: "Estupro", body: "Vítimas de estupro e de estupro de vulnerável." },
+      { title: "Crime geral", body: "Letalidade violenta, roubo de veículo, roubo de carga e estupro. O Sinesp não tem roubo a pessoa." },
+      ...SHARED_TERMS
+    ],
+    glossaryAside: "definições Sinesp",
+    notes: {
+      estupro: "Soma estupro e estupro de vulnerável.",
+      feminicidio: "Tipificado pela Lei 13.104, de 9 de março de 2015.",
+      morte_interv_policial: "Classificada pela própria polícia de cada estado.",
+      roubo_carga: "Sem total nacional antes de 2021, em 2023, em 2024 e em fevereiro e março de 2025: Mato Grosso do Sul não mandou esses meses.",
+      letalidade_violenta: "Soma de homicídio doloso, latrocínio, lesão corporal seguida de morte e morte por intervenção de agente do Estado.",
+      apreensao_armas: "Mede atividade policial, não crime: mais apreensões podem refletir mais operações."
+    },
+    rateFootPoliceArea: "",
+    statusFilesTitle: "Arquivos do Sinesp",
+    statusModifiedLabel: "Modificado na fonte"
+  };
+}
+
 const CONFIGS = new Map<string, UfConfig>();
 
 /** Textos de uma UF (por sigla ou entrada). */
@@ -395,7 +503,8 @@ export function configFor(entry: UfEntry | string): UfConfig {
   const resolved = typeof entry === "string" ? ufByCode(entry) ?? ROOT_ENTRY : entry;
   let config = CONFIGS.get(resolved.code);
   if (!config) {
-    config = resolved.source === "isp" ? RJ : resolved.source === "ssp" ? SP : sinespConfig(resolved);
+    config =
+      resolved.source === "isp" ? RJ : resolved.source === "ssp" ? SP : resolved.source === "brasil" ? brasilConfig(resolved) : sinespConfig(resolved);
     CONFIGS.set(resolved.code, config);
   }
   return config;

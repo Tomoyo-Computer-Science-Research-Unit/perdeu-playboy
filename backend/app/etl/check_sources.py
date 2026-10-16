@@ -20,7 +20,7 @@ import pandas as pd
 from app.config import settings
 from app.etl.sources import default_isp_sources
 from app.etl.transform import normalize_column_name, read_isp_csv
-from app.services import isp_repository, sinesp_repository, ssp_repository
+from app.services import brasil_repository, isp_repository, sinesp_repository, ssp_repository
 from app.uf import current, set_current
 
 STALE_AFTER_MONTHS = 4
@@ -216,6 +216,14 @@ def check_all(download: bool = True) -> list[FileReport]:
             check_file(ssp_repository.consolidated_path(), SSP_CONTRACT),
             check_file(sinesp_repository.extract_path("SP"), SINESP_CONTRACT),
         ]
+    if uf_source == "brasil":
+        # O Brasil roda depois das UFs no build-site.sh: os extratos ja estao em dia; falta so o do Rio
+        # (servido pelo ISP), refeito aqui, e o de qualquer UF que nao tenha o seu.
+        if download:
+            sinesp_repository.download()
+            sinesp_repository.extract_uf("RJ")
+            brasil_repository.extract_missing()
+        return [check_file(sinesp_repository.extract_path(code), SINESP_CONTRACT) for code in brasil_repository.uf_codes()]
     if uf_source == "sinesp":
         if download:
             sinesp_repository.download()

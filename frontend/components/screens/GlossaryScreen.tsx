@@ -6,6 +6,8 @@ import { ufConfig } from "@/lib/uf";
 
 export function GlossaryScreen() {
   const indicators = getIndicators();
+  // Sinesp e Brasil não têm área policial: a coluna sairia vazia.
+  const hasPoliceAreas = indicators.some((indicator) => getFirstMonth(indicator.code, "police_area"));
 
   return (
     <Screen columns="minmax(0, 1.2fr) minmax(0, 1fr)">
@@ -24,9 +26,9 @@ export function GlossaryScreen() {
           <thead>
             <tr>
               <th>Indicador</th>
-              <th className="right">Estado</th>
-              <th className="right">{ufConfig().policeAreaShort}</th>
-              <th className="right">Município</th>
+              <th className="right">{ufConfig().stateLabel}</th>
+              {hasPoliceAreas ? <th className="right">{ufConfig().policeAreaShort}</th> : null}
+              <th className="right">{ufConfig().unitLabel}</th>
               <th>Código</th>
             </tr>
           </thead>
@@ -38,7 +40,7 @@ export function GlossaryScreen() {
                   <span className="block text-[10px] tracking-[0.06em] text-ash">{indicator.category}</span>
                 </td>
                 <td className="num right whitespace-nowrap">{getFirstMonth(indicator.code, "state") ?? "–"}</td>
-                <td className="num right whitespace-nowrap">{getFirstMonth(indicator.code, "police_area") ?? "–"}</td>
+                {hasPoliceAreas ? <td className="num right whitespace-nowrap">{getFirstMonth(indicator.code, "police_area") ?? "–"}</td> : null}
                 <td className="num right whitespace-nowrap">{getFirstMonth(indicator.code, "municipality") ?? "–"}</td>
                 <td className="font-mono text-[10.5px] text-ash">{indicator.code}</td>
               </tr>

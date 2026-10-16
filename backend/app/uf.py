@@ -4,6 +4,10 @@ A lista de UFs vem de uma configuracao unica, ``frontend/lib/ufs.json``, lida aq
 (seletor de UF) e pelo ``deploy/g0v/build-site.sh`` (laco de ETL, build e publicacao). Cada UF diz de
 qual fonte vem (``isp`` no Rio, ``ssp`` em Sao Paulo, ``sinesp`` para as demais) e se e publicada.
 
+O Brasil entra na mesma lista com a sigla ``BR`` e a fonte ``brasil``: o pais faz o papel do estado e as
+27 UFs o dos municipios (``app.services.brasil_repository``). Nao e uma UF: :func:`published_ufs` o deixa
+de fora, e :func:`main` o imprime por ultimo, porque o snapshot nacional depende dos extratos das UFs.
+
 O ETL roda uma UF por processo: ``python -m app.etl.export_static_frontend --uf SP`` chama
 :func:`set_current` antes de ler qualquer coisa, e os repositorios consultam :func:`current`.
 """
@@ -41,8 +45,25 @@ def all_ufs() -> dict[str, UfConfig]:
     return {row["code"]: UfConfig(**row) for row in rows}
 
 
+COUNTRY_SOURCE = "brasil"
+
+
 def published_ufs() -> list[UfConfig]:
-    return [uf for uf in all_ufs().values() if uf.published]
+    """As 27 UFs publicadas (sem o Brasil)."""
+
+    return [uf for uf in all_ufs().values() if uf.published and uf.source != COUNTRY_SOURCE]
+
+
+def country() -> UfConfig:
+    """O nivel nacional (sigla BR)."""
+
+    return next(uf for uf in all_ufs().values() if uf.source == COUNTRY_SOURCE)
+
+
+def published_levels() -> list[UfConfig]:
+    """UFs publicadas e, por ultimo, o Brasil, se publicado: a ordem do ETL no build-site.sh."""
+
+    return [*published_ufs(), *([country()] if country().published else [])]
 
 
 _current = "RJ"
@@ -73,15 +94,19 @@ def repository() -> ModuleType:
         from app.services import ssp_repository
 
         return ssp_repository
+    if source == COUNTRY_SOURCE:
+        from app.services import brasil_repository
+
+        return brasil_repository
     from app.services import sinesp_repository
 
     return sinesp_repository
 
 
 def main() -> None:
-    """Imprime as siglas publicadas, uma por linha (usado pelo build-site.sh)."""
+    """Imprime as siglas publicadas, uma por linha, o Brasil por ultimo (usado pelo build-site.sh)."""
 
-    for uf in published_ufs():
+    for uf in published_levels():
         print(uf.code)
 
 

@@ -31,7 +31,7 @@ import pandas as pd
 
 from app.config import settings
 from app.etl import ibge_http
-from app.uf import current
+from app.uf import all_ufs, current
 
 logger = logging.getLogger(__name__)
 
@@ -226,7 +226,7 @@ def _stats_frame_for(uf: str, territory_type: str) -> pd.DataFrame:
         raw = raw[(raw["year"] < last_year) | ((raw["year"] == last_year) & (raw["month"] <= last_month))]
     if territory_type == "state":
         frame = raw.groupby(["indicator", "year", "month"], as_index=False)["value"].sum()
-        frame["territory_name"] = current().state_name
+        frame["territory_name"] = all_ufs()[uf.upper()].state_name
         frame["ibge_code"] = None
     elif territory_type == "municipality":
         raw = raw[raw["key"] != _name_key(UNKNOWN_MUNICIPALITY)].copy()

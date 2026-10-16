@@ -235,7 +235,7 @@ export function MunicipalityChoroplethPanel() {
   // UF de um município só (Distrito Federal): o painel mostra o único recorte sem precisar do mouse.
   const shown = selected ?? (data.features.length === 1 ? data.features[0].properties : null);
   const label = metricLabel(indicator, effectiveMode);
-  const unitLabel = view === "rio_city" ? "Bairro · CISP" : "Município";
+  const unitLabel = view === "rio_city" ? "Bairro · CISP" : ufConfig().unitLabel;
   const selectedMetric = shown
     ? effectiveMode === "rate"
       ? formatRate(shown.rate_per_100k as number | null)
@@ -253,7 +253,7 @@ export function MunicipalityChoroplethPanel() {
             value={view}
             onChange={changeView}
             options={[
-              { value: "state", label: "Estado" },
+              { value: "state", label: ufConfig().stateLabel },
               ...(ufConfig().mapDrilldown ? [{ value: "rio_city" as MapView, label: ufConfig().cityMapLabel }] : [])
             ]}
           />
@@ -284,7 +284,7 @@ export function MunicipalityChoroplethPanel() {
       <Panel
         title={
           <>
-            <b>{getIndicator(indicator)?.name}</b> {view === "rio_city" ? "bairros do Rio" : ufConfig().singleMunicipality ? ufConfig().stateName : "municípios"}
+            <b>{getIndicator(indicator)?.name}</b> {view === "rio_city" ? "bairros do Rio" : ufConfig().singleMunicipality ? ufConfig().stateName : ufConfig().unitPluralLower}
           </>
         }
         aside={
@@ -330,7 +330,7 @@ export function MunicipalityChoroplethPanel() {
             viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
             preserveAspectRatio="xMidYMid meet"
             role="img"
-            aria-label={view === "rio_city" ? `Mapa da cidade do ${ufConfig().capital} por bairros` : `Mapa do ${ufConfig().stateName.replace(/^Estado/, "estado")} por municípios`}
+            aria-label={view === "rio_city" ? `Mapa da cidade do ${ufConfig().capital} por bairros` : `Mapa do ${ufConfig().stateName.replace(/^Estado/, "estado")} por ${ufConfig().unitPluralLower}`}
             className="block h-full w-full"
           >
             {data.features.map((feature) => {

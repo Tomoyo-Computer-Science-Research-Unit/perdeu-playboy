@@ -482,6 +482,18 @@ TO_MAYOR_TERMS = {
     ],
 }
 
+# Brasil (sigla BR, serie nacional do Sinesp desde 2015): presidentes da Republica. Dilma foi afastada
+# pela abertura do processo de impeachment no Senado em 12/5/2016 e Temer assumiu como interino no mesmo
+# dia; o Senado a condenou em 31/8/2016 e Temer tomou posse como titular na mesma tarde. Conferido em
+# 2026-10-16 na lista de presidentes do Planalto e nas atas do Senado.
+BR_PRESIDENT_TERMS = [
+    T(governor="Dilma Rousseff", party_or_condition="PT", start=date(2011, 1, 1), end=date(2016, 5, 11)),
+    T(governor="Michel Temer", party_or_condition="PMDB, interino", start=date(2016, 5, 12), end=date(2016, 8, 30)),
+    T(governor="Michel Temer", party_or_condition="PMDB / MDB", start=date(2016, 8, 31), end=date(2018, 12, 31)),
+    T(governor="Jair Bolsonaro", party_or_condition="PSL / PL", start=date(2019, 1, 1), end=date(2022, 12, 31)),
+    T(governor="Luiz Inácio Lula da Silva", party_or_condition="PT", start=date(2023, 1, 1), end=None),
+]
+
 # Mandatos por UF. Uma UF publicada sem entrada aqui fica com a tela Mandatos vazia ate alguem
 # acrescentar as datas verificadas.
 GOVERNOR_TERMS_BY_UF: dict[str, list[GovernorTerm]] = {
@@ -512,6 +524,7 @@ GOVERNOR_TERMS_BY_UF: dict[str, list[GovernorTerm]] = {
     "SC": SC_GOVERNOR_TERMS,
     "SE": SE_GOVERNOR_TERMS,
     "TO": TO_GOVERNOR_TERMS,
+    "BR": BR_PRESIDENT_TERMS,
 }
 MAYOR_TERMS_BY_UF: dict[str, dict[str, list[GovernorTerm]]] = {
     "RJ": MAYOR_TERMS,

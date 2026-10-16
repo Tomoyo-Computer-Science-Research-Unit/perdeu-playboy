@@ -174,10 +174,26 @@ function termBands(terms: GovernorTerm[], points: ChartPoint[]) {
       return { governor: term.governor, short: shortName(term.governor), x1, x2 };
     })
     .filter((band): band is { governor: string; short: string; x1: string; x2: string } => band !== null)
-    .filter((band) => band.x2 >= first && band.x1 <= last);
+    .filter((band) => band.x2 >= first && band.x1 <= last)
+    // Passagens seguidas da mesma pessoa (Temer interino e titular) viram uma faixa só.
+    .reduce<Array<{ governor: string; short: string; x1: string; x2: string }>>((merged, band) => {
+      const previous = merged[merged.length - 1];
+      if (previous && previous.governor === band.governor) {
+        previous.x2 = band.x2;
+      } else {
+        merged.push({ ...band });
+      }
+      return merged;
+    }, []);
 }
 
+/** Nomes pelos quais a pessoa é conhecida, quando não é o sobrenome. */
+const KNOWN_AS: Record<string, string> = { "Luiz Inácio Lula da Silva": "Lula", "Dilma Rousseff": "Dilma" };
+
 function shortName(governor: string): string {
+  if (KNOWN_AS[governor]) {
+    return KNOWN_AS[governor];
+  }
   const parts = governor.split(" ");
   const last = parts[parts.length - 1];
   // "Rosinha" e "Anthony Garotinho" dividem o sobrenome, e "Silva" diz pouco: usa o primeiro nome.

@@ -98,7 +98,7 @@ SP_INDICATOR_CODES = [
 INDICATOR_BY_CODE = {indicator.code: indicator for indicator in [*INDICATORS, ROUBO_OUTROS]}
 
 
-# UFs sem fonte estadual propria (Sinesp VDE): o VDE nao tem roubo a transeunte nem roubo em geral.
+# UFs sem fonte estadual propria e o Brasil (Sinesp VDE): o VDE nao tem roubo a transeunte nem roubo em geral.
 SINESP_INDICATOR_CODES = [code for code in SP_INDICATOR_CODES if code != "roubo_outros"]
 
 
@@ -137,6 +137,6 @@ def indicators_for(source: str) -> list[IndicatorOut]:
 
     if source == "ssp":
         return [_accented(code) for code in SP_INDICATOR_CODES]
-    if source == "sinesp":
+    if source in ("sinesp", "brasil"):
         return [_accented(code) for code in SINESP_INDICATOR_CODES]
     return list(INDICATORS)
