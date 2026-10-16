@@ -1,13 +1,14 @@
 /**
- * Camada de dados do site. Tudo é calculado a partir do snapshot estático gerado pelo ETL
- * (`static-data.generated.json`) de uma UF; o build copia o snapshot da UF para lib/.
+ * Camada de dados do site. Tudo é calculado a partir do snapshot estático gerado pelo ETL para cada
+ * UF (`<basePath>/data/<uf>/static-data.generated.json`), buscado com fetch: `DataGate` carrega o
+ * núcleo da UF da página e o instala com `setCore` antes de renderizar a tela; os getters abaixo
+ * leem o núcleo instalado.
  *
  * As séries do snapshot são esparsas: `{ from: "AAAA-MM", values: [...] }`. Meses sem dado
  * são `null` e nunca entram em somas, mínimos ou variações — "sem dado" não é zero.
  */
 
-import snapshot from "@/lib/static-data.generated.json";
-import { UF_CONFIG } from "@/lib/uf";
+import { configFor, dataUrl, setCurrentUf, ufConfig } from "@/lib/uf";
 import type {
   AnnualPoint,
   ChangeRow,
@@ -34,7 +35,7 @@ import type {
 } from "@/types/api";
 
 type SparseSeries = { from: string; values: Array<number | null> };
-type Snapshot = {
+export type Snapshot = {
   generated_at: string;
   analysis_start_year: number;
   uf: string;
@@ -66,34 +67,84 @@ export type FogoCruzado = {
   source: { name: string; url: string; attribution: string; last_update?: string | null; [key: string]: unknown };
 };
 
-const DATA = snapshot as unknown as Snapshot;
-const MONTHS = DATA.month_keys;
-const MONTH_INDEX = new Map(MONTHS.map((key, index) => [key, index]));
-const LATEST = DATA.latest_period;
-const LATEST_INDEX = monthIndex(LATEST.year, LATEST.month);
+// --- Núcleo da UF corrente -----------------------------------------------------------------
 
-export const STATE_NAME = DATA.territories.state[0]?.name ?? UF_CONFIG.stateName;
-/** Capital da UF (cidade do Rio ou de São Paulo): município padrão dos seletores e das faixas de prefeito. */
-export const RIO_MUNICIPALITY = UF_CONFIG.capital;
+let UF_CODE = "";
+let DATA = {} as Snapshot;
+let MONTHS: string[] = [];
+let MONTH_INDEX = new Map<string, number>();
+let LATEST: LatestPeriod = { year: 0, month: 0 } as LatestPeriod;
+let LATEST_INDEX = -1;
+
+const coreCache = new Map<string, Promise<Snapshot>>();
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`${url}: HTTP ${response.status}`);
+  }
+  return (await response.json()) as T;
+}
+
+/** Busca (uma vez por UF) o núcleo de dados. */
+export function loadCore(code: string): Promise<Snapshot> {
+  let pending = coreCache.get(code);
+  if (!pending) {
+    pending = fetchJson<Snapshot>(dataUrl(code, "static-data.generated.json"));
+    pending.catch(() => coreCache.delete(code));
+    coreCache.set(code, pending);
+  }
+  return pending;
+}
+
+/** Instala o núcleo que as telas vão ler. Chamado por DataGate antes de renderizar a tela. */
+export function setCore(code: string, snapshot: Snapshot): void {
+  if (code === UF_CODE && snapshot === DATA) {
+    return;
+  }
+  UF_CODE = code;
+  DATA = snapshot;
+  MONTHS = snapshot.month_keys;
+  MONTH_INDEX = new Map(MONTHS.map((key, index) => [key, index]));
+  LATEST = snapshot.latest_period;
+  LATEST_INDEX = monthIndex(LATEST.year, LATEST.month);
+  denseCache.clear();
+  rankingCache.clear();
+  mapCache.clear();
+  setCurrentUf(code);
+}
+
+/** Nome do estado no snapshot ("Estado do Rio de Janeiro"). */
+export function stateName(): string {
+  return DATA.territories.state[0]?.name ?? ufConfig().stateName;
+}
+/** Capital da UF: município padrão dos seletores e das faixas de prefeito. */
+export function capitalName(): string {
+  return ufConfig().capital;
+}
 /** Indicadores somados no agregado "crime geral" (rankings, mudanças e mapa); a soma vem pronta do ETL. */
-export const CRIME_RATE_INDICATORS = DATA.crime_general_components ?? ["letalidade_violenta", "roubo_rua", "roubo_veiculo", "roubo_carga", "estupro"];
+export function crimeRateIndicators(): string[] {
+  return DATA.crime_general_components ?? ["letalidade_violenta", "roubo_rua", "roubo_veiculo", "roubo_carga", "estupro"];
+}
 export const CRIME_GENERAL_CODE = "crime_geral";
-/** Indicador padrão de rankings, mapa e mudanças (crime geral no Rio, homicídio doloso em SP). */
-export const LOCAL_INDICATOR = UF_CONFIG.localIndicator;
+/** Indicador padrão de rankings, mapa e mudanças (crime geral no Rio, homicídio doloso nas demais). */
+export function localIndicator(): string {
+  return ufConfig().localIndicator;
+}
 
 const denseCache = new Map<string, Array<number | null>>();
 const rankingCache = new Map<string, RankingRow[]>();
 const mapCache = new Map<string, GeoFeatureCollection>();
 
-// --- Séries por município e CISP: um arquivo por indicador, carregado quando o recorte pede ---
+// --- Séries por município e área policial: um arquivo por indicador, carregado quando o recorte pede ---
 
 type DetailSeries = Partial<Record<Exclude<TerritoryType, "state">, Record<string, SparseSeries>>>;
 const detailCache = new Map<string, DetailSeries>();
 const pendingLoads = new Map<string, Promise<void>>();
 
-/** As séries por município e CISP destes indicadores já estão em memória? O estado vem no snapshot. */
+/** As séries por município e área policial destes indicadores já estão em memória? O estado vem no snapshot. */
 export function isSeriesLoaded(indicators: string[], territoryType: TerritoryType): boolean {
-  return territoryType === "state" || indicators.every((code) => detailCache.has(code));
+  return territoryType === "state" || indicators.every((code) => detailCache.has(`${UF_CODE}:${code}`));
 }
 
 /** Carrega `static-series/<indicador>.generated.json` para cada indicador que ainda falta. */
@@ -101,27 +152,33 @@ export async function loadSeries(indicators: string[], territoryType: TerritoryT
   if (territoryType === "state") {
     return;
   }
-  await Promise.all(indicators.filter((code) => !detailCache.has(code)).map((code) => loadDetail(code)));
+  const uf = UF_CODE;
+  await Promise.all(indicators.filter((code) => !detailCache.has(`${uf}:${code}`)).map((code) => loadDetail(uf, code)));
 }
 
-function loadDetail(code: string): Promise<void> {
-  const pending = pendingLoads.get(code);
+function loadDetail(uf: string, code: string): Promise<void> {
+  const key = `${uf}:${code}`;
+  const pending = pendingLoads.get(key);
   if (pending) {
     return pending;
   }
-  const load = import(`@/lib/static-series/${code}.generated.json`)
-    .then((module: { default?: DetailSeries }) => {
-      detailCache.set(code, (module.default ?? module) as DetailSeries);
+  const load = fetchJson<DetailSeries>(dataUrl(uf, `static-series/${code}.generated.json`))
+    .then((detail) => {
+      detailCache.set(key, detail);
     })
     .catch(() => {
       // Indicador sem arquivo (ou falha de rede): fica sem séries em vez de tentar para sempre.
-      detailCache.set(code, {});
+      detailCache.set(key, {});
     })
     .finally(() => {
-      pendingLoads.delete(code);
+      pendingLoads.delete(key);
     });
-  pendingLoads.set(code, load);
+  pendingLoads.set(key, load);
   return load;
+}
+
+function detail(code: string): DetailSeries | undefined {
+  return detailCache.get(`${UF_CODE}:${code}`);
 }
 
 // --- Metadados ------------------------------------------------------------------------------
@@ -172,14 +229,14 @@ export function getLocalIndicators(): Indicator[] {
     return Boolean(coverage?.municipality || coverage?.police_area);
   });
   const general = getIndicator(CRIME_GENERAL_CODE);
-  return LOCAL_INDICATOR === CRIME_GENERAL_CODE && general ? [general, ...local] : local;
+  return localIndicator() === CRIME_GENERAL_CODE && general ? [general, ...local] : local;
 }
 
 export function getTerritories(territoryType: TerritoryType): Territory[] {
   return (DATA.territories[territoryType] ?? []).filter((territory) => !isIgnoredTerritory(territory.name));
 }
 
-export function getTerritorialUnits(municipality = RIO_MUNICIPALITY): TerritorialUnit[] {
+export function getTerritorialUnits(municipality = capitalName()): TerritorialUnit[] {
   return DATA.territorial_units.filter((unit) => unit.municipality === municipality);
 }
 
@@ -203,7 +260,7 @@ export function getFogoCruzado(): FogoCruzado | null {
 
 /** Territórios presentes no arquivo já carregado de um indicador (bairros do Rio, por exemplo). */
 export function loadedTerritoryNames(indicator: string, territoryType: Exclude<TerritoryType, "state">): string[] {
-  return Object.keys(detailCache.get(indicator)?.[territoryType] ?? {}).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  return Object.keys(detail(indicator)?.[territoryType] ?? {}).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
 export function getDataSources(): DataSource[] {
@@ -357,7 +414,7 @@ export function getRankings(
   month = LATEST.month
 ): RankingRow[] {
   const period = clampPeriod(year, month);
-  const cacheKey = `${indicator}:${mode}:${territoryType}:${period.year}:${period.month}`;
+  const cacheKey = `${UF_CODE}:${indicator}:${mode}:${territoryType}:${period.year}:${period.month}`;
   const cached = rankingCache.get(cacheKey);
   if (cached) {
     return cached;
@@ -397,14 +454,14 @@ export function getRankings(
 }
 
 export async function getLatestChanges(): Promise<LatestChangesResponse> {
-  await loadSeries([LOCAL_INDICATOR]);
+  await loadSeries([localIndicator()]);
   return {
     latest_period: LATEST,
     sections: [
       changeSection("Municípios com maior alta", "municipality", "increase"),
       changeSection("Municípios com maior queda", "municipality", "decrease"),
-      changeSection(`${UF_CONFIG.policeAreaChangesLabel} com maior alta`, "police_area", "increase"),
-      changeSection(`${UF_CONFIG.policeAreaChangesLabel} com maior queda`, "police_area", "decrease")
+      changeSection(`${ufConfig().policeAreaChangesLabel} com maior alta`, "police_area", "increase"),
+      changeSection(`${ufConfig().policeAreaChangesLabel} com maior queda`, "police_area", "decrease")
     ]
   };
 }
@@ -412,7 +469,7 @@ export async function getLatestChanges(): Promise<LatestChangesResponse> {
 function changeSection(title: string, territoryType: Exclude<TerritoryType, "state">, direction: "increase" | "decrease"): ChangeSection {
   const rows = getTerritories(territoryType)
     .flatMap((territory): ChangeRow[] => {
-      const values = denseValues(LOCAL_INDICATOR, territoryType, territory.name);
+      const values = denseValues(localIndicator(), territoryType, territory.name);
       const currentValue = rollingSum(values, LATEST_INDEX, 12);
       const previousValue = rollingSum(values, LATEST_INDEX - 12, 12);
       if (currentValue === null || previousValue === null) {
@@ -440,9 +497,17 @@ function changeSection(title: string, territoryType: Exclude<TerritoryType, "sta
 
 // --- Mapa -----------------------------------------------------------------------------------
 
-async function loadGeo(): Promise<{ municipality_geometries: GeoFeatureCollection; rio_neighborhood_geometries: GeoFeatureCollection }> {
-  const geo = await import("@/lib/static-geo.generated.json");
-  return geo.default as unknown as { municipality_geometries: GeoFeatureCollection; rio_neighborhood_geometries: GeoFeatureCollection };
+type GeoFile = { municipality_geometries: GeoFeatureCollection; rio_neighborhood_geometries: GeoFeatureCollection };
+const geoCache = new Map<string, Promise<GeoFile>>();
+
+async function loadGeo(): Promise<GeoFile> {
+  let pending = geoCache.get(UF_CODE);
+  if (!pending) {
+    pending = fetchJson(dataUrl(UF_CODE, "static-geo.generated.json"));
+    pending.catch(() => geoCache.delete(UF_CODE));
+    geoCache.set(UF_CODE, pending);
+  }
+  return pending;
 }
 
 export async function getMapData(
@@ -453,7 +518,7 @@ export async function getMapData(
   month = LATEST.month
 ): Promise<GeoFeatureCollection> {
   const period = clampPeriod(year, month);
-  const cacheKey = `${view}:${indicator}:${mode}:${period.year}:${period.month}`;
+  const cacheKey = `${UF_CODE}:${view}:${indicator}:${mode}:${period.year}:${period.month}`;
   const cached = mapCache.get(cacheKey);
   if (cached) {
     return cached;
@@ -521,10 +586,10 @@ export function monthKeyAt(index: number): string | undefined {
 
 export function resolveTerritoryName(territoryType: TerritoryType, territoryName?: string): string {
   if (territoryType === "state") {
-    return STATE_NAME;
+    return stateName();
   }
   if (!territoryName) {
-    return territoryType === "municipality" ? RIO_MUNICIPALITY : DATA.territories[territoryType]?.[0]?.name ?? "";
+    return territoryType === "municipality" ? capitalName() : DATA.territories[territoryType]?.[0]?.name ?? "";
   }
   if (territoryType === "police_area" && /^CISP\s+\d+/i.test(territoryName)) {
     return DATA.territorial_units.find((unit) => unit.police_area_name === territoryName)?.territorial_unit ?? territoryName;
@@ -536,7 +601,7 @@ function sparseFor(indicator: string, territoryType: TerritoryType, name: string
   if (territoryType === "state") {
     return DATA.series[indicator]?.state?.[name];
   }
-  return detailCache.get(indicator)?.[territoryType]?.[name];
+  return detail(indicator)?.[territoryType]?.[name];
 }
 
 /** Série alinhada a `month_keys`; meses fora da cobertura ficam `null`. */

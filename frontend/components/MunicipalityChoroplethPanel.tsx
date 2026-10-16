@@ -4,8 +4,8 @@ import type { Geometry } from "geojson";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useScreenHotkeys } from "@/components/Hotkeys";
 import { Panel, Screen, Segmented, Stat } from "@/components/ui";
-import { CRIME_GENERAL_CODE, LOCAL_INDICATOR, RIO_MUNICIPALITY, getIndicator, getLatestPeriod, getLocalIndicators, getMapData, getSnapshotMeta } from "@/lib/api";
-import { UF_CONFIG } from "@/lib/uf";
+import { CRIME_GENERAL_CODE, localIndicator, capitalName, getIndicator, getLatestPeriod, getLocalIndicators, getMapData, getSnapshotMeta } from "@/lib/api";
+import { ufConfig } from "@/lib/uf";
 import { deltaClass, formatMonthYear, formatNumber, formatPercent, formatRate } from "@/lib/format";
 import { noteFor } from "@/lib/notes";
 import type { GeoFeatureCollection, RankingMode } from "@/types/api";
@@ -87,7 +87,7 @@ export function MunicipalityChoroplethPanel() {
   const coverage = getSnapshotMeta().coverage;
   const indicators = useMemo(() => getLocalIndicators(), []);
 
-  const [indicator, setIndicator] = useState(LOCAL_INDICATOR);
+  const [indicator, setIndicator] = useState(localIndicator());
   const [mode, setMode] = useState<RankingMode>("rate");
   const [view, setView] = useState<MapView>("state");
   const [periodKey, setPeriodKey] = useState(formatMonthYear(latest.year, latest.month));
@@ -118,7 +118,7 @@ export function MunicipalityChoroplethPanel() {
     if (nextMode === "rate" || nextMode === "count" || nextMode === "yoy") {
       setMode(nextMode);
     }
-    if (params.get("view") === "rio_city" && UF_CONFIG.mapDrilldown) {
+    if (params.get("view") === "rio_city" && ufConfig().mapDrilldown) {
       setView("rio_city");
     }
     const [year, month] = (params.get("period") ?? "").split("-").map(Number);
@@ -224,7 +224,7 @@ export function MunicipalityChoroplethPanel() {
       ArrowDown: () => setIndicator(indicators[(activeIndex + 1) % indicators.length].code),
       ArrowLeft: () => stepPeriod(-1),
       ArrowRight: () => stepPeriod(1),
-      r: () => changeView(view === "state" && UF_CONFIG.mapDrilldown ? "rio_city" : "state"),
+      r: () => changeView(view === "state" && ufConfig().mapDrilldown ? "rio_city" : "state"),
       m: () => setMode((current) => (current === "rate" ? "count" : current === "count" ? "yoy" : "rate"))
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -232,14 +232,16 @@ export function MunicipalityChoroplethPanel() {
   );
   useScreenHotkeys(hotkeys);
 
+  // UF de um município só (Distrito Federal): o painel mostra o único recorte sem precisar do mouse.
+  const shown = selected ?? (data.features.length === 1 ? data.features[0].properties : null);
   const label = metricLabel(indicator, effectiveMode);
   const unitLabel = view === "rio_city" ? "Bairro · CISP" : "Município";
-  const selectedMetric = selected
+  const selectedMetric = shown
     ? effectiveMode === "rate"
-      ? formatRate(selected.rate_per_100k as number | null)
+      ? formatRate(shown.rate_per_100k as number | null)
       : effectiveMode === "yoy"
-        ? formatPercent(selected.yoy_percent_change as number | null)
-        : formatNumber(selected.value as number | null)
+        ? formatPercent(shown.yoy_percent_change as number | null)
+        : formatNumber(shown.value as number | null)
     : "–";
 
   return (
@@ -252,7 +254,7 @@ export function MunicipalityChoroplethPanel() {
             onChange={changeView}
             options={[
               { value: "state", label: "Estado" },
-              ...(UF_CONFIG.mapDrilldown ? [{ value: "rio_city" as MapView, label: UF_CONFIG.cityMapLabel }] : [])
+              ...(ufConfig().mapDrilldown ? [{ value: "rio_city" as MapView, label: ufConfig().cityMapLabel }] : [])
             ]}
           />
           <Segmented
@@ -282,7 +284,7 @@ export function MunicipalityChoroplethPanel() {
       <Panel
         title={
           <>
-            <b>{getIndicator(indicator)?.name}</b> {view === "rio_city" ? "bairros do Rio" : "municípios"}
+            <b>{getIndicator(indicator)?.name}</b> {view === "rio_city" ? "bairros do Rio" : ufConfig().singleMunicipality ? ufConfig().stateName : "municípios"}
           </>
         }
         aside={
@@ -328,14 +330,14 @@ export function MunicipalityChoroplethPanel() {
             viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
             preserveAspectRatio="xMidYMid meet"
             role="img"
-            aria-label={view === "rio_city" ? `Mapa da cidade do ${UF_CONFIG.capital} por bairros` : `Mapa do ${UF_CONFIG.stateName.replace(/^Estado/, "estado")} por municípios`}
+            aria-label={view === "rio_city" ? `Mapa da cidade do ${ufConfig().capital} por bairros` : `Mapa do ${ufConfig().stateName.replace(/^Estado/, "estado")} por municípios`}
             className="block h-full w-full"
           >
             {data.features.map((feature) => {
               const name = String(feature.properties.territory_name ?? "");
               const sourceName = String(feature.properties.source_territory_name ?? "");
               const hasData = Boolean(feature.properties.has_data);
-              const canOpenRio = UF_CONFIG.mapDrilldown && view === "state" && name === RIO_MUNICIPALITY;
+              const canOpenRio = ufConfig().mapDrilldown && view === "state" && name === capitalName();
               const isSelected = selected?.territory_name === name;
               return (
                 <path
@@ -373,19 +375,19 @@ export function MunicipalityChoroplethPanel() {
         title={<b>{unitLabel}</b>}
         foot={noteFor(indicator) ?? (view === "rio_city" ? "Cada bairro recebe o valor da CISP que o cobre; população do Censo 2022 por bairro." : undefined)}
       >
-        <h3 className="serif text-[18px] leading-snug text-ink">{selected ? String(selected.territory_name) : "Passe o mouse pelo mapa"}</h3>
-        {selected?.source_territory_name ? <p className="mt-1 text-[11px] leading-5 text-ash">{String(selected.source_territory_name)}</p> : null}
+        <h3 className="serif text-[18px] leading-snug text-ink">{shown ? String(shown.territory_name) : "Passe o mouse pelo mapa"}</h3>
+        {shown?.source_territory_name ? <p className="mt-1 text-[11px] leading-5 text-ash">{String(shown.source_territory_name)}</p> : null}
         <div className="mt-4">
           <div className="flex items-baseline justify-between gap-3 border-t border-line py-2">
             <span className="text-[11.5px] text-ash">{label}</span>
             <span className="num display text-[26px] leading-none text-ink">{selectedMetric}</span>
           </div>
-          {selected && effectiveMode !== "count" ? <Stat label="Ocorrências" value={formatNumber(selected.value as number | null)} /> : null}
-          {selected && effectiveMode !== "yoy" ? (
-            <Stat label="Variação anual" value={<span className={deltaClass(selected.yoy_percent_change as number | null, indicator)}>{formatPercent(selected.yoy_percent_change as number | null)}</span>} />
+          {shown && effectiveMode !== "count" ? <Stat label="Ocorrências" value={formatNumber(shown.value as number | null)} /> : null}
+          {shown && effectiveMode !== "yoy" ? (
+            <Stat label="Variação anual" value={<span className={deltaClass(shown.yoy_percent_change as number | null, indicator)}>{formatPercent(shown.yoy_percent_change as number | null)}</span>} />
           ) : null}
-          {selected && effectiveMode !== "rate" && selected.rate_per_100k !== null ? <Stat label="Por 100 mil" value={formatRate(selected.rate_per_100k as number | null)} /> : null}
-          <Stat label="Posição" value={selected?.rank ? `${String(selected.rank)}º` : "–"} sub={hasMapData ? `de ${sortedMetrics.length}` : undefined} />
+          {shown && effectiveMode !== "rate" && shown.rate_per_100k !== null ? <Stat label="Por 100 mil" value={formatRate(shown.rate_per_100k as number | null)} /> : null}
+          <Stat label="Posição" value={shown?.rank ? `${String(shown.rank)}º` : "–"} sub={hasMapData ? `de ${sortedMetrics.length}` : undefined} />
         </div>
       </Panel>
     </Screen>

@@ -2,29 +2,31 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { NAV_ITEMS } from "@/components/SiteNav";
-import { goToUf, nextUf } from "@/components/UfSelector";
-import { PUBLISHED_UFS } from "@/lib/uf";
+import { navItems } from "@/components/SiteNav";
+import { nextUf } from "@/components/UfSelector";
+import { PUBLISHED_UFS, switchUfHref, ufHref } from "@/lib/uf";
+import { useUf } from "@/lib/use-uf";
 
 /** Teclas globais: números trocam de tela, T inverte o tema nesta visita, U passa à próxima UF. Ignora campos de formulário. */
 export function Hotkeys() {
   const router = useRouter();
   const pathname = usePathname() ?? "/";
+  const uf = useUf();
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) {
         return;
       }
-      const item = NAV_ITEMS.find((candidate) => candidate.key === event.key);
+      const item = navItems(uf).find((candidate) => candidate.key === event.key);
       if (item) {
         event.preventDefault();
-        router.push(item.href);
+        router.push(ufHref(uf.code, item.href));
         return;
       }
       if ((event.key === "u" || event.key === "U") && PUBLISHED_UFS.length > 1) {
         event.preventDefault();
-        goToUf(nextUf(), pathname);
+        router.push(switchUfHref(nextUf(uf.code), pathname));
         return;
       }
       if (event.key === "t" || event.key === "T") {
@@ -35,7 +37,7 @@ export function Hotkeys() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router, pathname]);
+  }, [router, pathname, uf]);
 
   return null;
 }

@@ -1,7 +1,7 @@
 # Perdeu, Playboy
 
 Painel público de dados sobre violência e segurança pública por estado, da Tomoyo: **Rio de Janeiro** (ISP),
-**São Paulo** (SSP-SP) e as demais UFs pelo Sinesp VDE do Ministério da Justiça (Minas Gerais como UF de teste).
+**São Paulo** (SSP-SP) e as outras 25 UFs pelo Sinesp VDE do Ministério da Justiça, desde 2015.
 
 O projeto baixa as bases do ISP, normaliza as séries e publica um site estático: indicadores acumulados, séries
 desde 1991, mapa, rankings, mudanças recentes e comparação por mandato. Vítimas não são identificadas e endereços
@@ -15,17 +15,21 @@ São Paulo em https://g0v.tomoyo.systems/perdeu-playboy/sp/; cada UF publicada m
 
 A lista única é `frontend/lib/ufs.json`: sigla, código IBGE, nome, capital, fonte (`isp`, `ssp` ou `sinesp`),
 ano inicial e se a UF é publicada. O ETL, o seletor de UF do cabeçalho (tecla `U`) e o `build-site.sh`
-leem o mesmo arquivo. Publicar uma UF nova servida pelo Sinesp é marcar `"published": true`, acrescentar
-os mandatos em `backend/app/services/governor_performance.py` e gerar o snapshot:
+leem o mesmo arquivo. As 27 estão publicadas desde 2026-10-16. Uma UF servida pelo Sinesp precisa de `"published": true`, dos
+mandatos de governador e de prefeito da capital em `backend/app/services/governor_performance.py`
+(o teste exige a sequência sem buracos desde o início da série) e do snapshot:
 
 ```bash
 cd backend && .venv/bin/python -m app.services.sinesp_repository --uf MG   # baixa o VDE e extrai a UF
 .venv/bin/python -m app.etl.export_static_frontend --uf MG                 # frontend/data/mg/
 ```
 
-Cada build contém uma UF: `scripts/use-uf.sh <uf>` copia `frontend/data/<uf>/` para `frontend/lib/`
-(o `npm run build`, `dev` e `typecheck` fazem isso sozinhos a partir de `NEXT_PUBLIC_UF`). Tiroteios só
-existe no Rio, onde há fonte.
+Um build serve todas as UFs: o Rio na raiz, as demais em `/<uf>/` (`app/[uf]/`, com
+`generateStaticParams`). Os snapshots não entram no bundle: `frontend/scripts/stage-data.mjs` copia
+`frontend/data/<uf>/` para `public/data/<uf>/` antes do `next build` e do `next dev`, e `DataGate` busca o
+da UF da página com fetch (`?v=<build>`, porque o nginx guarda JSON por 7 dias). O Distrito Federal tem
+um município só (Brasília): mapa de uma forma, painel lateral já preenchido. Tiroteios só existe no Rio,
+onde há fonte.
 
 ## Dados
 
@@ -68,7 +72,9 @@ a SSP não publica os limites, então o mapa de SP é só por município.
 
 ### Demais UFs (Sinesp VDE)
 
-O Sinesp VDE cobre as 27 UFs desde 2015, mês a mês. Homicídio doloso, latrocínio, lesão corporal seguida
+O Sinesp VDE cobre as 27 UFs desde 2015, mês a mês (com lacunas: o Espírito Santo só manda
+homicídios a partir de 2016-01; roubo de veículo, de carga e armas apreendidas começam depois de 2015
+em AC, ES, GO, MS, PR, RO, RR, SE e TO). Homicídio doloso, latrocínio, lesão corporal seguida
 de morte e feminicídio vêm por município; morte por intervenção, estupro, roubo de veículo, roubo de carga
 e armas apreendidas só com o total estadual. Não há roubo a pessoa nem recorte por delegacia.
 
@@ -113,13 +119,14 @@ backend/app/
   etl/check_sources.py            contrato de cada CSV do ISP (colunas, chaves, intervalos, atraso)
   etl/write_status.py             status.json servido pelo site
 frontend/
-  data/<uf>/                      snapshot de cada UF (versionado); use-uf.sh copia para lib/
+  data/<uf>/                      snapshot de cada UF (versionado); scripts/stage-data.mjs copia para public/data/
   lib/ufs.json                    lista única de UFs
-  lib/uf.ts                       textos e nomes por UF (Método, Glossário, avisos, seletor)
-  lib/static-data.generated.json  metadados, séries do estado, população, mandatos, fontes (~230 KB)
-  lib/static-series/<ind>.generated.json  séries por município e CISP de um indicador (~230 KB cada),
+  lib/uf.ts                       textos e nomes por UF (Método, Glossário, avisos, seletor), UF do caminho
+  data/<uf>/static-data.generated.json  metadados, séries do estado, população, mandatos, fontes (~230 KB)
+  data/<uf>/static-series/<ind>.generated.json  séries por município e CISP de um indicador,
                                   carregadas só quando o recorte pede; crime_geral já vem somado
-  lib/static-geo.generated.json   geometrias, carregadas só no mapa (~2,3 MB)
+  data/<uf>/static-geo.generated.json   geometrias, carregadas só no mapa (~2,3 MB no Rio)
+  components/DataGate.tsx         busca o núcleo da UF da página e só então renderiza a tela
   lib/static-api.ts               toda a leitura e os cálculos (acumulados, anuais, rankings, mapa)
   app/, components/               Next.js App Router, Tailwind com tokens em CSS, Recharts
 data/raw/                         caches dos arquivos oficiais
@@ -162,7 +169,7 @@ cd frontend && npm run dev
 ```bash
 make lint            # flake8 + mypy
 make test            # pytest
-cd frontend && npm run typecheck && npm run build && npm run test:visual:all   # RJ e SP
+cd frontend && npm run typecheck && npm run build && npm run test:visual   # RJ, SP, MG, DF, AM, BA
 ```
 
 O CI (`.github/workflows/ci.yml`) roda os testes do backend e os testes visuais do frontend com Playwright.
@@ -180,8 +187,9 @@ clone em `/root/g0v/src`, log em `/root/g0v/build-site.log`). O script puxa `mai
 publicada em `frontend/lib/ufs.json`, baixa de novo os arquivos oficiais, confere o contrato
 (`check_sources --uf`) e regenera o snapshot (`export_static_frontend --uf`); falha numa UF deixa só
 aquela com o snapshot commitado. Se o commit ou os dados mudaram desde o último build (ignorando
-`generated_at`), constrói um site por UF: o Rio em `/root/g0v/site/perdeu-playboy` (o rsync da raiz
-exclui as pastas das outras UFs) e as demais em `/root/g0v/site/perdeu-playboy/<uf>/`. Cada rodada vira
+`generated_at`), faz um `next build` só, com todas as UFs, e sincroniza `out/` com
+`/root/g0v/site/perdeu-playboy` (o Rio na raiz, as demais em `/<uf>/`, os snapshots em `/data/<uf>/`).
+São 30 s numa máquina de 12 núcleos; o build por UF levava 25 s cada, 11 minutos para 27 UFs. Cada rodada vira
 uma linha em `/root/g0v/runs.jsonl` e um `status.json` por UF (`/perdeu-playboy/status.json`,
 `/perdeu-playboy/sp/status.json`); contrato, ETL ou build quebrados mandam e-mail para
 `arete@tomoyo.systems` pelo mailserver da própria máquina. Para publicar na hora, depois de um push
@@ -194,22 +202,19 @@ ssh root@mail.tomoyo.systems 'FORCE=1 SKIP_DATA=1 /root/g0v/build-site.sh'
 O workflow `update-data.yml` faz só a parte dos dados do Rio, às 05:53: regenera o snapshot e commita
 em `main` quando mudou, para manter o repositório em dia.
 
-Build manual de uma UF:
+Build manual:
 
 ```bash
-cd frontend
-NEXT_PUBLIC_UF=RJ NEXT_PUBLIC_BASE_PATH=/perdeu-playboy npm run build
-NEXT_PUBLIC_UF=SP NEXT_PUBLIC_BASE_PATH=/perdeu-playboy/sp npm run build
+cd frontend && NEXT_PUBLIC_BASE_PATH=/perdeu-playboy npm run build
 ```
 
 Deploy a partir desta máquina, com build local (serve para testar mudanças não commitadas):
 
 ```bash
-scripts/deploy-g0v.sh          # todas as UFs publicadas
-scripts/deploy-g0v.sh SP       # só São Paulo
+scripts/deploy-g0v.sh
 ```
 
-O script resolve o droplet pelo `doctl` e sobe cada build para `/root/g0v/site/perdeu-playboy[/<uf>]`.
+O script resolve o droplet pelo `doctl` e sobe o build para `/root/g0v/site/perdeu-playboy`.
 O certificado vem do Traefik (Let's Encrypt via DNS Cloudflare) e o DNS é o wildcard `*.tomoyo.systems`.
 
 Fogo Cruzado é opcional: com `FOGOCRUZADO_EMAIL`, `FOGOCRUZADO_PASSWORD` e `ENABLE_FOGOCRUZADO=true`

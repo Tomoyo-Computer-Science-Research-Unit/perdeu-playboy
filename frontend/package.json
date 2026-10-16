@@ -3,20 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "use:rj": "sh ../scripts/use-uf.sh rj",
-    "use:sp": "sh ../scripts/use-uf.sh sp",
-    "predev": "sh ../scripts/use-uf.sh",
+    "stage-data": "node scripts/stage-data.mjs",
+    "predev": "node scripts/stage-data.mjs",
     "dev": "next dev",
-    "prebuild": "sh ../scripts/use-uf.sh",
+    "prebuild": "node scripts/stage-data.mjs",
     "build": "next build",
-    "postbuild": "sh ../scripts/prune-out.sh",
     "start": "next start",
     "lint": "next lint",
-    "pretypecheck": "sh ../scripts/use-uf.sh",
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
     "test:visual": "playwright test",
-    "test:visual:all": "NEXT_PUBLIC_UF=RJ playwright test && NEXT_PUBLIC_UF=SP playwright test"
+    "test:visual:all": "playwright test"
   },
   "dependencies": {
     "next": "^15.0.0",

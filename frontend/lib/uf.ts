@@ -1,9 +1,9 @@
 /**
  * Tudo o que muda de uma UF para outra: nomes, fontes, textos de Método e Glossário, avisos por
- * indicador. O build escolhe a UF por NEXT_PUBLIC_UF ("RJ" padrão); os dados vêm do snapshot que
- * scripts/use-uf.sh copiou para lib/. A lista de UFs é a de lib/ufs.json, a mesma que o ETL e o
- * build-site.sh leem. Os textos dependem da fonte: ISP (Rio), SSP-SP (São Paulo) ou Sinesp VDE
- * (qualquer outra UF), com o nome da UF no lugar certo.
+ * indicador. Um build só serve todas as UFs publicadas: o Rio na raiz, as demais em /<uf>/; a UF
+ * de uma página vem do caminho (`ufFromPath`). A lista de UFs é a de lib/ufs.json, a mesma que o
+ * ETL e o build-site.sh leem. Os textos dependem da fonte: ISP (Rio), SSP-SP (São Paulo) ou Sinesp
+ * VDE (qualquer outra UF), com o nome da UF no lugar certo.
  */
 import ufs from "@/lib/ufs.json";
 
@@ -22,29 +22,70 @@ export type UfEntry = {
 const ALL_UFS = ufs as UfEntry[];
 /** UFs publicadas, na ordem do seletor do cabeçalho. */
 export const PUBLISHED_UFS: UfEntry[] = ALL_UFS.filter((entry) => entry.published);
-
-const REQUESTED = (process.env.NEXT_PUBLIC_UF ?? "RJ").toUpperCase();
-const ENTRY: UfEntry = ALL_UFS.find((entry) => entry.code === REQUESTED) ?? ALL_UFS.find((entry) => entry.code === "RJ")!;
-export const UF: string = ENTRY.code;
-/** A UF da raiz do projeto (o Rio); as demais moram em /<slug>/<uf minúscula>/. */
+/** A UF da raiz do projeto (o Rio); as demais moram em /<uf minúscula>/. */
 export const ROOT_UF = "RJ";
+const ROOT_ENTRY = ALL_UFS.find((entry) => entry.code === ROOT_UF)!;
 
-const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-/** Raiz do projeto, sem o /<uf> dos builds que não são o do Rio. */
-export const ROOT_PATH = UF === ROOT_UF ? BASE_PATH : BASE_PATH.replace(new RegExp(`/${UF.toLowerCase()}/?$`), "");
+export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
-/** Endereço da mesma tela em outra UF ("/mapa" no Rio vira "/sp/mapa" em São Paulo). */
+export function ufByCode(code: string | null | undefined): UfEntry | undefined {
+  const key = (code ?? "").toUpperCase();
+  return PUBLISHED_UFS.find((entry) => entry.code === key);
+}
+
+/** UF de um caminho sem basePath: "/sp/mapa" é São Paulo; o que não começa por uma UF publicada é o Rio. */
+export function ufFromPath(pathname: string | null | undefined): UfEntry {
+  const first = (pathname ?? "/").split("/").filter(Boolean)[0];
+  const entry = ufByCode(first);
+  return entry && entry.code !== ROOT_UF ? entry : ROOT_ENTRY;
+}
+
+/** Tela de um caminho, sem o prefixo da UF: "/sp/mapa/" vira "/mapa". */
+export function screenFromPath(pathname: string | null | undefined): string {
+  const path = pathname ?? "/";
+  const entry = ufFromPath(path);
+  const rest = entry.code === ROOT_UF ? path : path.replace(new RegExp(`^/${entry.code.toLowerCase()}(?=/|$)`), "");
+  return rest.replace(/\/+$/, "") || "/";
+}
+
+/** Prefixo de rota (sem basePath): "" no Rio, "/sp" em São Paulo. */
+export function ufPrefix(code: string): string {
+  return code === ROOT_UF ? "" : `/${code.toLowerCase()}`;
+}
+
+/** Endereço (sem basePath) de uma tela numa UF: "/mapa" em SP vira "/sp/mapa/". */
 export function ufHref(code: string, screen = "/"): string {
-  const prefix = code === ROOT_UF ? "" : `/${code.toLowerCase()}`;
-  const path = screen.startsWith("/") ? screen : `/${screen}`;
-  return `${ROOT_PATH}${prefix}${path === "/" ? "/" : path.endsWith("/") ? path : `${path}/`}`;
+  const [path, query] = screen.split("?");
+  const clean = path.startsWith("/") ? path : `/${path}`;
+  const full = `${ufPrefix(code)}${clean === "/" ? "/" : clean.endsWith("/") ? clean : `${clean}/`}`;
+  return query ? `${full}?${query}` : full;
+}
+
+/** A mesma tela em outra UF; Tiroteios, onde a UF não tem a tela, vira o Panorama. */
+export function switchUfHref(code: string, pathname: string | null | undefined): string {
+  const screen = screenFromPath(pathname);
+  return ufHref(code, screen === "/tiroteios" && !configFor(code).hasShootings ? "/" : screen);
+}
+
+const DATA_VERSION = process.env.NEXT_PUBLIC_DATA_VERSION ?? "";
+
+/** Endereço completo de um arquivo de dados da UF: <basePath>/data/<uf>/<file>?v=<build>. */
+export function dataUrl(code: string, file: string): string {
+  return `${BASE_PATH}/data/${code.toLowerCase()}/${file}${DATA_VERSION ? `?v=${DATA_VERSION}` : ""}`;
+}
+
+/** status.json da UF, escrito pelo build no servidor: <basePath>[/<uf>]/status.json. */
+export function statusUrl(code: string): string {
+  return `${BASE_PATH}${ufPrefix(code)}/status.json`;
 }
 
 export type SourceLine = { label: string; description: string; href: string };
 export type Term = { title: string; body: string };
 
-type UfConfig = {
+export type UfConfig = {
   code: string;
+  /** UF de um município só (o Distrito Federal): sem ranking de municípios nem mapa por município. */
+  singleMunicipality: boolean;
   /** Nome curto do estado, como em "Governadores de São Paulo". */
   name: string;
   stateName: string;
@@ -90,6 +131,7 @@ const SHARED_TERMS: Term[] = [
 
 const RJ: UfConfig = {
   code: "RJ",
+  singleMunicipality: false,
   name: "Rio",
   stateName: "Estado do Rio de Janeiro",
   capital: "Rio de Janeiro",
@@ -172,6 +214,7 @@ const RJ: UfConfig = {
 
 const SP: UfConfig = {
   code: "SP",
+  singleMunicipality: false,
   name: "São Paulo",
   stateName: "Estado de São Paulo",
   capital: "São Paulo",
@@ -273,6 +316,7 @@ const SP: UfConfig = {
 function sinespConfig(entry: UfEntry): UfConfig {
   return {
     code: entry.code,
+    singleMunicipality: entry.code === "DF",
     name: entry.name,
     stateName: entry.state_name,
     capital: entry.capital,
@@ -344,4 +388,27 @@ function sinespConfig(entry: UfEntry): UfConfig {
   };
 }
 
-export const UF_CONFIG: UfConfig = ENTRY.source === "isp" ? RJ : ENTRY.source === "ssp" ? SP : sinespConfig(ENTRY);
+const CONFIGS = new Map<string, UfConfig>();
+
+/** Textos de uma UF (por sigla ou entrada). */
+export function configFor(entry: UfEntry | string): UfConfig {
+  const resolved = typeof entry === "string" ? ufByCode(entry) ?? ROOT_ENTRY : entry;
+  let config = CONFIGS.get(resolved.code);
+  if (!config) {
+    config = resolved.source === "isp" ? RJ : resolved.source === "ssp" ? SP : sinespConfig(resolved);
+    CONFIGS.set(resolved.code, config);
+  }
+  return config;
+}
+
+let CURRENT: UfConfig = RJ;
+
+/** Instala a UF cujos dados estão carregados (DataGate, junto com o núcleo). */
+export function setCurrentUf(code: string): void {
+  CURRENT = configFor(code);
+}
+
+/** Textos da UF da tela em exibição; só vale dentro de DataGate. */
+export function ufConfig(): UfConfig {
+  return CURRENT;
+}

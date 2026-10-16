@@ -1,24 +1,22 @@
 import type { Metadata } from "next";
 import { Archivo, Shippori_Mincho_B1 } from "next/font/google";
-import Link from "next/link";
 import { Fx } from "@/components/Fx";
 import { Hotkeys } from "@/components/Hotkeys";
+import { HomeLink } from "@/components/UfLink";
 import { SiteNav } from "@/components/SiteNav";
 import { StatusBar } from "@/components/StatusBar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UfSelector } from "@/components/UfSelector";
-import { getSnapshotMeta } from "@/lib/api";
-import { monthShort } from "@/lib/format";
 import { cursorVars } from "@/lib/cursors";
-import { UF_CONFIG } from "@/lib/uf";
+import { DataGate } from "@/components/DataGate";
+import { BASE_PATH, configFor, ROOT_UF } from "@/lib/uf";
 import "./globals.css";
 
 const mincho = Shippori_Mincho_B1({ weight: ["500", "700"], subsets: ["latin"], variable: "--font-mincho", display: "swap" });
 const archivo = Archivo({ subsets: ["latin"], weight: "variable", axes: ["wdth"], variable: "--font-archivo", display: "swap" });
 
-const DESCRIPTION = UF_CONFIG.description;
-
-const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const ROOT_CONFIG = configFor(ROOT_UF);
+const DESCRIPTION = ROOT_CONFIG.description;
 const SITE_URL = `https://g0v.tomoyo.systems${BASE_PATH}`;
 
 export const metadata: Metadata = {
@@ -29,7 +27,7 @@ export const metadata: Metadata = {
   authors: [{ name: "Tomoyo", url: "https://tomoyo.systems" }],
   creator: "Tomoyo",
   publisher: "Tomoyo",
-  keywords: UF_CONFIG.keywords,
+  keywords: ROOT_CONFIG.keywords,
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
@@ -57,8 +55,6 @@ const THEME_SCRIPT = `(() => {
 })();`;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const latest = getSnapshotMeta().latest_period;
-
   return (
     <html
       lang="pt-BR"
@@ -80,9 +76,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={`${BASE_PATH}/logo_perdeu-playboy.png`} alt="" width={30} height={30} className="h-[30px] w-[30px] shrink-0" data-brand />
               </a>
-              <Link href="/" className="wordmark text-[14px] uppercase leading-none" data-brand>
+              <HomeLink className="wordmark text-[14px] uppercase leading-none" data-brand>
                 Perdeu, Playboy
-              </Link>
+              </HomeLink>
             </span>
             <SiteNav />
             <span className="flex shrink-0 items-center gap-2">
@@ -90,8 +86,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <ThemeToggle />
             </span>
           </header>
-          <main className="app__main">{children}</main>
-          <StatusBar latestLabel={`${UF_CONFIG.sourceShort} ${monthShort(latest.month)} ${latest.year}`} />
+          <main className="app__main">
+            <DataGate>{children}</DataGate>
+          </main>
+          <StatusBar />
         </div>
         <Hotkeys />
         <Fx />

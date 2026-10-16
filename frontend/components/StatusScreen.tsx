@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { UF_CONFIG } from "@/lib/uf";
+import { statusUrl, ufConfig } from "@/lib/uf";
 import { EmptyState, Panel, Screen, Stat } from "@/components/ui";
 import { formatBytes, formatDateTime, formatMonthYear } from "@/lib/format";
 import type { DataSource, LatestPeriod } from "@/types/api";
-
-const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 type Run = { at: string; result: string; detail?: string | null; key?: string | null; duration_s?: number };
 type Remote = { status: number | null; last_modified?: string | null; size_bytes?: number | null; error?: string };
@@ -29,7 +27,7 @@ export function StatusScreen({ generatedAt, latest, sources }: { generatedAt: st
 
   useEffect(() => {
     let alive = true;
-    fetch(`${BASE_PATH}/status.json`, { cache: "no-store" })
+    fetch(statusUrl(ufConfig().code), { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error(String(response.status)))))
       .then((data: Status) => {
         if (alive) {
@@ -89,13 +87,13 @@ export function StatusScreen({ generatedAt, latest, sources }: { generatedAt: st
         )}
       </Panel>
 
-      <Panel title={<b>{UF_CONFIG.statusFilesTitle}</b>} flush fill>
+      <Panel title={<b>{ufConfig().statusFilesTitle}</b>} flush fill>
         <table className="ruled">
           <thead>
             <tr>
               <th>Arquivo</th>
               <th>Último mês</th>
-              <th>{UF_CONFIG.statusModifiedLabel}</th>
+              <th>{ufConfig().statusModifiedLabel}</th>
               <th className="right">Tamanho</th>
               <th>SHA-256</th>
               <th>Contrato</th>

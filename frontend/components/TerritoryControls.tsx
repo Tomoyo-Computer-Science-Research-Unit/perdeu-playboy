@@ -1,7 +1,7 @@
 "use client";
 
 import { Field, Segmented } from "@/components/ui";
-import { UF_CONFIG } from "@/lib/uf";
+import { ufConfig } from "@/lib/uf";
 import type { Territory, TerritorialUnit, TerritoryType } from "@/types/api";
 
 export type TerritorySelection = { type: TerritoryType; name: string };
@@ -45,7 +45,7 @@ export function TerritoryControls({ value, onChange, municipalities, policeAreas
           { value: "state", label: "Estado" },
           { value: "municipality", label: "Município" },
           // UFs sem dado por área policial (Sinesp) ficam sem a opção.
-          ...(policeAreas.length > 0 ? [{ value: "police_area" as TerritoryType, label: UF_CONFIG.policeAreaShort }] : [])
+          ...(policeAreas.length > 0 ? [{ value: "police_area" as TerritoryType, label: ufConfig().policeAreaShort }] : [])
         ]}
       />
       {value.type === "municipality" ? (
@@ -60,9 +60,9 @@ export function TerritoryControls({ value, onChange, municipalities, policeAreas
         </Field>
       ) : null}
       {value.type === "police_area" ? (
-        <Field label={UF_CONFIG.policeAreaField} className={compact ? "" : "min-w-[280px]"}>
+        <Field label={ufConfig().policeAreaField} className={compact ? "" : "min-w-[280px]"}>
           <select value={value.name} onChange={(event) => onChange({ type: "police_area", name: event.target.value })}>
-            <optgroup label={UF_CONFIG.capitalLabel}>
+            <optgroup label={ufConfig().capitalLabel}>
               {rioUnits.map((unit) => (
                 <option key={unit.police_area_name} value={unit.territorial_unit}>
                   {unit.name}
@@ -70,7 +70,7 @@ export function TerritoryControls({ value, onChange, municipalities, policeAreas
               ))}
             </optgroup>
             {otherAreas.length > 0 ? (
-              <optgroup label={UF_CONFIG.otherPoliceAreasLabel}>
+              <optgroup label={ufConfig().otherPoliceAreasLabel}>
                 {otherAreas.map((area) => (
                   <option key={area.name} value={area.name}>
                     {area.name}

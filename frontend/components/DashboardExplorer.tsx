@@ -1,6 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { UfLink } from "@/components/UfLink";
+import { useScreenHref } from "@/lib/use-uf";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { HistoryChart, type ChartPoint } from "@/components/HistoryChart";
@@ -9,8 +10,8 @@ import { Sparkline } from "@/components/Sparkline";
 import { TERRITORY_TYPES, TerritoryControls, nextSelection, type TerritorySelection } from "@/components/TerritoryControls";
 import { Panel, Screen, Segmented, Stat } from "@/components/ui";
 import {
-  RIO_MUNICIPALITY,
-  STATE_NAME,
+  capitalName,
+  stateName,
   getAnnualSeries,
   getGovernorTerms,
   getMayorTerms,
@@ -31,6 +32,7 @@ type Metric = "count" | "rate";
 
 export function DashboardExplorer() {
   const router = useRouter();
+  const screenHref = useScreenHref();
   const latest = getLatestPeriod();
   const [selection, setSelection] = useState<TerritorySelection>({ type: "state", name: "" });
   const [indicator, setIndicator] = useState("letalidade_violenta");
@@ -39,15 +41,15 @@ export function DashboardExplorer() {
 
   const municipalities = useMemo(() => getTerritories("municipality"), []);
   const policeAreas = useMemo(() => getTerritories("police_area"), []);
-  const rioUnits = useMemo(() => getTerritorialUnits(RIO_MUNICIPALITY), []);
+  const rioUnits = useMemo(() => getTerritorialUnits(capitalName()), []);
   const terms = useMemo(() => getGovernorTerms(), []);
 
   const territoryName = resolveTerritoryName(selection.type, selection.name || undefined);
   // Na cidade do Rio (município ou uma de suas áreas), os prefeitos entram junto com os governadores.
   const inRio =
-    (selection.type === "municipality" && territoryName === RIO_MUNICIPALITY) ||
+    (selection.type === "municipality" && territoryName === capitalName()) ||
     (selection.type === "police_area" && rioUnits.some((unit) => unit.territorial_unit === territoryName));
-  const mayors = useMemo(() => (inRio ? getMayorTerms(RIO_MUNICIPALITY) : []), [inRio]);
+  const mayors = useMemo(() => (inRio ? getMayorTerms(capitalName()) : []), [inRio]);
   const allCodes = useMemo(() => getIndicatorsFor(selection.type, territoryName).map((item) => item.code), [selection.type, territoryName]);
   // Município e CISP vêm num arquivo por indicador; o painel inteiro precisa de todos.
   const ready = useSeries(allCodes, selection.type);
@@ -66,7 +68,7 @@ export function DashboardExplorer() {
   const chartPoints = useMemo(() => toChartPoints(annual, effectiveMetric, latest.month), [annual, effectiveMetric, latest.month]);
   const indicatorMeta = getIndicator(activeIndicator);
   const firstYear = annual[0]?.year ?? latest.year;
-  const territoryLabel = selection.type === "state" ? STATE_NAME : territoryName;
+  const territoryLabel = selection.type === "state" ? stateName() : territoryName;
   const trendsHref = `/series?indicator=${activeIndicator}&type=${selection.type}&name=${encodeURIComponent(territoryName)}`;
 
   const hotkeys = useMemo(
@@ -77,24 +79,24 @@ export function DashboardExplorer() {
       ArrowRight: () => cycleTerritory(1),
       m: () => setMetric((current) => (current === "count" ? "rate" : "count")),
       b: () => setShowTerms((current) => !current),
-      Enter: () => router.push(trendsHref)
+      Enter: () => router.push(screenHref(trendsHref))
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeIndex, activeIndicator, indicators, selection, trendsHref]
+    [activeIndex, activeIndicator, indicators, selection, trendsHref, screenHref]
   );
   useScreenHotkeys(hotkeys);
 
   function cycleTerritory(step: number) {
     const index = TERRITORY_TYPES.indexOf(selection.type);
     const type = TERRITORY_TYPES[(index + step + TERRITORY_TYPES.length) % TERRITORY_TYPES.length];
-    setSelection(nextSelection(type, selection, rioUnits, policeAreas, RIO_MUNICIPALITY));
+    setSelection(nextSelection(type, selection, rioUnits, policeAreas, capitalName()));
   }
 
   return (
     <Screen columns="320px minmax(0, 1fr)" rows="minmax(0, 1fr) 150px" className={ready ? "" : "is-loading"}>
       <Panel
         title={<b>{territoryLabel}</b>}
-        aside={<Link href={trendsHref} className="btn !h-7 !px-2 text-[10px]">Série</Link>}
+        aside={<UfLink href={trendsHref} className="btn !h-7 !px-2 text-[10px]">Série</UfLink>}
         flush
         fill
         style={{ gridRow: "1 / span 2" }}
@@ -107,7 +109,7 @@ export function DashboardExplorer() {
             municipalities={municipalities}
             policeAreas={policeAreas}
             rioUnits={rioUnits}
-            defaultMunicipality={RIO_MUNICIPALITY}
+            defaultMunicipality={capitalName()}
           />
         </div>
         <ul className="menu" role="listbox" aria-label="Indicadores">

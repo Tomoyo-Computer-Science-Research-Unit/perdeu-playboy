@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Roda no droplet, por cron, uma vez por dia: puxa main e, para cada UF publicada em
 # frontend/lib/ufs.json, baixa de novo os arquivos oficiais, confere o contrato de cada um e regenera
-# o snapshot (frontend/data/<uf>/). Se o código ou os dados mudaram desde o último build, constrói um
-# site por UF e troca os arquivos: o Rio em /root/g0v/site/perdeu-playboy, as demais em
-# /root/g0v/site/perdeu-playboy/<uf>/. Falha no ETL de uma UF não derruba as outras: aquela UF segue
+# o snapshot (frontend/data/<uf>/). Se o código ou os dados mudaram desde o último build, constrói o
+# site (um build só para todas as UFs) e troca os arquivos em /root/g0v/site/perdeu-playboy: o Rio na
+# raiz, as demais em /<uf>/. Falha no ETL de uma UF não derruba as outras: aquela UF segue
 # com o snapshot commitado. A landing, o nginx e o cron são do repositório g0v. Cada rodada entra em
 # runs.jsonl e no status.json de cada UF; falhas avisam por e-mail.
 #
@@ -58,7 +58,7 @@ notify() {
     | docker exec -i mailserver sendmail -t || log "aviso por e-mail falhou"
 }
 
-# base_path UF: /perdeu-playboy para o Rio, /perdeu-playboy/<uf> para as demais.
+# base_path UF: /perdeu-playboy para o Rio, /perdeu-playboy/<uf> para as demais (onde mora o status.json).
 base_path() {
   if [ "$1" = "$ROOT_UF" ]; then echo "$BASE_PATH"; else echo "$BASE_PATH/$(echo "$1" | tr '[:upper:]' '[:lower:]')"; fi
 }
@@ -172,25 +172,12 @@ fi
 
 log "construindo ($key)"
 (cd "$SRC/frontend" && npm ci --no-audit --no-fund --silent)
-# A raiz (Rio) não pode apagar as pastas das outras UFs no rsync --delete.
-excludes=""
-for uf in $UFS; do
-  [ "$uf" = "$ROOT_UF" ] || excludes="$excludes --exclude=/$(echo "$uf" | tr '[:upper:]' '[:lower:]')/"
-done
-for uf in $UFS; do
-  base="$(base_path "$uf")"
-  log "build $uf em $base"
-  (cd "$SRC/frontend" && rm -rf out .next && NEXT_PUBLIC_UF="$uf" NEXT_PUBLIC_BASE_PATH="$base" npm run build --silent >/dev/null)
-  mkdir -p "$DIR/site$base"
-  if [ "$uf" = "$ROOT_UF" ]; then
-    # shellcheck disable=SC2086
-    rsync -a --delete $excludes --exclude=/status.json --chmod=D755,F644 "$SRC/frontend/out/" "$DIR/site$base/"
-  else
-    rsync -a --delete --exclude=/status.json --chmod=D755,F644 "$SRC/frontend/out/" "$DIR/site$base/"
-  fi
-done
-# Deixa lib/ com o Rio, como no repositório.
-(cd "$SRC/frontend" && sh ../scripts/use-uf.sh "$ROOT_UF" >/dev/null)
+# Um build só para todas as UFs: o Rio na raiz, as demais em /<uf>/, os snapshots em /data/<uf>/
+# (frontend/scripts/stage-data.mjs copia frontend/data/ para public/data/ antes do next build).
+(cd "$SRC/frontend" && rm -rf out .next && NEXT_PUBLIC_BASE_PATH="$BASE_PATH" npm run build --silent >/dev/null)
+mkdir -p "$DIR/site$BASE_PATH"
+# Os status.json (raiz e /<uf>/) são escritos aqui por write_status; o rsync não os toca.
+rsync -a --delete --exclude=/status.json --exclude='/*/status.json' --chmod=D755,F644 "$SRC/frontend/out/" "$DIR/site$BASE_PATH/"
 echo "$key" > "$MARK"
 record "publicado" "$note"
 write_status

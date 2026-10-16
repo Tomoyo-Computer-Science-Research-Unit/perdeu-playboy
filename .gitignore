@@ -28,11 +28,9 @@ data/processed/*
 !data/processed/.gitkeep
 !data/raw/isp/.gitkeep
 .claude/
-# Cópia do snapshot da UF em construção (scripts/use-uf.sh); os originais ficam em frontend/data/<uf>/.
-frontend/lib/static-data.generated.json
-frontend/lib/static-geo.generated.json
-frontend/lib/static-series/
-frontend/lib/.uf
+# Cópia dos snapshots de frontend/data/, feita por frontend/scripts/stage-data.mjs antes do build.
+frontend/public/data/
+frontend/public/[a-z][a-z]/
 # Respostas brutas da SSP-SP e do Sinesp; o consolidado data/raw/ssp_sp/ssp_monthly.csv.gz é versionado.
 data/raw/ssp_sp/monthly/
 data/raw/ssp_sp/mulher/

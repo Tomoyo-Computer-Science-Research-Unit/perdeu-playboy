@@ -8,8 +8,8 @@ import { TerritoryControls, type TerritorySelection } from "@/components/Territo
 import { Field, Panel, Screen, Segmented } from "@/components/ui";
 import {
   CRIME_GENERAL_CODE,
-  RIO_MUNICIPALITY,
-  STATE_NAME,
+  capitalName,
+  stateName,
   getAnnualSeries,
   getGovernorTerms,
   getMayorTerms,
@@ -48,7 +48,7 @@ export function TrendsExplorer() {
 
   const municipalities = useMemo(() => getTerritories("municipality"), []);
   const policeAreas = useMemo(() => getTerritories("police_area"), []);
-  const rioUnits = useMemo(() => getTerritorialUnits(RIO_MUNICIPALITY), []);
+  const rioUnits = useMemo(() => getTerritorialUnits(capitalName()), []);
   const terms = useMemo(() => getGovernorTerms(), []);
 
   // Permalinks: ?indicator=&type=&name=&view=&metric=&from=&to=
@@ -57,7 +57,7 @@ export function TrendsExplorer() {
     const type = params.get("type") as TerritoryType | null;
     const name = params.get("name") ?? "";
     if (type === "municipality" || type === "police_area") {
-      setSelection({ type, name: name || (type === "municipality" ? RIO_MUNICIPALITY : "") });
+      setSelection({ type, name: name || (type === "municipality" ? capitalName() : "") });
     }
     const nextIndicator = params.get("indicator");
     if (nextIndicator) {
@@ -79,9 +79,9 @@ export function TrendsExplorer() {
   const territoryName = resolveTerritoryName(selection.type, selection.name || undefined);
   // Na cidade do Rio (município ou uma de suas áreas), os prefeitos entram junto com os governadores.
   const inRio =
-    (selection.type === "municipality" && territoryName === RIO_MUNICIPALITY) ||
+    (selection.type === "municipality" && territoryName === capitalName()) ||
     (selection.type === "police_area" && rioUnits.some((unit) => unit.territorial_unit === territoryName));
-  const mayors = useMemo(() => (inRio ? getMayorTerms(RIO_MUNICIPALITY) : []), [inRio]);
+  const mayors = useMemo(() => (inRio ? getMayorTerms(capitalName()) : []), [inRio]);
   const indicators = useMemo(() => {
     const available = getIndicatorsFor(selection.type, territoryName);
     const general = getIndicator(CRIME_GENERAL_CODE);
@@ -165,7 +165,7 @@ export function TrendsExplorer() {
   );
   useScreenHotkeys(hotkeys);
 
-  const territoryLabel = selection.type === "state" ? STATE_NAME : territoryName;
+  const territoryLabel = selection.type === "state" ? stateName() : territoryName;
   const valueLabel = effectiveMetric === "rate" ? "Por 100 mil hab." : indicatorMeta?.unit === "armas" ? "Armas" : "Ocorrências";
 
   return (
@@ -187,7 +187,7 @@ export function TrendsExplorer() {
             municipalities={municipalities}
             policeAreas={policeAreas}
             rioUnits={rioUnits}
-            defaultMunicipality={RIO_MUNICIPALITY}
+            defaultMunicipality={capitalName()}
           />
           <Segmented
             label="Visualização"

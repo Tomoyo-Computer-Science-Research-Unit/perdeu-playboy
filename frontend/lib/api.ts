@@ -1,10 +1,7 @@
 export {
   CRIME_GENERAL_CODE,
-  CRIME_RATE_INDICATORS,
-  LOCAL_INDICATOR,
-  getLocalIndicators,
-  RIO_MUNICIPALITY,
-  STATE_NAME,
+  capitalName,
+  crimeRateIndicators,
   getAnnualSeries,
   getDataSources,
   getFogoCruzado,
@@ -16,6 +13,7 @@ export {
   getIndicatorsFor,
   getLatestChanges,
   getLatestPeriod,
+  getLocalIndicators,
   getMapData,
   getMayorTerms,
   getMethodology,
@@ -27,9 +25,13 @@ export {
   getTerritorialUnits,
   getTerritories,
   isSeriesLoaded,
+  loadCore,
   loadSeries,
   loadedTerritoryNames,
+  localIndicator,
   monthIndex,
   monthKeyAt,
-  resolveTerritoryName
+  resolveTerritoryName,
+  setCore,
+  stateName
 } from "@/lib/static-api";

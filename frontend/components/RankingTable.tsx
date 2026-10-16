@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { UfLink } from "@/components/UfLink";
 import { deltaClass, formatNumber, formatPercent, formatRate } from "@/lib/format";
 import type { RankingRow, TerritoryType } from "@/types/api";
 
@@ -64,9 +64,9 @@ export function RankingTable({
           <tr key={`${row.rank}-${row.territory_name}`}>
             <td className="num faint">{row.rank}</td>
             <td className="max-w-[260px] [overflow-wrap:anywhere]">
-              <Link href={`/series?type=${territoryType}&name=${encodeURIComponent(row.territory_name)}`} className="text-ink hover:underline hover:underline-offset-4" title={row.territory_name}>
+              <UfLink href={`/series?type=${territoryType}&name=${encodeURIComponent(row.territory_name)}`} className="text-ink hover:underline hover:underline-offset-4" title={row.territory_name}>
                 {row.territory_name}
-              </Link>
+              </UfLink>
             </td>
             <td className="num right">{formatNumber(row.value)}</td>
             {hasRate ? <td className="num right">{formatRate(row.rate_per_100k)}</td> : null}

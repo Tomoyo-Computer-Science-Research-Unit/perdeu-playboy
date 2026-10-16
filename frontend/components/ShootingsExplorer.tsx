@@ -5,7 +5,7 @@ import { HistoryChart, type ChartPoint } from "@/components/HistoryChart";
 import { useScreenHotkeys } from "@/components/Hotkeys";
 import { EmptyState, Field, Panel, Screen, Segmented, Stat } from "@/components/ui";
 import {
-  RIO_MUNICIPALITY,
+  capitalName,
   getAnnualSeries,
   getFogoCruzado,
   getGovernorTerms,
@@ -46,7 +46,7 @@ export function ShootingsExplorer() {
   const codes = useMemo(() => indicators.map((item) => `fc_${item.code}`), [indicators]);
   const [indicator, setIndicator] = useState(indicators[0]?.code ?? "tiroteios");
   const [scope, setScope] = useState<Scope>("state");
-  const [name, setName] = useState<string>(RIO_MUNICIPALITY);
+  const [name, setName] = useState<string>(capitalName());
   const [view, setView] = useState<View>("annual");
   const [showTerms, setShowTerms] = useState(true);
   const territoryType = scope as TerritoryType;
@@ -61,7 +61,7 @@ export function ShootingsExplorer() {
       setName(neighborhoods[0]);
     }
     if (scope === "municipality" && !municipalities.includes(name)) {
-      setName(RIO_MUNICIPALITY);
+      setName(capitalName());
     }
   }, [municipalities, name, neighborhoods, scope]);
 
@@ -72,7 +72,7 @@ export function ShootingsExplorer() {
     [code, effectiveName, latest.year, scope, territoryType, view, ready]
   );
   const terms = useMemo(() => getGovernorTerms(), []);
-  const mayors = useMemo(() => (scope === "neighborhood" || (scope === "municipality" && effectiveName === RIO_MUNICIPALITY) ? getMayorTerms(RIO_MUNICIPALITY) : []), [effectiveName, scope]);
+  const mayors = useMemo(() => (scope === "neighborhood" || (scope === "municipality" && effectiveName === capitalName()) ? getMayorTerms(capitalName()) : []), [effectiveName, scope]);
   const activeIndex = Math.max(0, indicators.findIndex((item) => item.code === indicator));
   const current = annual[annual.length - 1];
   const previous = annual.length > 1 ? annual[annual.length - 2] : undefined;

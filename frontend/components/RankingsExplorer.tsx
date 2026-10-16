@@ -4,8 +4,8 @@ import { useMemo, useState } from "react";
 import { useScreenHotkeys } from "@/components/Hotkeys";
 import { RankingTable, type SortDirection, type SortKey } from "@/components/RankingTable";
 import { Field, Panel, Screen, Segmented } from "@/components/ui";
-import { LOCAL_INDICATOR, getLatestPeriod, getLocalIndicators, getRankings, getSnapshotMeta } from "@/lib/api";
-import { UF_CONFIG } from "@/lib/uf";
+import { localIndicator, getLatestPeriod, getLocalIndicators, getRankings, getSnapshotMeta } from "@/lib/api";
+import { ufConfig } from "@/lib/uf";
 import { formatPeriodRange, monthLong } from "@/lib/format";
 import { useSeries } from "@/lib/use-series";
 import type { RankingMode, RankingRow } from "@/types/api";
@@ -15,7 +15,7 @@ const MODES: RankingMode[] = ["rate", "count", "yoy"];
 export function RankingsExplorer() {
   const latest = getLatestPeriod();
   const coverage = getSnapshotMeta().coverage;
-  const [indicator, setIndicator] = useState(LOCAL_INDICATOR);
+  const [indicator, setIndicator] = useState(localIndicator());
   const [mode, setMode] = useState<RankingMode>("rate");
   const [year, setYear] = useState(latest.year);
   const [month, setMonth] = useState(latest.month);
@@ -133,10 +133,10 @@ export function RankingsExplorer() {
       </Panel>
 
       <Panel
-        title={<b>{UF_CONFIG.policeAreaPlural}</b>}
+        title={<b>{ufConfig().policeAreaPlural}</b>}
         aside={<span>{policeAreaRows.length} · desde {coverage.police_area_start_year ?? "–"}</span>}
         flush
-        foot={mode === "rate" ? UF_CONFIG.rateFootPoliceArea : undefined}
+        foot={mode === "rate" ? ufConfig().rateFootPoliceArea : undefined}
       >
         <RankingTable rows={policeAreaRows} territoryType="police_area" indicator={indicator} sortKey={sort?.key} sortDirection={sort?.direction} onSort={handleSort} />
       </Panel>

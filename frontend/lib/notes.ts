@@ -1,11 +1,9 @@
 /**
  * Avisos de registro: a série conta registros policiais, não ocorrências. Uma frase por indicador,
- * só onde há um fato datado que muda a leitura. O texto é da UF do build (lib/uf.ts).
+ * só onde há um fato datado que muda a leitura. O texto é da UF da tela (lib/uf.ts).
  */
-import { UF_CONFIG } from "@/lib/uf";
-
-export const INDICATOR_NOTES: Record<string, string> = UF_CONFIG.notes;
+import { ufConfig } from "@/lib/uf";
 
 export function noteFor(indicator: string | undefined): string | null {
-  return indicator ? INDICATOR_NOTES[indicator] ?? null : null;
+  return indicator ? ufConfig().notes[indicator] ?? null : null;
 }
