@@ -131,10 +131,15 @@ if [ "${SKIP_DATA:-0}" != "1" ]; then
         mkdir -p "$DIR/data-ok/$lower"
         rsync -a --delete "$SRC/frontend/data/$lower/" "$DIR/data-ok/$lower/"
       else
-        log "$uf: ETL falhou; usando o snapshot commitado em main"
         note="${note:+$note; }$uf: ETL falhou"
-        notify "[perdeu-playboy] ETL de $uf falhou" "$(printf '%s\n\n%s' "O export de $uf falhou; essa UF segue com o snapshot de main." "$etl_output" | tail -c 6000)"
         git -C "$SRC" checkout -q -- "frontend/data/$lower"
+        if [ -s "$DIR/data-ok/$lower/static-data.generated.json" ]; then
+          log "$uf: ETL falhou; usando o snapshot do último ETL bom"
+          rsync -a --delete "$DIR/data-ok/$lower/" "$SRC/frontend/data/$lower/"
+        else
+          log "$uf: ETL falhou; usando o snapshot commitado em main"
+        fi
+        notify "[perdeu-playboy] ETL de $uf falhou" "$(printf '%s\n\n%s' "O export de $uf falhou; essa UF segue com o último snapshot bom." "$etl_output" | tail -c 6000)"
       fi
     else
       log "$uf: contrato falhou; usando o snapshot commitado em main"

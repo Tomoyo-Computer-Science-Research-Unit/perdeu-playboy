@@ -655,7 +655,13 @@ def static_section(
 
     directory = (directory or raw_dir()).resolve()
     if sync:
-        sync_raw(directory=directory)
+        try:
+            sync_raw(directory=directory)
+        except (httpx.HTTPError, FogoCruzadoError) as error:
+            # A API limita logins (429). Com cache, o snapshot sai com os meses ja baixados.
+            if not any(directory.glob("????-??.json")):
+                raise
+            logger.warning("Fogo Cruzado: sincronizacao falhou (%s); usando o cache", error)
     cached = load_cached(directory)
     result = aggregate(cached, isp_municipalities, rio_neighborhoods, MUNICIPALITY_NAME_ALIASES)
     return {
