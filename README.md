@@ -9,7 +9,8 @@ não são publicados. O visual é o de [tomoyo.systems](https://tomoyo.systems):
 Archivo, tema claro e escuro.
 
 Site em produção: https://g0v.tomoyo.systems/perdeu-playboy/ (perdeu-playboy.online redireciona para lá).
-São Paulo em https://g0v.tomoyo.systems/perdeu-playboy/sp/; cada UF publicada mora em `/perdeu-playboy/<uf>/`.
+São Paulo em https://g0v.tomoyo.systems/perdeu-playboy/sp/; cada UF publicada mora em `/perdeu-playboy/<uf>/`;
+o Brasil inteiro, em `/perdeu-playboy/br/`.
 
 ## UFs
 
@@ -30,6 +31,17 @@ Um build serve todas as UFs: o Rio na raiz, as demais em `/<uf>/` (`app/[uf]/`, 
 da UF da página com fetch (`?v=<build>`, porque o nginx guarda JSON por 7 dias). O Distrito Federal tem
 um município só (Brasília): mapa de uma forma, painel lateral já preenchido. Tiroteios só existe no Rio,
 onde há fonte.
+
+O Brasil é a primeira entrada de `ufs.json` (sigla `BR`, fonte `brasil`): primeiro item do seletor, rota
+`/br/`, as mesmas telas. O país ocupa o lugar do estado e as 27 UFs o dos municípios (séries, rankings,
+mapa das UFs, mudanças); Mandatos compara presidentes, e não há faixa de prefeito. No backend o Brasil
+não é uma UF: `published_ufs()` o deixa de fora e `python -m app.uf` o imprime por último, porque o
+snapshot nacional lê os extratos do Sinesp que as rodadas das UFs refazem.
+
+```bash
+cd backend && .venv/bin/python -m app.services.brasil_repository   # extrai o que falta (o Rio) e lista os buracos
+.venv/bin/python -m app.etl.export_static_frontend --uf BR          # frontend/data/br/
+```
 
 ## Dados
 
@@ -78,6 +90,36 @@ em AC, ES, GO, MS, PR, RO, RR, SE e TO). Homicídio doloso, latrocínio, lesão 
 de morte e feminicídio vêm por município; morte por intervenção, estupro, roubo de veículo, roubo de carga
 e armas apreendidas só com o total estadual. Não há roubo a pessoa nem recorte por delegacia.
 
+### Brasil
+
+O total nacional é a soma das 27 UFs no Sinesp VDE, todas pelo mesmo arquivo. Rio de Janeiro e São
+Paulo também entram pelo Sinesp: o ISP soma roubo de rua, que o Sinesp não tem, e a SSP-SP conta
+ocorrências onde o Sinesp conta vítimas, então somar as fontes estaduais com o Sinesp não daria uma
+série nacional. Os números desses dois estados em `/br/` diferem dos de `/` e `/sp/`.
+
+Regra da soma: um indicador num mês tem total nacional só quando as 27 UFs têm linha para ele naquele
+mês. Faltando uma, o mês fica sem dado, nunca com a soma das outras 26; zero enviado pela UF conta como
+zero. Cada UF tem o corte de sempre (o último mês com homicídio no estado), então o último mês nacional é
+o da UF mais atrasada. No snapshot de 2026-10-16:
+
+| Indicador | Total nacional | Por quê |
+| --- | --- | --- |
+| homicídio, latrocínio, lesão seguida de morte, feminicídio, letalidade | desde 2016-01 | o Espírito Santo não mandou 2015 |
+| morte por intervenção, estupro | desde 2015-01 | – |
+| roubo de veículo, armas apreendidas | desde 2021-01 | AC, ES, GO, PB, PR, RO, RR e TO começam depois de 2015 ou têm meses sem envio |
+| roubo de carga, crime geral | desde 2021-01, sem 2023, 2024 e 2025-02/03 | SE começa em 2021; MS não mandou esses meses |
+
+População do Brasil e das UFs: SIDRA, tabelas 6579 (estimativas), 4714 (Censo 2022) e 200 (Censo
+2010), níveis `n1` e `n3`; 2023 interpolado. Mapa: malha do país com divisão por UF
+(`api/v3/malhas/paises/BR?intrarregiao=UF&qualidade=minima`).
+
+Presidentes desde a posse anterior ao início da série: Dilma Rousseff (1/1/2011, afastada em
+12/5/2016), Michel Temer interino (12/5 a 30/8/2016) e titular (31/8/2016), Jair Bolsonaro (2019),
+Lula (2023). Dilma fica sem base de comparação: a série nacional começa depois da posse.
+
+O SIM/DataSUS (óbitos por agressão, desde 1979) estenderia a comparação até Figueiredo, mas é anual e o
+site inteiro (acumulado no ano, soma de 12 meses, Mandatos) é mensal; ficou de fora.
+
 ### Rio de Janeiro
 
 Indicadores publicados: `homicidio_doloso`, `lesao_corp_morte`, `latrocinio`, `letalidade_violenta`,
@@ -113,6 +155,7 @@ backend/app/
   etl/export_static_frontend.py   gera o snapshot de uma UF (--uf) em frontend/data/<uf>/
   services/ssp_repository.py      SSP-SP: download a 1 req/s, consolidado, mesma interface do ISP
   services/sinesp_repository.py   Sinesp VDE: download dos XLSX anuais, extrato por UF
+  services/brasil_repository.py   Brasil: soma das 27 UFs do Sinesp, UFs como territórios
   services/isp_repository.py      lê e normaliza os CSVs do ISP (sem dado ≠ zero, nomes reparados)
   services/population_repository.py  população anual do IBGE, com interpolação marcada
   services/governor_performance.py   mandatos e comparação descritiva
@@ -169,7 +212,7 @@ cd frontend && npm run dev
 ```bash
 make lint            # flake8 + mypy
 make test            # pytest
-cd frontend && npm run typecheck && npm run build && npm run test:visual   # RJ, SP, MG, DF, AM, BA
+cd frontend && npm run typecheck && npm run build && npm run test:visual   # RJ, SP, MG, DF, AM, BA, BR
 ```
 
 O CI (`.github/workflows/ci.yml`) roda os testes do backend e os testes visuais do frontend com Playwright.
@@ -186,7 +229,7 @@ Fluxo normal, sem intervenção, todo dia às 06:23 de Brasília no próprio ser
 clone em `/root/g0v/src`, log em `/root/g0v/build-site.log`). O script puxa `main` e, para cada UF
 publicada em `frontend/lib/ufs.json`, baixa de novo os arquivos oficiais, confere o contrato
 (`check_sources --uf`) e regenera o snapshot (`export_static_frontend --uf`); falha numa UF deixa só
-aquela com o snapshot commitado. Se o commit ou os dados mudaram desde o último build (ignorando
+aquela com o snapshot commitado. O Brasil roda por último, com os extratos das UFs já refeitos. Se o commit ou os dados mudaram desde o último build (ignorando
 `generated_at`), faz um `next build` só, com todas as UFs, e sincroniza `out/` com
 `/root/g0v/site/perdeu-playboy` (o Rio na raiz, as demais em `/<uf>/`, os snapshots em `/data/<uf>/`).
 São 30 s numa máquina de 12 núcleos; o build por UF levava 25 s cada, 11 minutos para 27 UFs. Cada rodada vira

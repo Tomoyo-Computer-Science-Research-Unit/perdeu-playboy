@@ -153,7 +153,7 @@ test("AM: Manaus series and governors since 2014", async ({ page }) => {
 test("BR: national total, UFs as units and presidents", async ({ page }) => {
   await open(page, "/br/");
   await expect(page.getByLabel("Unidade da federação")).toHaveValue("BR");
-  await expect(page.getByRole("heading", { level: 3, name: "Homicídio doloso" }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { level: 3, name: "Letalidade violenta" }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Brasil", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "UF", exact: true })).toBeVisible();
 
