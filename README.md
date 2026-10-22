@@ -1,3 +1,5 @@
+*This project has been created as part of the 42 curriculum by c3c4d4.*
+
 # Perdeu, Playboy
 
 Painel público de dados sobre violência e segurança pública por estado, da Tomoyo: **Rio de Janeiro** (ISP),
@@ -266,7 +268,34 @@ seção `fogo_cruzado`; sem isso o export é idêntico.
 
 O projeto Vercel antigo (`perdeu-playboy.online`) só redireciona (`deploy/vercel-redirect`).
 
-## Roadmap
+## Resources
 
-- Geometrias oficiais das CISPs, quando o ISP publicar.
-- Mapa de tiroteios por bairro, com as geometrias já usadas no mapa do ISP.
+- [ISP Dados Abertos](https://www.ispdados.rj.gov.br/): os CSVs mensais do Rio de Janeiro
+  (estado desde 1991, CISP, município, armas apreendidas e a divisão territorial).
+- [SSP-SP, dados mensais](https://www.ssp.sp.gov.br/estatistica/dados-mensais): a API JSON de
+  São Paulo (estado, DPs da capital, municípios e violência contra a mulher).
+- [Sinesp VDE / MJSP](https://www.gov.br/mj/pt-br/assuntos/sua-seguranca/seguranca-publica/estatistica/dados-nacionais-1/):
+  os XLSX anuais que cobrem as 27 UFs desde 2015 e somam o Brasil.
+- [IBGE SIDRA](https://apisidra.ibge.gov.br/) (tabelas 6579, 4714, 200 e 793) para população e
+  [malhas do IBGE](https://servicodados.ibge.gov.br/api/docs/malhas) para municípios e UFs;
+  Data.Rio para os bairros do Rio.
+- [Instituto Fogo Cruzado](https://api.fogocruzado.org.br/docs): a API opcional de tiroteios.
+- [g0v](https://github.com/Tomoyo-Computer-Science-Research-Unit/g0v): landing, nginx e cron do
+  servidor que publica este site.
+
+AI was used to scaffold the ETL, the parsers and the deploy script; the result was reviewed
+against the official sources and tested.
+
+## Limitations
+
+- Geometrias oficiais das CISPs ainda não existem: o mapa de bairros do Rio agrega por CISP com
+  as malhas do Data.Rio, até o ISP publicar as suas.
+- Não há mapa de tiroteios por bairro; Tiroteios só existe no Rio, onde há fonte, e entra no build
+  só com as credenciais do Fogo Cruzado.
+- São Paulo: a coleta municipal de 2001 a 2022 ainda está sendo completada pelas rodadas do
+  servidor, e não há mapa por DP porque a SSP não publica os limites.
+- Sinesp VDE: morte por intervenção, estupro, roubo de veículo, roubo de carga e armas
+  apreendidas só com o total estadual; não há roubo a pessoa nem recorte por delegacia.
+- Brasil: um indicador só tem total nacional nos meses em que as 27 UFs mandaram dado; os números
+  de RJ e SP em `/br/` diferem dos de `/` e `/sp/` porque vêm do Sinesp, não das fontes estaduais.
+- O SIM/DataSUS (óbitos por agressão, anual) ficou de fora: o site inteiro é mensal.
