@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 import unicodedata
 import zipfile
 from calendar import monthrange
@@ -717,16 +718,23 @@ def period_date(year: int, month: int) -> str:
     return date(year, month, monthrange(year, month)[1]).isoformat()
 
 
-def main() -> None:
+def main() -> int:
+    """Export the snapshot of one UF and return a process exit status."""
+
     parser = argparse.ArgumentParser(description="Exporta o snapshot estatico de uma UF para o frontend.")
     parser.add_argument("--uf", default="RJ", help="sigla da UF (frontend/lib/ufs.json)")
     parser.add_argument("--output", type=Path, help="padrao: frontend/data/<uf>/static-data.generated.json")
     args = parser.parse_args()
-    set_current(args.uf)
-    output = args.output or default_output(args.uf)
-    export_static_frontend(output)
+    try:
+        set_current(args.uf)
+        output = args.output or default_output(args.uf)
+        export_static_frontend(output)
+    except Exception as error:  # ultimo recurso: so aqui, no topo
+        print(f"Error: {error}", file=sys.stderr)
+        return 1
     print(output)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

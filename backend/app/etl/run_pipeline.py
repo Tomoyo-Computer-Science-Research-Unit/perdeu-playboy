@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from pathlib import Path
 
 from app.config import settings
@@ -61,5 +62,16 @@ def run_pipeline() -> list[GoldLoadResult]:
     return gold_results
 
 
+def main() -> int:
+    """Run the ETL and return a process exit status."""
+
+    try:
+        run_pipeline()
+    except Exception as error:  # ultimo recurso: so aqui, no topo
+        print(f"Error: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
 if __name__ == "__main__":
-    run_pipeline()
+    raise SystemExit(main())
