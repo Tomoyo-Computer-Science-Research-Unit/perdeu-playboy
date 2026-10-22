@@ -22,6 +22,7 @@
     "recharts": "^2.13.3"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
     "@playwright/test": "^1.60.0",
     "@types/geojson": "^7946.0.16",
     "@types/node": "^22.9.0",
