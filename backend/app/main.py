@@ -1,3 +1,5 @@
+"""FastAPI application: CORS, the API router and the health check."""
+
 import logging
 
 from fastapi import FastAPI

@@ -1,3 +1,5 @@
+"""Project-wide constants: analysis start year and the CISP territorial map."""
+
 ANALYSIS_START_YEAR = 1991
 
 CISP_TO_UNIDADE_TERRITORIAL = {

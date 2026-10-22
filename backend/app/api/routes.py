@@ -1,3 +1,5 @@
+"""HTTP routes of the public API, one function per endpoint."""
+
 from fastapi import APIRouter, HTTPException, Query
 
 from app.constants import ANALYSIS_START_YEAR

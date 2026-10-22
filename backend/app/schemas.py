@@ -1,3 +1,5 @@
+"""Pydantic response schemas of the public API."""
+
 from datetime import date, datetime
 from typing import Any, Literal
 

@@ -1,3 +1,5 @@
+"""Settings read from the environment and .env (pydantic-settings)."""
+
 from functools import lru_cache
 from pathlib import Path
 

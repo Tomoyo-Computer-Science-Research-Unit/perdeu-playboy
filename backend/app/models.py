@@ -1,3 +1,5 @@
+"""SQLAlchemy ORM models for territories, indicators and monthly records."""
+
 from datetime import date, datetime
 
 from geoalchemy2 import Geometry
