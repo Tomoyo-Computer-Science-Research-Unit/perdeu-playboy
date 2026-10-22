@@ -2,23 +2,23 @@ services:
   postgres:
     image: postgis/postgis:16-3.4
     environment:
-      POSTGRES_USER: rjviolencia
-      POSTGRES_PASSWORD: rjviolencia
-      POSTGRES_DB: rjviolencia
+      POSTGRES_USER: ${POSTGRES_USER:-rjviolencia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rjviolencia}
+      POSTGRES_DB: ${POSTGRES_DB:-rjviolencia}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rjviolencia -d rjviolencia"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     profiles: ["cache"]
 
   backend:
@@ -28,12 +28,18 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+psycopg://rjviolencia:rjviolencia@postgres:5432/rjviolencia
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-rjviolencia}:${POSTGRES_PASSWORD:-rjviolencia}@postgres:5432/${POSTGRES_DB:-rjviolencia}
       REDIS_URL: redis://redis:6379/0
       WATCHFILES_FORCE_POLLING: "true"
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     ports:
       - "8000:8000"
     volumes:
@@ -54,7 +60,8 @@ services:
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "3000:3000"
     volumes:
